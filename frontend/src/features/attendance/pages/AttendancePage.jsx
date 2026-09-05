@@ -19,6 +19,7 @@ import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
+import { useSelector } from 'react-redux';
 import './AttendancePage.scss';
 
 // Date formatter: '2026-09-04' -> '04 Sept 2026'
@@ -82,6 +83,8 @@ function formatOvertimeDisplay(hours) {
 
 export default function AttendancePage() {
   const toast = useToast();
+  const userRole = useSelector((s) => s.auth.user?.role);
+  const canCorrect = userRole === 'ADMIN' || userRole === 'HR_MANAGER';
 
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -196,7 +199,8 @@ export default function AttendancePage() {
   const filteredAttendance = useMemo(() => {
     const list = attendance.filter((item) => {
       // Date match
-      if (dateFilter && item.attendance_date !== dateFilter) {
+      const itemDateStr = String(item.attendance_date || '').slice(0, 10);
+      if (dateFilter && itemDateStr !== dateFilter) {
         return false;
       }
       // Status match
@@ -402,10 +406,12 @@ export default function AttendancePage() {
         </div>
 
         <div className="att-header__right">
-          <button className="att-header__add-btn" onClick={handleOpenCreate}>
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Add / Correct</span>
-          </button>
+          {canCorrect && (
+            <button className="att-header__add-btn" onClick={handleOpenCreate}>
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Add / Correct</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -578,14 +584,16 @@ export default function AttendancePage() {
 
                       {/* Actions */}
                       <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
-                        <button
-                          className="att-cell__edit-btn"
-                          onClick={() => handleOpenEdit(rec)}
-                          title="Edit / Correct attendance"
-                          aria-label={`Edit attendance for ${empName}`}
-                        >
-                          <Edit2 size={15} />
-                        </button>
+                        {canCorrect && (
+                          <button
+                            className="att-cell__edit-btn"
+                            onClick={() => handleOpenEdit(rec)}
+                            title="Edit / Correct attendance"
+                            aria-label={`Edit attendance for ${empName}`}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

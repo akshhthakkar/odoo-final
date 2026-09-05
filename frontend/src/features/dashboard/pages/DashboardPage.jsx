@@ -1043,7 +1043,7 @@ export default function DashboardPage() {
             <div className="quick-actions-box__btns">
               <button
                 className="quick-actions-box__btn quick-actions-box__btn--primary"
-                onClick={() => navigate('/payroll')}
+                onClick={() => navigate('/payruns')}
               >
                 Run Payroll
               </button>
@@ -1074,7 +1074,7 @@ export default function DashboardPage() {
                   title="No payroll batches found"
                   hint="Compute and execute payroll runs to see batch history."
                   actionLabel="Go to Payroll"
-                  onAction={() => navigate('/payroll')}
+                  onAction={() => navigate('/payruns')}
                 />
               </div>
             ) : (
@@ -1126,7 +1126,7 @@ export default function DashboardPage() {
                         <td>
                           <button
                             className="recent-payruns-card__action-btn"
-                            onClick={() => navigate('/payroll')}
+                            onClick={() => navigate('/payruns')}
                           >
                             View Details →
                           </button>

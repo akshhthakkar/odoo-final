@@ -30,6 +30,7 @@ export function buildVariables(inputs) {
   return {
     wage,
     CONTRACT_WAGE: wage,
+    WAGE: wage,
     weekly_hours: Number(inputs.weekly_hours ?? 0),
     worked_days: workedDays,
     WORKED_DAYS: workedDays,

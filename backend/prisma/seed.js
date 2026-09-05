@@ -764,23 +764,27 @@ async function main() {
     });
   }
 
-  // ─── 7. Seed Attendance Across Months ──────────────────────────────────────
+  // ─── 7. Seed Attendance Across Months (August & September 2026) ───────────
   console.log('Seeding attendance across active employees...');
-  const sampleDates = [
-    new Date('2026-08-03'), new Date('2026-08-04'), new Date('2026-08-05'),
-    new Date('2026-08-06'), new Date('2026-08-07'), new Date('2026-08-10'),
-    new Date('2026-08-11'), new Date('2026-08-12'), new Date('2026-08-13'),
+  const sampleDateStrs = [
+    '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07',
+    '2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13',
+    '2026-08-25', '2026-08-26', '2026-08-27', '2026-08-28', '2026-08-31',
+    '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06',
   ];
 
   for (const emp of allEmployees) {
-    for (let i = 0; i < sampleDates.length; i++) {
-      const attDate = sampleDates[i];
+    for (let i = 0; i < sampleDateStrs.length; i++) {
+      const dateKey = sampleDateStrs[i];
+      const attDate = new Date(`${dateKey}T00:00:00.000Z`);
       if (emp.hireDate > attDate) continue;
 
-      const isLate = i === 1 && emp.employeeCode === 'EMP-003';
+      const isLate = (emp.employeeCode === 'EMP-003' && i % 4 === 1) || (emp.employeeCode === 'EMP-007' && dateKey === '2026-09-05');
       const status = isLate ? 'LATE' : 'PRESENT';
       const workedHours = isLate ? 7.5 : 8.0;
       const overtimeHours = (i % 3 === 0) ? 1.5 : 0;
+      const inTimeStr = isLate ? '09:45:00' : '09:00:00';
+      const outTimeStr = overtimeHours > 0 ? '19:30:00' : '18:00:00';
 
       await prisma.attendance.upsert({
         where: {
@@ -789,17 +793,25 @@ async function main() {
             attendanceDate: attDate,
           },
         },
-        update: {},
+        update: {
+          checkIn: new Date(`${dateKey}T${inTimeStr}+05:30`),
+          checkOut: new Date(`${dateKey}T${outTimeStr}+05:30`),
+          workedHours: workedHours + overtimeHours,
+          overtimeHours,
+          status,
+          source: 'HR',
+        },
         create: {
           employeeId: emp.id,
           attendanceDate: attDate,
-          checkIn: new Date(`${attDate.toISOString().slice(0, 10)}T09:00:00Z`),
-          checkOut: new Date(`${attDate.toISOString().slice(0, 10)}T18:00:00Z`),
-          workedHours,
+          checkIn: new Date(`${dateKey}T${inTimeStr}+05:30`),
+          checkOut: new Date(`${dateKey}T${outTimeStr}+05:30`),
+          workedHours: workedHours + overtimeHours,
           overtimeHours,
           status,
+          source: 'HR',
         },
-      }).catch(() => null);
+      });
     }
   }
 

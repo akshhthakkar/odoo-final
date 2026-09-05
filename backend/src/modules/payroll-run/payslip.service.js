@@ -6,7 +6,14 @@ const detailInclude = {
   employee: {
     select: { id: true, firstName: true, lastName: true, employeeCode: true },
   },
-  payrun: { select: { id: true, name: true, status: true } },
+  payrun: {
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      structure: { select: { name: true, code: true } },
+    },
+  },
   lines: { orderBy: [{ sequence: 'asc' }, { code: 'asc' }] },
 };
 

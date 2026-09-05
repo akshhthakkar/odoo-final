@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus,
   ChevronLeft,
@@ -42,6 +43,7 @@ function formatLakhs(amount) {
 
 export default function PayrunsPage() {
   const toast = useToast();
+  const navigate = useNavigate();
 
   const [payruns, setPayruns] = useState([]);
   const [selectedPayrunId, setSelectedPayrunId] = useState(null);
@@ -609,7 +611,11 @@ export default function PayrunsPage() {
                     const pStatus = row.status || status;
 
                     return (
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => navigate(`/payruns/${row.id}`)}
+                      >
                         <td className="pr-cell--emp">
                           <div style={{ fontWeight: 600, color: '#0f172a' }}>{empName}</div>
                           {empCode && (

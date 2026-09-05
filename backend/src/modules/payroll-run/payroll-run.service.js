@@ -199,6 +199,21 @@ export async function statusChange(payrunId, action, actorId) {
       throw new AppError(409, 'STATE_ERROR', `Cannot ${action} a ${payrun.status} payrun`);
     }
 
+    // Cascade the status transition to the payrun's payslips so that
+    // payslip-level KPIs (e.g. dashboard total_net_paid, which sums
+    // PAID payslips) stay consistent with the payrun state.
+    if (action === 'VALIDATE' || action === 'MARK_PAID') {
+      await tx.payslip.updateMany({
+        where: { payrunId },
+        data: { status: transition.to },
+      });
+    }
+    if (action === 'CANCEL') {
+      // A cancelled run never finalized: its draft/computed payslips are
+      // meaningless and are removed (lines + warnings cascade).
+      await tx.payslip.deleteMany({ where: { payrunId } });
+    }
+
     const payrun = await tx.payrun.findUnique({ where: { id: payrunId } });
     await tx.auditLog.create({
       data: {

@@ -48,8 +48,19 @@ const router = Router();
 
 router.use(requireAuth);
 
-router.post('/check-in', validateBody(checkInSchema), attendance.checkIn);
-router.post('/check-out', validateBody(checkOutSchema), attendance.checkOut);
+// Self-service check-in / check-out. EMPLOYEE is allowed; the controller
+// object-level-authorizes employees to their own attendance only.
+router.post(
+  '/check-in',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'EMPLOYEE'),
+  attendance.checkIn
+);
+
+router.post(
+  '/check-out',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'EMPLOYEE'),
+  attendance.checkOut
+);
 
 router.get('/', validateQuery(listAttendanceQuerySchema), attendance.listAttendance);
 router.get('/:id', attendance.getAttendance);
