@@ -15,13 +15,7 @@ body,
 body {
   background: $bg;
   color: $text;
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: $font-body;
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
