@@ -1,6 +1,82 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
+import { z } from 'zod';
+import { requireAuth } from '../../middleware/auth.js';
+import { requireRole } from '../../middleware/rbac.js';
+import { validateBody, validateQuery } from '../../middleware/validate.js';
+import * as contracts from './contracts.controller.js';
+
+const CONTRACT_TYPE_ENUM = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']);
+const CONTRACT_STATUS_ENUM = z.enum(['DRAFT', 'ACTIVE', 'EXPIRED', 'CANCELLED']);
+
+const listContractsQuerySchema = z.object({
+  employee_id: z.string().uuid().optional(),
+  status: CONTRACT_STATUS_ENUM.optional(),
+  department_id: z.string().uuid().optional(),
+  contract_type: CONTRACT_TYPE_ENUM.optional(),
+  search: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+const createContractSchema = z.object({
+  employee_id: z.string().uuid(),
+  reference: z.string().min(1).max(40),
+  start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
+  wage: z.coerce.number().positive(),
+  currency: z.string().length(3).default('INR'),
+  contract_type: CONTRACT_TYPE_ENUM,
+  department_id: z.string().uuid().nullable().optional(),
+  job_id: z.string().uuid().nullable().optional(),
+  working_schedule_id: z.string().uuid().nullable().optional(),
+  salary_structure_id: z.string().uuid().nullable().optional(),
+  status: CONTRACT_STATUS_ENUM.default('DRAFT'),
+});
+
+const updateContractSchema = z.object({
+  reference: z.string().min(1).max(40).optional(),
+  start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
+  wage: z.coerce.number().positive().optional(),
+  currency: z.string().length(3).optional(),
+  contract_type: CONTRACT_TYPE_ENUM.optional(),
+  department_id: z.string().uuid().nullable().optional(),
+  job_id: z.string().uuid().nullable().optional(),
+  working_schedule_id: z.string().uuid().nullable().optional(),
+  salary_structure_id: z.string().uuid().nullable().optional(),
+  status: CONTRACT_STATUS_ENUM.optional(),
+});
+
+const updateContractStatusSchema = z.object({
+  status: CONTRACT_STATUS_ENUM,
+});
 
 const router = Router();
 
-export default router;
+router.use(requireAuth);
 
+router.get('/', validateQuery(listContractsQuerySchema), contracts.listContracts);
+router.get('/:id', contracts.getContract);
+
+router.post(
+  '/',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  validateBody(createContractSchema),
+  contracts.createContract
+);
+
+router.patch(
+  '/:id',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  validateBody(updateContractSchema),
+  contracts.updateContract
+);
+
+router.patch(
+  '/:id/status',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  validateBody(updateContractStatusSchema),
+  contracts.updateContractStatus
+);
+
+export default router;
