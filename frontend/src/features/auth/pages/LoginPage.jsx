@@ -1,58 +1,181 @@
-﻿import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../../lib/api.js';
-import { setCredentials } from '../../../store/slices/authSlice.js';
+import { z } from 'zod';
+import logo2 from '../../../assets/logo2.svg';
+import logo from '../../../assets/logo.svg';
+import './LoginPage.scss';
 
+// ─── Zod Schema ───────────────────────────────────────────────────────────────
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address'),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters'),
+});
+
+// ─── Eye Icon ─────────────────────────────────────────────────────────────────
+function EyeIcon({ open }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function LoginPage() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const accessToken = useSelector((s) => s.auth.accessToken);
-  const [email, setEmail] = useState('admin@pay365.dev');
-  const [password, setPassword] = useState('Password@123');
-  const [error, setError] = useState(null);
+
+  const [fields, setFields] = useState({ email: '', password: '' });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState('');
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setFields((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: '' }));
+    if (serverError) setServerError('');
+  }
+
+  function validate() {
+    const result = loginSchema.safeParse(fields);
+    if (result.success) return true;
+    const fieldErrors = {};
+    result.error.errors.forEach((e) => {
+      if (e.path[0]) fieldErrors[e.path[0]] = e.message;
+    });
+    setErrors(fieldErrors);
+    return false;
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
-    setError(null);
-    try {
-      const { data } = await api.post('/auth/login', { email, password });
-      dispatch(setCredentials(data.data));
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.response?.data?.error?.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
+    setServerError('');
+
+    // ── Frontend-only stub: no real API call ──
+    // Replace this block with actual API call when backend is ready:
+    // const { data } = await api.post('/auth/login', fields);
+    // dispatch(setCredentials(data.data));
+    await new Promise((r) => setTimeout(r, 800));
+    setLoading(false);
+    navigate('/dashboard');
   }
 
   return (
-    <form className="login-page" onSubmit={onSubmit}>
-      <h1>Pay365</h1>
-      <label>
-        Email
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </label>
-      {error && <p className="login-page__error">{error}</p>}
-      <button type="submit" disabled={loading}>
-        {loading ? 'Signing in…' : 'Sign in'}
-      </button>
-    </form>
+    <div className="login-root">
+      {/* ── Left panel ── */}
+      <aside className="login-panel login-panel--left" aria-hidden="true">
+        <div className="login-panel__brand">
+          <img src={logo2} alt="Pay365 logo" className="login-panel__brand-logo" />
+          <span className="login-panel__brand-name">Pay365</span>
+        </div>
+        <div className="login-panel__tagline">
+          <p className="login-panel__pre">Streamline HR operations.</p>
+          <h2 className="login-panel__headline">
+            One platform for payroll, attendance&nbsp;&amp;&nbsp;people.
+          </h2>
+        </div>
+        <div className="login-panel__orbs">
+          <span className="orb orb--1" />
+          <span className="orb orb--2" />
+          <span className="orb orb--3" />
+        </div>
+      </aside>
+
+      {/* ── Right panel ── */}
+      <main className="login-panel login-panel--right">
+        <div className="login-form-wrap">
+          <img src={logo} alt="" aria-hidden="true" className="login-form__accent-logo" />
+          <h1 className="login-form__title">Welcome back</h1>
+          <p className="login-form__subtitle">
+            Sign in to your Pay365 workspace to continue.
+          </p>
+
+          <form id="login-form" className="login-form" onSubmit={onSubmit} noValidate>
+            {/* Email */}
+            <div className={`login-field${errors.email ? ' login-field--error' : ''}`}>
+              <label className="login-field__label" htmlFor="login-email">
+                Your email
+              </label>
+              <input
+                id="login-email"
+                className="login-field__input"
+                type="email"
+                name="email"
+                placeholder="you@company.com"
+                value={fields.email}
+                onChange={handleChange}
+                autoComplete="email"
+                autoFocus
+              />
+              {errors.email && (
+                <span className="login-field__error" role="alert">{errors.email}</span>
+              )}
+            </div>
+
+            {/* Password */}
+            <div className={`login-field${errors.password ? ' login-field--error' : ''}`}>
+              <label className="login-field__label" htmlFor="login-password">
+                Password
+              </label>
+              <div className="login-field__input-wrap">
+                <input
+                  id="login-password"
+                  className="login-field__input"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Min. 8 characters"
+                  value={fields.password}
+                  onChange={handleChange}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  id="toggle-password"
+                  className="login-field__eye"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon open={showPassword} />
+                </button>
+              </div>
+              {errors.password && (
+                <span className="login-field__error" role="alert">{errors.password}</span>
+              )}
+            </div>
+
+            {serverError && (
+              <div className="login-form__server-error" role="alert">{serverError}</div>
+            )}
+
+            <button id="login-submit" type="submit" className="login-btn" disabled={loading}>
+              {loading ? <span className="login-btn__spinner" aria-label="Signing in…" /> : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="login-form__footer">
+            <a href="#" id="forgot-password-link" className="login-form__link">
+              Forgot your password?
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
