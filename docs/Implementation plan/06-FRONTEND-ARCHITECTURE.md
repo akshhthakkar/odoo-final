@@ -105,8 +105,9 @@ PayslipDetail:    identity block (employee, structure, run, period, worked days)
 
 ```
 frontend/src/
+├── pages/          # HomePage.jsx, HomePage.scss (route-level page components)
+├── components/     # layout/ (Navbar.jsx), ui/ (DataTable.jsx, Modal.jsx, Badge.jsx…)
 ├── app/            # router.jsx, providers.jsx, layout/, guards/
-├── components/ui/  # DataTable.jsx, Modal.jsx, Badge.jsx, KpiCard.jsx, FormField.jsx…
 ├── store/          # store.js, slices/ (authSlice.js, uiSlice.js)
 ├── lib/            # api.js (axios), format.js, query-client.js
 ├── styles/         # main.scss, _variables.scss, _mixins.scss, _base.scss

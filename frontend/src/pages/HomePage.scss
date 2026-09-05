@@ -1,0 +1,7 @@
+@use '../styles/variables' as *;
+
+.home-page {
+  min-height: 100vh;
+  background-color: $color-bg-app;
+  color: $color-text-primary;
+}

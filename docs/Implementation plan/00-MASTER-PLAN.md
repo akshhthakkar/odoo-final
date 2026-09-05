@@ -105,6 +105,7 @@ odoo-final/
 | `06-FRONTEND-ARCHITECTURE.md` | Routes, component taxonomy, state, patterns, payrun wizard UX |
 | `07-SECURITY-RBAC.md` | Auth strategy, full RBAC permission matrix, security standards |
 | `08-ROADMAP-AND-TASKS.md` | Phased task board with Agent-2-ready task specs and acceptance criteria |
+| `DESIGN.md` | Design system, color tokens (`#2357FE` + `#FFFFFF`), visual guidelines & SCSS variables |
 
 ---
 
