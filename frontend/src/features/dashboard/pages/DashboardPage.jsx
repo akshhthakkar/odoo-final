@@ -61,8 +61,8 @@ export default function DashboardPage() {
   const [department, setDepartment] = useState('all');
   const [contractType, setContractType] = useState('all');
 
-  // Chart Tooltip State
-  const [activeBar, setActiveBar] = useState(MONTHLY_PAYROLL_DATA[MONTHLY_PAYROLL_DATA.length - 1]);
+  // Chart Tooltip State (null by default so tooltip only appears on hover)
+  const [activeBar, setActiveBar] = useState(null);
 
   return (
     <div className="dash-page">
@@ -204,7 +204,10 @@ export default function DashboardPage() {
           </div>
 
           {/* Interactive SVG Chart */}
-          <div className="chart-container">
+          <div
+            className="chart-container"
+            onMouseLeave={() => setActiveBar(null)}
+          >
             {activeBar && (
               <div className="chart-tooltip">
                 <span className="chart-tooltip__month">{activeBar.month} 2026 Payroll</span>
@@ -228,6 +231,7 @@ export default function DashboardPage() {
               viewBox="0 0 600 240"
               preserveAspectRatio="none"
               aria-label="Payroll trend bar chart"
+              onMouseLeave={() => setActiveBar(null)}
             >
               {/* Horizontal Grid lines */}
               <line x1="45" y1="20" x2="580" y2="20" className="grid-line" />
