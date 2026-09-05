@@ -732,7 +732,7 @@ export default function SalaryConfigPage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="sc-simulator__row">
               <div className="sc-simulator__field">
                 <label>Worked Days</label>
                 <input

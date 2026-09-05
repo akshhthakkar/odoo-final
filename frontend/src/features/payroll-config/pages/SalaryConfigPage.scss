@@ -560,24 +560,42 @@
       gap: 1.25rem;
     }
 
+    &__row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
     &__field {
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
+      min-width: 0;
+      width: 100%;
 
       label {
         font-size: 0.825rem;
         font-weight: 600;
         color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       input,
       select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
         padding: 0.6rem 0.85rem;
         border: 1px solid #cbd5e1;
         border-radius: 8px;
         font-size: 0.875rem;
         outline: none;
+        background: #ffffff;
+        font-family: inherit;
 
         &:focus {
           border-color: #2357fe;
