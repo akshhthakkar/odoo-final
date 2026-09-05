@@ -4,13 +4,13 @@ import './EmptyState.scss';
 export default function EmptyState({
   title = 'No records found',
   hint = 'Get started by creating a new entry.',
-  icon,
+  icon: IconProp,
   action,
   actionLabel,
   onAction,
 }) {
   const renderIcon = () => {
-    if (!icon) {
+    if (!IconProp) {
       return (
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
@@ -18,11 +18,14 @@ export default function EmptyState({
         </svg>
       );
     }
-    if (typeof icon === 'function') {
-      const IconComponent = icon;
+    if (React.isValidElement(IconProp)) {
+      return IconProp;
+    }
+    if (typeof IconProp === 'function' || (typeof IconProp === 'object' && IconProp !== null)) {
+      const IconComponent = IconProp;
       return <IconComponent size={44} strokeWidth={1.5} />;
     }
-    return icon;
+    return null;
   };
 
   return (

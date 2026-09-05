@@ -67,7 +67,7 @@ export default function ContractsPage() {
   async function fetchContracts() {
     setLoading(true);
     try {
-      const res = await api.get('/contracts', { params: { limit: 200 } });
+      const res = await api.get('/contracts', { params: { limit: 100 } });
       const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
       setContracts(items);
     } catch (err) {
@@ -365,7 +365,7 @@ export default function ContractsPage() {
         </div>
       ) : filteredContracts.length === 0 ? (
         <EmptyState
-          icon={FileText}
+          icon={<FileText size={44} strokeWidth={1.5} />}
           title="No contracts found"
           hint={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Try adjusting your filters or search criteria." : "Create an employment contract to bind employee wage and role specifications."}
           actionLabel={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Clear Filters" : "New Contract"}
