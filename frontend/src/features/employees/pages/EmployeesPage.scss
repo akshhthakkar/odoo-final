@@ -1,0 +1,743 @@
+@use '../../../styles/variables' as *;
+
+.employees-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: $font-body;
+  animation: fadeIn 0.25s ease-out;
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+.emp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+
+  &__left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 26px;
+    font-weight: 800;
+    color: $color-text-primary;
+    letter-spacing: -0.5px;
+    margin: 0;
+  }
+
+  &__subtitle {
+    font-size: 14px;
+    color: $color-text-secondary;
+    margin: 0;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  // Status Filter Pills (All, Active, Probation, On Leave, Resigned)
+  &__status-filters {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    gap: 2px;
+  }
+
+  &__status-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    &--active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+      .emp-header__status-tab-badge {
+        background: #eef2ff;
+        color: #4f46e5;
+      }
+    }
+  }
+
+  &__status-tab-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    color: #475569;
+    transition: all $transition-fast;
+  }
+
+  // View Switcher (Kanban / List)
+  &__view-switch {
+    display: flex;
+    align-items: center;
+    background: #eef2ff;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid #e0e7ff;
+  }
+
+  &__switch-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    svg {
+      color: inherit;
+    }
+
+    &:hover {
+      color: #334155;
+    }
+
+    &--active {
+      background: #c7d2fe;
+      color: #3730a3;
+      box-shadow: none;
+
+      svg {
+        color: #3730a3;
+      }
+    }
+  }
+
+  // New Employee Button
+  &__add-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #5046e5;
+    color: #ffffff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(80, 70, 229, 0.25);
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #4338ca;
+      box-shadow: 0 4px 12px rgba(80, 70, 229, 0.35);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+// ─── Filter Bar ───────────────────────────────────────────────────────────────
+.emp-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  &__search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 260px;
+    max-width: 320px;
+    flex: 1;
+
+    svg {
+      position: absolute;
+      left: 12px;
+      color: $color-text-muted;
+      pointer-events: none;
+    }
+
+    input {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid $color-border;
+      border-radius: $radius-pill;
+      padding: 8px 16px 8px 36px;
+      font-family: inherit;
+      font-size: 13px;
+      color: $color-text-primary;
+      box-shadow: $shadow-sm;
+      transition: all $transition-fast;
+
+      &::placeholder {
+        color: $color-text-muted;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px $color-primary-subtle;
+      }
+    }
+  }
+
+  &__select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    select {
+      appearance: none;
+      background: #ffffff;
+      border: 1px solid $color-border;
+      border-radius: $radius-pill;
+      padding: 8px 34px 8px 16px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: $color-text-primary;
+      cursor: pointer;
+      box-shadow: $shadow-sm;
+      transition: all $transition-fast;
+
+      &:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px $color-primary-subtle;
+      }
+    }
+
+    svg {
+      position: absolute;
+      right: 12px;
+      pointer-events: none;
+      color: $color-text-muted;
+    }
+  }
+
+  &__count {
+    margin-left: auto;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: $color-text-muted;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__clear-filter {
+    background: none;
+    border: none;
+    color: $color-primary;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// ─── Unified Card Grid ────────────────────────────────────────────────────────
+.emp-cards-grid-wrap {
+  width: 100%;
+}
+
+.emp-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 860px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    text-align: center;
+
+    &-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      font-family: $font-heading;
+      font-size: 17px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 6px 0;
+    }
+
+    p {
+      font-size: 13.5px;
+      color: #64748b;
+      margin: 0 0 16px 0;
+    }
+  }
+}
+
+.emp-filter-bar__clear-filter-btn {
+  background: $color-primary;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-primary-hover;
+    transform: translateY(-1px);
+  }
+}
+
+// Unified Employee Card
+.emp-card {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: transform $transition-fast, box-shadow $transition-fast, border-color $transition-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    border-color: #818cf8;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: #6366f1;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+
+  &__status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 9999px;
+
+    &--active {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    &--probation {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &--on_leave {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    &--resigned {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__name {
+    font-family: $font-heading;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__job {
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.3;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid #f8fafc;
+    font-size: 12px;
+  }
+
+  &__dept {
+    color: #64748b;
+    font-weight: 500;
+  }
+
+  &__wage {
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    svg {
+      color: #94a3b8;
+    }
+  }
+}
+
+// ─── List View Table ──────────────────────────────────────────────────────────
+.emp-list-card {
+  background: #ffffff;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+
+  &__table-wrap {
+    overflow-x: auto;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+
+    th {
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: $color-text-muted;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid $color-border;
+      background: #fafbfc;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid $color-border-subtle;
+      color: $color-text-secondary;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+      cursor: pointer;
+    }
+  }
+
+  &__user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__name-box {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__user-name {
+    font-weight: 700;
+    color: $color-text-primary;
+    font-size: 13.5px;
+  }
+
+  &__user-code {
+    font-size: 11px;
+    color: $color-text-muted;
+  }
+
+  &__status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: $radius-pill;
+    font-size: 11.5px;
+    font-weight: 600;
+
+    &--active {
+      background: #ecfdf5;
+      color: #059669;
+    }
+
+    &--probation {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &--on_leave {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    &--resigned {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+  }
+
+  &__action-link {
+    color: $color-primary;
+    font-weight: 600;
+    font-size: 12.5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// ─── Modal / Drawer for New Employee ──────────────────────────────────────────
+.emp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.emp-modal {
+  background: #ffffff;
+  border-radius: $radius-lg;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 20px 40px -8px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid $color-border;
+  }
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 18px;
+    font-weight: 700;
+    color: $color-text-primary;
+    margin: 0;
+  }
+
+  &__close-btn {
+    background: none;
+    border: none;
+    color: $color-text-muted;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: $radius-sm;
+
+    &:hover {
+      background: #f1f5f9;
+      color: $color-text-primary;
+    }
+  }
+
+  &__body {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: $color-text-secondary;
+    }
+
+    input, select {
+      border: 1px solid $color-border;
+      border-radius: $radius-md;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: $color-text-primary;
+      transition: all $transition-fast;
+
+      &:focus {
+        outline: none;
+        border-color: $color-primary;
+        box-shadow: 0 0 0 3px $color-primary-subtle;
+      }
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid $color-border-subtle;
+    background: #fafbfc;
+  }
+
+  &__cancel-btn {
+    background: #ffffff;
+    border: 1px solid $color-border;
+    border-radius: $radius-pill;
+    padding: 8px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: $color-text-secondary;
+    cursor: pointer;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+  }
+
+  &__submit-btn {
+    background: $color-primary;
+    color: #ffffff;
+    border: none;
+    border-radius: $radius-pill;
+    padding: 8px 20px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: $shadow-primary-btn;
+
+    &:hover {
+      background: $color-primary-hover;
+    }
+  }
+}
+
+@keyframes modalScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

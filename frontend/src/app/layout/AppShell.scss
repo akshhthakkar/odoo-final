@@ -44,15 +44,13 @@ $topbar-h: 56px;
 }
 
 .sidebar__brand-logo {
-  width: 34px;
-  height: 34px;
-  background: $color-primary;
-  border-radius: $radius-md;
+  width: 32px;
+  height: 32px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 7px;
 
   img {
     width: 100%;
@@ -165,16 +163,30 @@ $topbar-h: 56px;
   white-space: nowrap;
 
   &:hover {
-    background: $color-bg-app;
-    color: $color-text-primary;
+    background: #eef3ff;
+    color: $color-primary;
+
+    .sidebar__nav-icon {
+      color: $color-primary;
+    }
   }
 
   &--active {
     background: $color-primary;
     color: #ffffff;
+    font-weight: 600;
 
     .sidebar__nav-icon {
       color: #ffffff;
+    }
+
+    &:hover {
+      background: $color-primary !important;
+      color: #ffffff !important;
+
+      .sidebar__nav-icon {
+        color: #ffffff !important;
+      }
     }
   }
 }
