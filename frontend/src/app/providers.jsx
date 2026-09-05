@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { store } from '../store/store.js';
 import { queryClient } from '../lib/query-client.js';
 import { setCredentials, bootstrapDone } from '../store/slices/authSlice.js';
+import { ToastProvider } from '../components/ui/ToastContext.jsx';
 
 // ─── Inner component so it can use hooks inside <Provider> ───────────────────
 function AuthBootstrap({ children }) {
@@ -16,10 +17,12 @@ function AuthBootstrap({ children }) {
     api
       .get('/auth/me')
       .then(({ data }) => {
-        dispatch(setCredentials({
-          user: data.data.user,
-          employee: data.data.employee,
-        }));
+        dispatch(
+          setCredentials({
+            user: data.data.user,
+            employee: data.data.employee,
+          })
+        );
       })
       .catch(() => {
         // No active session — user is guest
@@ -35,7 +38,9 @@ export default function Providers({ children }) {
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AuthBootstrap>{children}</AuthBootstrap>
+          <ToastProvider>
+            <AuthBootstrap>{children}</AuthBootstrap>
+          </ToastProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </Provider>

@@ -16,160 +16,10 @@ import {
   Layers,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './ContractsPage.scss';
-
-// Initial Mock Fallback Contracts Data
-const INITIAL_CONTRACTS = [
-  {
-    id: 'cnt-01',
-    reference: 'CNT-2023-001',
-    employee_id: 'emp-001',
-    employee: { employee_code: 'EMP-001', first_name: 'Arjun', last_name: 'Nair' },
-    department: { name: 'Engineering' },
-    job: { name: 'Senior Engineer' },
-    contract_type: 'FULL_TIME',
-    wage: 92000,
-    currency: 'INR',
-    start_date: '2023-01-15',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-02',
-    reference: 'CNT-2023-002',
-    employee_id: 'emp-002',
-    employee: { employee_code: 'EMP-002', first_name: 'Meera', last_name: 'Krishnan' },
-    department: { name: 'Engineering' },
-    job: { name: 'Engineer' },
-    contract_type: 'FULL_TIME',
-    wage: 52000,
-    currency: 'INR',
-    start_date: '2023-06-01',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-03',
-    reference: 'CNT-2023-003',
-    employee_id: 'emp-003',
-    employee: { employee_code: 'EMP-003', first_name: 'Rahul', last_name: 'Verma' },
-    department: { name: 'Sales' },
-    job: { name: 'Sales Executive' },
-    contract_type: 'FULL_TIME',
-    wage: 45000,
-    currency: 'INR',
-    start_date: '2023-09-10',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-04',
-    reference: 'CNT-2023-004',
-    employee_id: 'emp-004',
-    employee: { employee_code: 'EMP-004', first_name: 'Sneha', last_name: 'Patil' },
-    department: { name: 'Marketing' },
-    job: { name: 'Marketing Lead' },
-    contract_type: 'FULL_TIME',
-    wage: 58000,
-    currency: 'INR',
-    start_date: '2023-03-01',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-05',
-    reference: 'CNT-2023-005',
-    employee_id: 'emp-005',
-    employee: { employee_code: 'EMP-005', first_name: 'Karthik', last_name: 'Menon' },
-    department: { name: 'Finance' },
-    job: { name: 'Accountant' },
-    contract_type: 'FULL_TIME',
-    wage: 47000,
-    currency: 'INR',
-    start_date: '2023-07-20',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-06',
-    reference: 'CNT-2022-001',
-    employee_id: 'emp-006',
-    employee: { employee_code: 'EMP-006', first_name: 'Vikram', last_name: 'Rao' },
-    department: { name: 'Engineering' },
-    job: { name: 'Principal Architect' },
-    contract_type: 'FULL_TIME',
-    wage: 120000,
-    currency: 'INR',
-    start_date: '2022-01-01',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-07',
-    reference: 'CNT-2023-007',
-    employee_id: 'emp-007',
-    employee: { employee_code: 'EMP-007', first_name: 'Ananya', last_name: 'Deshmukh' },
-    department: { name: 'Design' },
-    job: { name: 'Product Designer' },
-    contract_type: 'FULL_TIME',
-    wage: 62000,
-    currency: 'INR',
-    start_date: '2023-04-15',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-08',
-    reference: 'CNT-2022-008',
-    employee_id: 'emp-008',
-    employee: { employee_code: 'EMP-008', first_name: 'Rohan', last_name: 'Gupta' },
-    department: { name: 'Engineering' },
-    job: { name: 'DevOps Specialist' },
-    contract_type: 'FULL_TIME',
-    wage: 75000,
-    currency: 'INR',
-    start_date: '2022-11-01',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-09',
-    reference: 'CNT-2026-009',
-    employee_id: 'emp-009',
-    employee: { employee_code: 'EMP-009', first_name: 'Aditya', last_name: 'Joshi' },
-    department: { name: 'Engineering' },
-    job: { name: 'Engineering Intern' },
-    contract_type: 'INTERN',
-    wage: 25000,
-    currency: 'INR',
-    start_date: '2026-07-01',
-    end_date: '2026-12-31',
-    status: 'ACTIVE',
-  },
-  {
-    id: 'cnt-10',
-    reference: 'CNT-2023-010',
-    employee_id: 'emp-010',
-    employee: { employee_code: 'EMP-010', first_name: 'Priya', last_name: 'Sharma' },
-    department: { name: 'Sales' },
-    job: { name: 'Sales Associate' },
-    contract_type: 'FULL_TIME',
-    wage: 38000,
-    currency: 'INR',
-    start_date: '2023-08-15',
-    end_date: null,
-    status: 'ACTIVE',
-  },
-];
-
-const INITIAL_EMPLOYEES = INITIAL_CONTRACTS.map((cnt) => ({
-  id: cnt.employee_id,
-  first_name: cnt.employee.first_name,
-  last_name: cnt.employee.last_name,
-  employee_code: cnt.employee.employee_code,
-  department_id: '',
-  job_id: '',
-}));
 
 function getInitials(firstName, lastName) {
   if (!firstName && !lastName) return 'CT';
@@ -180,13 +30,14 @@ function getInitials(firstName, lastName) {
 
 export default function ContractsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // State
-  const [contracts, setContracts] = useState(INITIAL_CONTRACTS);
-  const [employeesList, setEmployeesList] = useState(INITIAL_EMPLOYEES);
+  const [contracts, setContracts] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'DRAFT' | 'EXPIRED' | 'CANCELLED'
@@ -200,8 +51,8 @@ export default function ContractsPage() {
 
   // Form State
   const [newContract, setNewContract] = useState({
-    employee_id: INITIAL_EMPLOYEES[0]?.id || '',
-    reference: `CNT-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(3, '0')}`,
+    employee_id: '',
+    reference: `CNT-${new Date().getFullYear()}-001`,
     contract_type: 'FULL_TIME',
     wage: '50000',
     currency: 'INR',
@@ -226,13 +77,11 @@ export default function ContractsPage() {
       }
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
-      const res = await api.get('/contracts', { params }).catch(() => null);
-      const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items;
-      if (items && items.length > 0) {
-        setContracts(items);
-      }
-    } catch {
-      // ignore
+      const res = await api.get('/contracts', { params });
+      const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
+      setContracts(items);
+    } catch (err) {
+      toast.error('Failed to load contracts');
     } finally {
       setLoading(false);
     }
@@ -249,15 +98,16 @@ export default function ContractsPage() {
         ? empRes.data.data
         : Array.isArray(empRes?.data?.data?.items)
         ? empRes.data.data.items
-        : null;
+        : [];
 
-      if (empItems && empItems.length > 0) {
+      if (empItems.length > 0) {
         setEmployeesList(empItems);
         setNewContract((prev) => ({
           ...prev,
           employee_id: prev.employee_id || empItems[0].id,
           department_id: empItems[0].department_id || prev.department_id,
           job_id: empItems[0].job_id || prev.job_id,
+          reference: `CNT-${new Date().getFullYear()}-${String(empItems.length + 1).padStart(3, '0')}`,
         }));
       }
       if (deptRes?.data?.data) setDepartments(deptRes.data.data);
@@ -292,7 +142,7 @@ export default function ContractsPage() {
   const statusCounts = useMemo(() => {
     const counts = { ALL: contracts.length, ACTIVE: 0, DRAFT: 0, EXPIRED: 0, CANCELLED: 0 };
     contracts.forEach((c) => {
-      const st = c.status.toUpperCase();
+      const st = c.status?.toUpperCase();
       if (counts[st] !== undefined) counts[st] += 1;
     });
     return counts;
@@ -319,7 +169,7 @@ export default function ContractsPage() {
         deptName === departmentFilter.toLowerCase();
 
       const matchesStatus =
-        statusFilter === 'ALL' || c.status.toUpperCase() === statusFilter;
+        statusFilter === 'ALL' || c.status?.toUpperCase() === statusFilter;
 
       return matchesSearch && matchesDept && matchesStatus;
     });
@@ -349,6 +199,7 @@ export default function ContractsPage() {
       const res = await api.post('/contracts', payload);
 
       if (res?.data?.data) {
+        toast.success(`Contract ${payload.reference} created successfully!`);
         await fetchContracts();
         setIsModalOpen(false);
       } else {
@@ -360,6 +211,7 @@ export default function ContractsPage() {
         err.response?.data?.message ||
         'Could not create contract. Please check if another active contract overlaps for this employee.';
       setModalError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -368,18 +220,15 @@ export default function ContractsPage() {
   // Handle Status Change (e.g. Activate, Cancel)
   async function handleStatusChange(contractId, newStatus) {
     try {
-      const res = await api.patch(`/contracts/${contractId}/status`, { status: newStatus }).catch(() => null);
+      const res = await api.patch(`/contracts/${contractId}/status`, { status: newStatus });
       if (res?.data?.data) {
         setContracts((prev) =>
           prev.map((c) => (c.id === contractId ? { ...c, status: newStatus } : c))
         );
-      } else {
-        setContracts((prev) =>
-          prev.map((c) => (c.id === contractId ? { ...c, status: newStatus } : c))
-        );
+        toast.success(`Contract status changed to ${newStatus}`);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      toast.error('Failed to update contract status');
     }
   }
 
@@ -451,203 +300,222 @@ export default function ContractsPage() {
 
         <div className="cnt-metric-card">
           <div className="cnt-metric-card__header">
-            <span className="cnt-metric-card__title">Total Contracts Logged</span>
-            <div className="cnt-metric-card__icon-box cnt-metric-card__icon-box--purple">
-              <Layers size={16} color="#2357fe" />
+            <span className="cnt-metric-card__title">Expired / Ended</span>
+            <div className="cnt-metric-card__icon-box cnt-metric-card__icon-box--red">
+              <XCircle size={16} color="#dc2626" />
             </div>
           </div>
-          <div className="cnt-metric-card__val">{metrics.total}</div>
-          <div className="cnt-metric-card__sub">Across all departments</div>
+          <div className="cnt-metric-card__val">{metrics.expired}</div>
+          <div className="cnt-metric-card__sub">Historical contracts archived</div>
         </div>
       </div>
 
-      {/* ── 3. Filters Toolbar ── */}
-      <div className="cnt-filter-card">
-        <div className="cnt-filter-card__left">
-          {/* Status Tabs */}
-          <div className="cnt-status-tabs" role="tablist">
-            <button
-              className={`cnt-status-tab ${statusFilter === 'ALL' ? 'cnt-status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('ALL')}
-            >
-              <span>All</span>
-              <span className="cnt-status-tab__badge">{statusCounts.ALL}</span>
-            </button>
-            <button
-              className={`cnt-status-tab ${statusFilter === 'ACTIVE' ? 'cnt-status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('ACTIVE')}
-            >
-              <span>Active</span>
-              <span className="cnt-status-tab__badge">{statusCounts.ACTIVE}</span>
-            </button>
-            <button
-              className={`cnt-status-tab ${statusFilter === 'DRAFT' ? 'cnt-status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('DRAFT')}
-            >
-              <span>Draft</span>
-              <span className="cnt-status-tab__badge">{statusCounts.DRAFT}</span>
-            </button>
-            <button
-              className={`cnt-status-tab ${statusFilter === 'EXPIRED' ? 'cnt-status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('EXPIRED')}
-            >
-              <span>Expired</span>
-              <span className="cnt-status-tab__badge">{statusCounts.EXPIRED}</span>
-            </button>
-          </div>
+      {/* ── 3. Filters & Search Bar ── */}
+      <div className="cnt-filter-bar">
+        <div className="cnt-filter-bar__search">
+          <Search size={15} />
+          <input
+            type="text"
+            placeholder="Search employee, reference code, role..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        <div className="cnt-filter-card__right">
-          {/* Search */}
-          <div className="cnt-search-input-wrap">
-            <Search size={15} color="#94a3b8" />
-            <input
-              type="text"
-              placeholder="Search reference, employee, department..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="cnt-filter-bar__select-wrap">
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            aria-label="Filter by department"
+          >
+            <option value="all">All Departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
 
-          {/* Department Filter */}
-          <div className="cnt-select-wrap">
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              <option value="all">All Departments</option>
-              {departments.length > 0 ? (
-                departments.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Design">Design</option>
-                </>
-              )}
-            </select>
-          </div>
+        {/* Status Filter Tabs */}
+        <div className="cnt-filter-bar__status-tabs" role="tablist">
+          <button
+            className={`cnt-filter-bar__status-btn ${statusFilter === 'ALL' ? 'cnt-filter-bar__status-btn--active' : ''}`}
+            onClick={() => setStatusFilter('ALL')}
+          >
+            All ({statusCounts.ALL})
+          </button>
+          <button
+            className={`cnt-filter-bar__status-btn ${statusFilter === 'ACTIVE' ? 'cnt-filter-bar__status-btn--active' : ''}`}
+            onClick={() => setStatusFilter('ACTIVE')}
+          >
+            Active ({statusCounts.ACTIVE})
+          </button>
+          <button
+            className={`cnt-filter-bar__status-btn ${statusFilter === 'DRAFT' ? 'cnt-filter-bar__status-btn--active' : ''}`}
+            onClick={() => setStatusFilter('DRAFT')}
+          >
+            Draft ({statusCounts.DRAFT})
+          </button>
+          <button
+            className={`cnt-filter-bar__status-btn ${statusFilter === 'EXPIRED' ? 'cnt-filter-bar__status-btn--active' : ''}`}
+            onClick={() => setStatusFilter('EXPIRED')}
+          >
+            Expired ({statusCounts.EXPIRED})
+          </button>
         </div>
       </div>
 
-      {/* ── 4. Contracts Table ── */}
-      <div className="cnt-table-card">
-        <table className="cnt-table">
-          <thead>
-            <tr>
-              <th>Reference</th>
-              <th>Employee</th>
-              <th>Designation &amp; Dept</th>
-              <th>Contract Type</th>
-              <th>Monthly Wage</th>
-              <th>Validity Period</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredContracts.length > 0 ? (
-              filteredContracts.map((cnt) => {
-                const empName = cnt.employee
-                  ? `${cnt.employee.first_name} ${cnt.employee.last_name}`
-                  : 'Employee';
-                const empCode = cnt.employee?.employee_code || 'EMP';
-                const startFormatted = cnt.start_date
-                  ? new Date(cnt.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                  : 'N/A';
-                const endFormatted = cnt.end_date
-                  ? new Date(cnt.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                  : 'Indefinite';
+      {/* ── 4. Main Contracts Table Card ── */}
+      {loading ? (
+        <div className="cnt-table-card">
+          <div style={{ padding: '24px' }}>
+            <Skeleton variant="row" count={6} />
+          </div>
+        </div>
+      ) : filteredContracts.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No contracts found"
+          hint={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Try adjusting your filters or search criteria." : "Create an employment contract to bind employee wage and role specifications."}
+          actionLabel={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Clear Filters" : "New Contract"}
+          onAction={() => {
+            if (searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all') {
+              setSearchQuery('');
+              setStatusFilter('ALL');
+              setDepartmentFilter('all');
+            } else {
+              setIsModalOpen(true);
+            }
+          }}
+        />
+      ) : (
+        <div className="cnt-table-card">
+          <div className="cnt-table-card__wrap">
+            <table className="cnt-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Contract Reference</th>
+                  <th>Department &amp; Role</th>
+                  <th>Type</th>
+                  <th>Monthly Wage</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredContracts.map((cnt) => {
+                  const empName = cnt.employee ? `${cnt.employee.first_name} ${cnt.employee.last_name}` : 'Unknown Staff';
+                  const empCode = cnt.employee?.employee_code || 'EMP';
+                  const wageFormatted = `₹${Number(cnt.wage || 0).toLocaleString('en-IN')}`;
+                  const startDateFmt = cnt.start_date
+                    ? new Date(cnt.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : '—';
+                  const endDateFmt = cnt.end_date
+                    ? new Date(cnt.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : 'Permanent';
 
-                return (
-                  <tr key={cnt.id}>
-                    <td>
-                      <span className="cnt-ref-pill">{cnt.reference}</span>
-                    </td>
-                    <td>
-                      <div className="cnt-emp-cell">
-                        <div className="cnt-emp-avatar">
-                          {getInitials(cnt.employee?.first_name, cnt.employee?.last_name)}
+                  return (
+                    <tr
+                      key={cnt.id}
+                      onClick={() => cnt.employee_id && navigate(`/employees/${cnt.employee_id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <div className="cnt-table__user-cell">
+                          <div className="cnt-table__avatar">
+                            {getInitials(cnt.employee?.first_name, cnt.employee?.last_name)}
+                          </div>
+                          <div className="cnt-table__user-meta">
+                            <span className="cnt-table__user-name">{empName}</span>
+                            <span className="cnt-table__user-code">{empCode}</span>
+                          </div>
                         </div>
-                        <div className="cnt-emp-info">
-                          <span className="cnt-emp-name">{empName}</span>
-                          <span className="cnt-emp-code">{empCode}</span>
+                      </td>
+
+                      <td>
+                        <span className="cnt-table__ref-code">{cnt.reference}</span>
+                      </td>
+
+                      <td>
+                        <div className="cnt-table__dept-role">
+                          <strong>{cnt.job?.name || cnt.department?.name || 'Staff Member'}</strong>
+                          <span>{cnt.department?.name || 'General'}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="cnt-dept-cell">
-                        <strong>{cnt.job?.name || 'Staff Member'}</strong>
-                        <span>{cnt.department?.name || 'General'}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="cnt-type-pill">
-                        {cnt.contract_type ? cnt.contract_type.replace('_', ' ') : 'FULL TIME'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="cnt-wage-val">
-                        ₹{Number(cnt.wage).toLocaleString('en-IN')}/mo
-                      </span>
-                    </td>
-                    <td>
-                      <div className="cnt-period-cell">
-                        <span>{startFormatted}</span>
-                        <span className="cnt-period-sep">→</span>
-                        <span>{endFormatted}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className={`cnt-status-tag cnt-status-tag--${cnt.status.toLowerCase()}`}
-                      >
-                        ● {cnt.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="cnt-row-actions">
-                        {cnt.status === 'DRAFT' ? (
+                      </td>
+
+                      <td>
+                        <span className="cnt-table__type-pill">
+                          {cnt.contract_type?.replace('_', ' ')}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="cnt-table__wage-box">
+                          <span className="cnt-table__wage-amount">{wageFormatted}</span>
+                          <span className="cnt-table__wage-per">/ month</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="cnt-table__duration">
+                          <span>{startDateFmt}</span>
+                          <span className="cnt-table__arrow">→</span>
+                          <span>{endDateFmt}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`cnt-table__status-badge cnt-table__status-badge--${cnt.status?.toLowerCase()}`}>
+                          ● {cnt.status?.replace('_', ' ')}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div
+                          className="cnt-table__actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {cnt.status === 'DRAFT' && (
+                            <button
+                              className="cnt-table__btn-action cnt-table__btn-action--approve"
+                              onClick={() => handleStatusChange(cnt.id, 'ACTIVE')}
+                              title="Activate Contract"
+                            >
+                              Activate
+                            </button>
+                          )}
+                          {cnt.status === 'ACTIVE' && (
+                            <button
+                              className="cnt-table__btn-action cnt-table__btn-action--cancel"
+                              onClick={() => handleStatusChange(cnt.id, 'CANCELLED')}
+                              title="Cancel Contract"
+                            >
+                              Close
+                            </button>
+                          )}
                           <button
-                            className="cnt-action-btn cnt-action-btn--activate"
-                            onClick={() => handleStatusChange(cnt.id, 'ACTIVE')}
-                            title="Activate Contract"
+                            className="cnt-table__icon-btn"
+                            onClick={() => cnt.employee_id && navigate(`/employees/${cnt.employee_id}`)}
+                            title="View Employee Profile"
                           >
-                            Activate
+                            <MoreVertical size={16} />
                           </button>
-                        ) : cnt.status === 'ACTIVE' ? (
-                          <button
-                            className="cnt-action-btn cnt-action-btn--cancel"
-                            onClick={() => handleStatusChange(cnt.id, 'EXPIRED')}
-                            title="Expire Contract"
-                          >
-                            Expire
-                          </button>
-                        ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>Locked</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
-                  <FileText size={32} color="#94a3b8" style={{ marginBottom: '8px' }} />
-                  <p style={{ margin: 0, fontWeight: 600 }}>No contracts match your search criteria</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── 5. New Contract Modal ── */}
       {isModalOpen && (
@@ -658,8 +526,9 @@ export default function ContractsPage() {
               <button
                 className="cnt-modal__close-btn"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Close modal"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
@@ -667,49 +536,64 @@ export default function ContractsPage() {
               <div className="cnt-modal__body">
                 {modalError && (
                   <div className="cnt-modal__error-box">
-                    <AlertTriangle size={15} />
+                    <AlertTriangle size={16} />
                     <span>{modalError}</span>
                   </div>
                 )}
 
-                {/* Employee Selector */}
-                <div className="cnt-modal__field">
-                  <label>Employee *</label>
-                  <select
-                    value={newContract.employee_id}
-                    onChange={(e) => {
-                      const sel = employeesList.find((emp) => emp.id === e.target.value);
-                      setNewContract({
-                        ...newContract,
-                        employee_id: e.target.value,
-                        department_id: sel?.department_id || newContract.department_id,
-                        job_id: sel?.job_id || newContract.job_id,
-                      });
-                    }}
-                    required
-                  >
-                    <option value="">Select Employee</option>
-                    {employeesList.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.first_name} {emp.last_name} ({emp.employee_code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <div className="cnt-modal__field-row">
+                  <div className="cnt-modal__field">
+                    <label>Employee *</label>
+                    <select
+                      required
+                      value={newContract.employee_id}
+                      onChange={(e) => {
+                        const selEmp = employeesList.find((em) => em.id === e.target.value);
+                        setNewContract({
+                          ...newContract,
+                          employee_id: e.target.value,
+                          department_id: selEmp?.department_id || newContract.department_id,
+                          job_id: selEmp?.job_id || newContract.job_id,
+                        });
+                      }}
+                    >
+                      {employeesList.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.first_name} {emp.last_name} ({emp.employee_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <div className="cnt-modal__row">
                   <div className="cnt-modal__field">
                     <label>Contract Reference *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. CNT-2026-011"
                       value={newContract.reference}
                       onChange={(e) =>
                         setNewContract({ ...newContract, reference: e.target.value })
                       }
+                      placeholder="e.g. CNT-2026-011"
                     />
                   </div>
+                </div>
+
+                <div className="cnt-modal__field-row">
+                  <div className="cnt-modal__field">
+                    <label>Monthly Gross Wage (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="1000"
+                      step="500"
+                      value={newContract.wage}
+                      onChange={(e) =>
+                        setNewContract({ ...newContract, wage: e.target.value })
+                      }
+                    />
+                  </div>
+
                   <div className="cnt-modal__field">
                     <label>Contract Type</label>
                     <select
@@ -718,42 +602,15 @@ export default function ContractsPage() {
                         setNewContract({ ...newContract, contract_type: e.target.value })
                       }
                     >
-                      <option value="FULL_TIME">Full Time</option>
+                      <option value="FULL_TIME">Full Time (Permanent)</option>
                       <option value="PART_TIME">Part Time</option>
-                      <option value="CONTRACT">Contractor</option>
+                      <option value="CONTRACT">Contractor / Fixed Term</option>
                       <option value="INTERN">Internship</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="cnt-modal__row">
-                  <div className="cnt-modal__field">
-                    <label>Monthly Gross Wage (₹) *</label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 75000"
-                      value={newContract.wage}
-                      onChange={(e) =>
-                        setNewContract({ ...newContract, wage: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="cnt-modal__field">
-                    <label>Initial Status</label>
-                    <select
-                      value={newContract.status}
-                      onChange={(e) =>
-                        setNewContract({ ...newContract, status: e.target.value })
-                      }
-                    >
-                      <option value="ACTIVE">Active (Effective immediately)</option>
-                      <option value="DRAFT">Draft</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="cnt-modal__row">
+                <div className="cnt-modal__field-row">
                   <div className="cnt-modal__field">
                     <label>Start Date *</label>
                     <input
@@ -765,8 +622,9 @@ export default function ContractsPage() {
                       }
                     />
                   </div>
+
                   <div className="cnt-modal__field">
-                    <label>End Date (Optional for permanent)</label>
+                    <label>End Date (Optional for Permanent)</label>
                     <input
                       type="date"
                       value={newContract.end_date}
@@ -774,6 +632,42 @@ export default function ContractsPage() {
                         setNewContract({ ...newContract, end_date: e.target.value })
                       }
                     />
+                  </div>
+                </div>
+
+                <div className="cnt-modal__field-row">
+                  <div className="cnt-modal__field">
+                    <label>Department</label>
+                    <select
+                      value={newContract.department_id}
+                      onChange={(e) =>
+                        setNewContract({ ...newContract, department_id: e.target.value })
+                      }
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="cnt-modal__field">
+                    <label>Job Position</label>
+                    <select
+                      value={newContract.job_id}
+                      onChange={(e) =>
+                        setNewContract({ ...newContract, job_id: e.target.value })
+                      }
+                    >
+                      <option value="">Select Job</option>
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          {j.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -791,7 +685,7 @@ export default function ContractsPage() {
                   className="cnt-modal__submit-btn"
                   disabled={submitting}
                 >
-                  {submitting ? 'Creating...' : 'Save & Bind Contract'}
+                  {submitting ? 'Creating...' : 'Save Contract'}
                 </button>
               </div>
             </form>

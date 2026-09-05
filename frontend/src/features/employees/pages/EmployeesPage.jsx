@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, AlertCircle, X } from 'lucide-react';
+import { Users, Plus, AlertCircle, X, Search, RefreshCw } from 'lucide-react';
 import { api } from '../../../lib/api.js';
-import { INITIAL_EMPLOYEES } from '../data/employeesData.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './EmployeesPage.scss';
 
 // Helper for user avatar initials
@@ -31,9 +33,10 @@ function getNextEmployeeCode(list = []) {
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   // State
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,31 +99,29 @@ export default function EmployeesPage() {
       }
 
       const res = await api.get('/employees', { params });
-      const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items;
+      const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
 
-      if (items && items.length > 0) {
-        // Map backend schema to UI format
-        const mapped = items.map((emp) => ({
-          id: emp.id,
-          code: emp.employee_code,
-          name: `${emp.first_name} ${emp.last_name}`,
-          jobTitle: emp.job?.name || 'Staff Member',
-          department: emp.department?.name || 'General',
-          status: emp.status,
-          wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '₹45,000',
-          annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '₹5,40,000',
-          email: emp.email,
-          phone: emp.phone || '+91 98765 00000',
-          location: emp.address || 'Bengaluru, India (HQ)',
-          hireDate: emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
-          contractType: 'Full-time',
-        }));
-        setEmployees(mapped);
-      } else if (items && items.length === 0 && !searchQuery) {
-        setEmployees(INITIAL_EMPLOYEES);
-      }
+      // Map backend schema to UI format
+      const mapped = items.map((emp) => ({
+        id: emp.id,
+        code: emp.employee_code,
+        name: `${emp.first_name} ${emp.last_name}`,
+        jobTitle: emp.job?.name || 'Staff Member',
+        department: emp.department?.name || 'General',
+        status: emp.status,
+        wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '₹45,000',
+        annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '₹5,40,000',
+        email: emp.email,
+        phone: emp.phone || '+91 98765 00000',
+        location: emp.address || 'Bengaluru, India (HQ)',
+        hireDate: emp.hire_date
+          ? new Date(emp.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '01 Jan 2023',
+        contractType: emp.contracts?.[0]?.contract_type?.replace('_', ' ') || 'Full-time',
+      }));
+      setEmployees(mapped);
     } catch (err) {
-      console.warn('Could not load backend employees, using fallback data:', err?.message);
+      toast.error('Failed to load employees from server');
     } finally {
       setLoading(false);
     }
@@ -161,15 +162,14 @@ export default function EmployeesPage() {
     let suggestedEmail = newEmp.email;
 
     // If email is empty or auto-generated, update it
-    if (!newEmp.email || newEmp.email.includes('@peoplepay360.io')) {
+    if (!newEmp.email || newEmp.email.includes('@peoplepay360.io') || newEmp.email.includes('@pay365.dev')) {
       if (fn && ln) {
         let base = `${fn}.${ln}`;
-        // Check if an employee with this email already exists
-        const countExisting = employees.filter((e) => e.email.startsWith(base)).length;
+        const countExisting = employees.filter((e) => e.email?.startsWith(base)).length;
         if (countExisting > 0) {
           base = `${base}${countExisting + 1}`;
         }
-        suggestedEmail = `${base}@peoplepay360.io`;
+        suggestedEmail = `${base}@pay365.dev`;
       }
     }
 
@@ -186,7 +186,7 @@ export default function EmployeesPage() {
   const statusCounts = useMemo(() => {
     const counts = { ALL: employees.length, ACTIVE: 0, PROBATION: 0, ON_LEAVE: 0, RESIGNED: 0, TERMINATED: 0 };
     employees.forEach((emp) => {
-      const st = emp.status.toUpperCase();
+      const st = emp.status?.toUpperCase();
       if (counts[st] !== undefined) {
         counts[st] += 1;
       }
@@ -210,7 +210,7 @@ export default function EmployeesPage() {
         emp.department.toLowerCase() === departmentFilter.toLowerCase();
 
       const matchesStatus =
-        statusFilter === 'ALL' || emp.status.toUpperCase() === statusFilter;
+        statusFilter === 'ALL' || emp.status?.toUpperCase() === statusFilter;
 
       return matchesSearch && matchesDept && matchesStatus;
     });
@@ -242,7 +242,7 @@ export default function EmployeesPage() {
       const res = await api.post('/employees', payload);
 
       if (res?.data?.data) {
-        // Created successfully in database, refresh list and close modal
+        toast.success(`Employee ${payload.first_name} ${payload.last_name} created successfully!`);
         await fetchEmployees();
         setIsModalOpen(false);
       } else {
@@ -256,6 +256,7 @@ export default function EmployeesPage() {
           ? 'An employee with this Employee Code or Email already exists. Please choose a unique email/code.'
           : 'Failed to create employee. Please check the entered details.');
       setModalError(serverMsg);
+      toast.error(serverMsg);
     } finally {
       setSubmitting(false);
     }
@@ -370,10 +371,7 @@ export default function EmployeesPage() {
       <div className="emp-filter-bar">
         {/* Search */}
         <div className="emp-filter-bar__search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Search size={15} />
           <input
             type="text"
             placeholder="Search name, code, email..."
@@ -390,21 +388,11 @@ export default function EmployeesPage() {
             aria-label="Filter by department"
           >
             <option value="all">All departments</option>
-            {departments.length > 0 ? (
-              departments.map((d) => (
-                <option key={d.id} value={d.name}>
-                  {d.name}
-                </option>
-              ))
-            ) : (
-              <>
-                <option value="Engineering">Engineering</option>
-                <option value="Sales">Sales</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Finance">Finance</option>
-                <option value="Design">Design</option>
-              </>
-            )}
+            {departments.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
           </select>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -425,67 +413,77 @@ export default function EmployeesPage() {
       </div>
 
       {/* ── 3. Main Views: Cards Grid vs List Table ── */}
-      {viewMode === 'kanban' || viewMode === 'cards' ? (
+      {loading ? (
+        viewMode === 'kanban' || viewMode === 'cards' ? (
+          <div className="emp-cards-grid-wrap">
+            <Skeleton variant="card" count={6} />
+          </div>
+        ) : (
+          <div className="emp-list-card">
+            <div style={{ padding: '24px' }}>
+              <Skeleton variant="row" count={5} />
+            </div>
+          </div>
+        )
+      ) : filteredEmployees.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No employees found"
+          hint={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Try adjusting your filters or search keywords." : "Get started by adding your first employee to Pay365."}
+          actionLabel={searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all' ? "Reset Filters" : "New Employee"}
+          onAction={() => {
+            if (searchQuery || statusFilter !== 'ALL' || departmentFilter !== 'all') {
+              setSearchQuery('');
+              setStatusFilter('ALL');
+              setDepartmentFilter('all');
+            } else {
+              handleOpenModal();
+            }
+          }}
+        />
+      ) : viewMode === 'kanban' || viewMode === 'cards' ? (
         <div className="emp-cards-grid-wrap">
-          {filteredEmployees.length > 0 ? (
-            <div className="emp-cards-grid">
-              {filteredEmployees.map((emp) => (
-                <div
-                  key={emp.id}
-                  className="emp-card"
-                  onClick={() => navigate(`/employees/${emp.id}`)}
-                  title={`View profile of ${emp.name}`}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') navigate(`/employees/${emp.id}`);
-                  }}
-                >
-                  <div className="emp-card__header">
-                    <div className="emp-card__avatar">
-                      {getInitials(emp.name)}
-                    </div>
-                    <span className={`emp-card__status-badge emp-card__status-badge--${emp.status.toLowerCase()}`}>
-                      <span className={`emp-kanban__status-dot emp-kanban__status-dot--${emp.status.toLowerCase()}`} />
-                      {emp.status.replace('_', ' ')}
-                    </span>
+          <div className="emp-cards-grid">
+            {filteredEmployees.map((emp) => (
+              <div
+                key={emp.id}
+                className="emp-card"
+                onClick={() => navigate(`/employees/${emp.id}`)}
+                title={`View profile of ${emp.name}`}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') navigate(`/employees/${emp.id}`);
+                }}
+              >
+                <div className="emp-card__header">
+                  <div className="emp-card__avatar">
+                    {getInitials(emp.name)}
                   </div>
-
-                  <div className="emp-card__body">
-                    <h3 className="emp-card__name">{emp.name}</h3>
-                    <p className="emp-card__job">{emp.jobTitle}</p>
-                  </div>
-
-                  <div className="emp-card__footer">
-                    <span className="emp-card__dept">{emp.department}</span>
-                    <span className="emp-card__wage">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="4" width="20" height="16" rx="2" />
-                        <line x1="6" y1="12" x2="18" y2="12" />
-                      </svg>
-                      {emp.wage}
-                    </span>
-                  </div>
+                  <span className={`emp-card__status-badge emp-card__status-badge--${emp.status?.toLowerCase()}`}>
+                    <span className={`emp-kanban__status-dot emp-kanban__status-dot--${emp.status?.toLowerCase()}`} />
+                    {emp.status?.replace('_', ' ')}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="emp-cards-grid__empty">
-              <div className="emp-cards-grid__empty-icon">
-                <Users size={36} color="#2357fe" />
+
+                <div className="emp-card__body">
+                  <h3 className="emp-card__name">{emp.name}</h3>
+                  <p className="emp-card__job">{emp.jobTitle}</p>
+                </div>
+
+                <div className="emp-card__footer">
+                  <span className="emp-card__dept">{emp.department}</span>
+                  <span className="emp-card__wage">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <line x1="6" y1="12" x2="18" y2="12" />
+                    </svg>
+                    {emp.wage}
+                  </span>
+                </div>
               </div>
-              <h3>No employees found</h3>
-              <p>No employees match the selected status or filters.</p>
-              {statusFilter !== 'ALL' && (
-                <button
-                  className="emp-filter-bar__clear-filter-btn"
-                  onClick={() => setStatusFilter('ALL')}
-                >
-                  View All Employees
-                </button>
-              )}
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       ) : (
         /* ── List View Table ── */
@@ -528,8 +526,8 @@ export default function EmployeesPage() {
                       </div>
                     </td>
                     <td>
-                      <span className={`emp-list-card__status-pill emp-list-card__status-pill--${emp.status.toLowerCase()}`}>
-                        ● {emp.status.replace('_', ' ')}
+                      <span className={`emp-list-card__status-pill emp-list-card__status-pill--${emp.status?.toLowerCase()}`}>
+                        ● {emp.status?.replace('_', ' ')}
                       </span>
                     </td>
                     <td>{emp.contractType}</td>
@@ -621,7 +619,7 @@ export default function EmployeesPage() {
                     <input
                       type="email"
                       required
-                      placeholder="e.g. vikram.rao@peoplepay360.io"
+                      placeholder="e.g. vikram.rao@pay365.dev"
                       value={newEmp.email}
                       onChange={(e) => {
                         setNewEmp({ ...newEmp, email: e.target.value });

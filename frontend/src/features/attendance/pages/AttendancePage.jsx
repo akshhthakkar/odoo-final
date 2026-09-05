@@ -16,141 +16,10 @@ import {
   User,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './AttendancePage.scss';
-
-// Initial Fallback Records matching user screenshot
-const INITIAL_ATTENDANCE = [
-  {
-    id: 'att-01',
-    employee_id: 'emp-001',
-    employee_name: 'Arjun Nair',
-    employee_code: 'EMP-001',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-02',
-    employee_id: 'emp-002',
-    employee_name: 'Meera Krishnan',
-    employee_code: 'EMP-002',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-03',
-    employee_id: 'emp-003',
-    employee_name: 'Rahul Verma',
-    employee_code: 'EMP-003',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:30:00.000Z',
-    check_out: '2026-09-04T18:30:00.000Z',
-    worked_hours: 8.25,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-04',
-    employee_id: 'emp-004',
-    employee_name: 'Sneha Patil',
-    employee_code: 'EMP-004',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-05',
-    employee_id: 'emp-005',
-    employee_name: 'Karthik Menon',
-    employee_code: 'EMP-005',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T20:10:00.000Z',
-    worked_hours: 10.17,
-    overtime_hours: 2.17,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-06',
-    employee_id: 'emp-006',
-    employee_name: 'Divya Rao',
-    employee_code: 'EMP-006',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:35:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 7.42,
-    overtime_hours: 0,
-    status: 'LATE',
-    source: 'HR',
-  },
-  {
-    id: 'att-07',
-    employee_id: 'emp-007',
-    employee_name: 'Vikram Singh',
-    employee_code: 'EMP-007',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:30:00.000Z',
-    check_out: '2026-09-04T18:30:00.000Z',
-    worked_hours: 8.25,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-08',
-    employee_id: 'emp-008',
-    employee_name: 'Priya Sharma',
-    employee_code: 'EMP-008',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-09',
-    employee_id: 'emp-009',
-    employee_name: 'Aditya Joshi',
-    employee_code: 'EMP-009',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-  {
-    id: 'att-10',
-    employee_id: 'emp-010',
-    employee_name: 'Nisha Gupta',
-    employee_code: 'EMP-010',
-    attendance_date: '2026-09-04',
-    check_in: '2026-09-04T09:00:00.000Z',
-    check_out: '2026-09-04T18:00:00.000Z',
-    worked_hours: 8.0,
-    overtime_hours: 0,
-    status: 'PRESENT',
-    source: 'HR',
-  },
-];
 
 // Date formatter: '2026-09-04' -> '04 Sept 2026'
 function formatDateDisplay(dateStr) {
@@ -209,9 +78,11 @@ function formatOvertimeDisplay(hours) {
 }
 
 export default function AttendancePage() {
+  const toast = useToast();
+
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -249,11 +120,14 @@ export default function AttendancePage() {
         if (searchQuery.trim()) params.search = searchQuery.trim();
 
         const res = await api.get('/attendance', { params });
-        if (res.data?.data && Array.isArray(res.data.data)) {
-          setAttendance(res.data.data);
-        }
+        const items = Array.isArray(res.data?.data)
+          ? res.data.data
+          : Array.isArray(res.data?.data?.items)
+          ? res.data.data.items
+          : [];
+        setAttendance(items);
       } catch (err) {
-        console.warn('Backend attendance endpoint offline or error, retaining active dataset:', err.message);
+        toast.error('Failed to load attendance records');
       } finally {
         setLoading(false);
       }
@@ -265,11 +139,14 @@ export default function AttendancePage() {
   const fetchEmployees = useCallback(async () => {
     try {
       const res = await api.get('/employees', { params: { limit: 100 } });
-      if (res.data?.data && Array.isArray(res.data.data)) {
-        setEmployees(res.data.data);
-      }
+      const items = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data?.data?.items)
+        ? res.data.data.items
+        : [];
+      setEmployees(items);
     } catch {
-      // Retain fallback
+      // ignore
     }
   }, []);
 
@@ -327,8 +204,8 @@ export default function AttendancePage() {
       // Search match
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const empName = (item.employee_name || '').toLowerCase();
-        const empCode = (item.employee_code || '').toLowerCase();
+        const empName = (item.employee_name || `${item.employee?.first_name || ''} ${item.employee?.last_name || ''}`).toLowerCase();
+        const empCode = (item.employee_code || item.employee?.employee_code || '').toLowerCase();
         return empName.includes(q) || empCode.includes(q);
       }
       return true;
@@ -447,7 +324,7 @@ export default function AttendancePage() {
 
         const res = await api.post('/attendance', payload);
         if (res.data?.data) {
-          // Switch date filter to the newly created record's date so user immediately sees it
+          toast.success('Attendance recorded successfully!');
           setDateFilter(dateStr);
           await fetchAttendance(dateStr);
           setIsModalOpen(false);
@@ -467,6 +344,7 @@ export default function AttendancePage() {
 
         const res = await api.patch(`/attendance/${selectedRecordId}`, payload);
         if (res.data?.data) {
+          toast.success('Attendance updated successfully!');
           setDateFilter(dateStr);
           await fetchAttendance(dateStr);
           setIsModalOpen(false);
@@ -482,6 +360,7 @@ export default function AttendancePage() {
           ? 'An attendance record already exists for this employee on this date. Click the edit icon to correct it.'
           : 'Failed to save attendance. Please check input times.');
       setModalError(serverMsg);
+      toast.error(serverMsg);
     } finally {
       setSubmitting(false);
     }
@@ -603,95 +482,111 @@ export default function AttendancePage() {
       {/* ── 3. Table Card ── */}
       <div className="att-table-card">
         <div className="att-table-card__table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Date</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Worked</th>
-                <th>Overtime</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAttendance.length > 0 ? (
-                filteredAttendance.map((rec) => (
-                  <tr key={rec.id}>
-                    {/* Employee */}
-                    <td>
-                      <div className="att-cell--emp">
-                        <span className="att-cell__name">{rec.employee_name}</span>
-                        {rec.employee_code && (
-                          <span className="att-cell__meta">{rec.employee_code}</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Date */}
-                    <td className="att-cell--date">
-                      {formatDateDisplay(rec.attendance_date)}
-                    </td>
-
-                    {/* Check In */}
-                    <td className="att-cell--time">
-                      {formatTimeDisplay(rec.check_in)}
-                    </td>
-
-                    {/* Check Out */}
-                    <td className="att-cell--time">
-                      {formatTimeDisplay(rec.check_out)}
-                    </td>
-
-                    {/* Worked Duration */}
-                    <td className="att-cell--worked">
-                      {formatWorkedDisplay(rec.worked_hours)}
-                    </td>
-
-                    {/* Overtime */}
-                    <td
-                      className={`att-cell--overtime ${
-                        rec.overtime_hours && Number(rec.overtime_hours) > 0
-                          ? 'att-cell--overtime--positive'
-                          : 'att-cell--overtime--none'
-                      }`}
-                    >
-                      {formatOvertimeDisplay(rec.overtime_hours)}
-                    </td>
-
-                    {/* Status Pill */}
-                    <td>{renderStatusBadge(rec.status)}</td>
-
-                    {/* Actions */}
-                    <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
-                      <button
-                        className="att-cell__edit-btn"
-                        onClick={() => handleOpenEdit(rec)}
-                        title="Edit / Correct attendance"
-                        aria-label={`Edit attendance for ${rec.employee_name}`}
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+          {loading ? (
+            <div style={{ padding: '24px' }}>
+              <Skeleton variant="row" count={7} />
+            </div>
+          ) : filteredAttendance.length === 0 ? (
+            <div style={{ padding: '40px 16px' }}>
+              <EmptyState
+                icon={Clock}
+                title="No attendance records found"
+                hint={searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL' ? "Try adjusting your filters or date selection." : "Record check-ins or manual attendance to start tracking."}
+                actionLabel={searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL' ? "Clear Filters" : "Record Attendance"}
+                onAction={() => {
+                  if (searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL') {
+                    setSearchQuery('');
+                    setDateFilter('');
+                    setStatusFilter('ALL');
+                    setEmployeeFilter('ALL');
+                  } else {
+                    handleOpenCreate();
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan={8}>
-                    <div className="att-empty-state">
-                      <Clock size={36} className="att-empty-state__icon" />
-                      <h3 className="att-empty-state__title">No Attendance Records Found</h3>
-                      <p className="att-empty-state__desc">
-                        There are no attendance records matching the selected date and filters.
-                      </p>
-                    </div>
-                  </td>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Worked</th>
+                  <th>Overtime</th>
+                  <th>Status</th>
+                  <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredAttendance.map((rec) => {
+                  const empName = rec.employee_name || `${rec.employee?.first_name || ''} ${rec.employee?.last_name || ''}`.trim() || 'Employee';
+                  const empCode = rec.employee_code || rec.employee?.employee_code || '';
+
+                  return (
+                    <tr key={rec.id}>
+                      {/* Employee */}
+                      <td>
+                        <div className="att-cell--emp">
+                          <span className="att-cell__name">{empName}</span>
+                          {empCode && (
+                            <span className="att-cell__meta">{empCode}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Date */}
+                      <td className="att-cell--date">
+                        {formatDateDisplay(rec.attendance_date)}
+                      </td>
+
+                      {/* Check In */}
+                      <td className="att-cell--time">
+                        {formatTimeDisplay(rec.check_in)}
+                      </td>
+
+                      {/* Check Out */}
+                      <td className="att-cell--time">
+                        {formatTimeDisplay(rec.check_out)}
+                      </td>
+
+                      {/* Worked Duration */}
+                      <td className="att-cell--worked">
+                        {formatWorkedDisplay(rec.worked_hours)}
+                      </td>
+
+                      {/* Overtime */}
+                      <td
+                        className={`att-cell--overtime ${
+                          rec.overtime_hours && Number(rec.overtime_hours) > 0
+                            ? 'att-cell--overtime--positive'
+                            : 'att-cell--overtime--none'
+                        }`}
+                      >
+                        {formatOvertimeDisplay(rec.overtime_hours)}
+                      </td>
+
+                      {/* Status Pill */}
+                      <td>{renderStatusBadge(rec.status)}</td>
+
+                      {/* Actions */}
+                      <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
+                        <button
+                          className="att-cell__edit-btn"
+                          onClick={() => handleOpenEdit(rec)}
+                          title="Edit / Correct attendance"
+                          aria-label={`Edit attendance for ${empName}`}
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -699,13 +594,12 @@ export default function AttendancePage() {
       {isModalOpen && (
         <div className="att-modal-backdrop" onClick={() => setIsModalOpen(false)}>
           <div className="att-modal" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div className="att-modal__header">
-              <h2 className="att-modal__header-title">
+              <h2 className="att-modal__title">
                 {modalMode === 'create' ? 'Add Attendance Record' : 'Correct Attendance Record'}
               </h2>
               <button
-                className="att-modal__header-close"
+                className="att-modal__close-btn"
                 onClick={() => setIsModalOpen(false)}
                 aria-label="Close modal"
               >
@@ -713,27 +607,24 @@ export default function AttendancePage() {
               </button>
             </div>
 
-            {/* Form Body */}
             <form onSubmit={handleSubmit}>
               <div className="att-modal__body">
-                {/* Error Banner */}
                 {modalError && (
                   <div className="att-modal__error-box">
-                    <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <AlertCircle size={16} />
                     <span>{modalError}</span>
                   </div>
                 )}
 
                 {/* Employee Selection */}
-                <div className="att-modal__form-group">
-                  <label htmlFor="att-emp-select">Employee *</label>
+                <div className="att-modal__field">
+                  <label>Employee *</label>
                   <select
-                    id="att-emp-select"
+                    required
                     value={formData.employeeId}
                     onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-                    required
                   >
-                    <option value="">Select Employee...</option>
+                    <option value="">Select Employee</option>
                     {employeeOptions.map((emp) => (
                       <option key={emp.id} value={emp.id}>
                         {emp.label}
@@ -742,35 +633,32 @@ export default function AttendancePage() {
                   </select>
                 </div>
 
-                {/* Date Input */}
-                <div className="att-modal__form-group">
-                  <label htmlFor="att-date-input">Attendance Date *</label>
+                {/* Attendance Date */}
+                <div className="att-modal__field">
+                  <label>Attendance Date *</label>
                   <input
-                    id="att-date-input"
                     type="date"
+                    required
                     value={formData.attendanceDate}
                     onChange={(e) => setFormData({ ...formData, attendanceDate: e.target.value })}
-                    required
                   />
                 </div>
 
-                {/* Check In & Check Out Row */}
-                <div className="att-modal__row">
-                  <div className="att-modal__form-group">
-                    <label htmlFor="att-checkin-input">Check-In Time *</label>
+                {/* Check In / Out Row */}
+                <div className="att-modal__field-row">
+                  <div className="att-modal__field">
+                    <label>Check In Time *</label>
                     <input
-                      id="att-checkin-input"
                       type="time"
+                      required
                       value={formData.checkInTime}
                       onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
-                      required
                     />
                   </div>
 
-                  <div className="att-modal__form-group">
-                    <label htmlFor="att-checkout-input">Check-Out Time</label>
+                  <div className="att-modal__field">
+                    <label>Check Out Time</label>
                     <input
-                      id="att-checkout-input"
                       type="time"
                       value={formData.checkOutTime}
                       onChange={(e) => setFormData({ ...formData, checkOutTime: e.target.value })}
@@ -778,67 +666,60 @@ export default function AttendancePage() {
                   </div>
                 </div>
 
-                {/* Hours Preview Box */}
-                <div className="att-modal__hours-preview">
-                  <div className="att-modal__hours-preview-item">
-                    <span className="att-modal__hours-preview-label">Calculated Worked</span>
-                    <span className="att-modal__hours-preview-value">{computedModalHours.worked}</span>
+                {/* Calculated Duration Strip */}
+                <div className="att-modal__summary-strip">
+                  <div className="att-modal__summary-item">
+                    <span className="att-modal__summary-label">Worked Duration:</span>
+                    <span className="att-modal__summary-val">{computedModalHours.worked}</span>
                   </div>
-                  <div className="att-modal__hours-preview-item">
-                    <span className="att-modal__hours-preview-label">Overtime</span>
-                    <span
-                      className={`att-modal__hours-preview-value ${
-                        computedModalHours.overtime !== '—' ? 'att-modal__hours-preview-value--overtime' : ''
-                      }`}
-                    >
+                  <div className="att-modal__summary-item">
+                    <span className="att-modal__summary-label">Overtime (+8h):</span>
+                    <span className="att-modal__summary-val att-modal__summary-val--ot">
                       {computedModalHours.overtime}
                     </span>
                   </div>
                 </div>
 
                 {/* Status Selection */}
-                <div className="att-modal__form-group">
-                  <label htmlFor="att-status-select">Status</label>
+                <div className="att-modal__field">
+                  <label>Status Classification</label>
                   <select
-                    id="att-status-select"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   >
-                    <option value="PRESENT">Present</option>
-                    <option value="LATE">Late</option>
+                    <option value="PRESENT">Present (Standard)</option>
+                    <option value="LATE">Late Arrival</option>
                     <option value="MISSING_CHECKOUT">Missing Checkout</option>
-                    <option value="MANUAL_EDIT">Manual Edit / Corrected</option>
+                    <option value="MANUAL_EDIT">Manual Correction</option>
                   </select>
                 </div>
 
-                {/* Notes / Reason */}
-                <div className="att-modal__form-group">
-                  <label htmlFor="att-notes-input">Notes / Reason for correction</label>
-                  <textarea
-                    id="att-notes-input"
-                    rows={2}
-                    placeholder="e.g., Badge reader failure, biometric machine sync delay, etc."
+                {/* Reason / Note */}
+                <div className="att-modal__field">
+                  <label>Correction Reason / Remarks (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Card reader offline / biometric glitch"
                     value={formData.note}
                     onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                   />
                 </div>
               </div>
 
-              {/* Footer Actions */}
               <div className="att-modal__footer">
                 <button
                   type="button"
-                  className="att-modal__footer-cancel"
+                  className="att-modal__cancel-btn"
                   onClick={() => setIsModalOpen(false)}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="att-modal__footer-save"
+                  className="att-modal__submit-btn"
                   disabled={submitting}
                 >
-                  {submitting ? 'Saving...' : modalMode === 'create' ? 'Add Record' : 'Save Correction'}
+                  {submitting ? 'Saving...' : modalMode === 'create' ? 'Save Record' : 'Update Record'}
                 </button>
               </div>
             </form>

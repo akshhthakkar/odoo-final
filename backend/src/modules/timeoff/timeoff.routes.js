@@ -85,6 +85,11 @@ router.patch(
   requireRole('ADMIN', 'HR_MANAGER'),
   timeoff.approveRequest
 );
+router.post(
+  '/requests/:id/approve',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  timeoff.approveRequest
+);
 
 router.patch(
   '/requests/:id/refuse',
@@ -92,5 +97,12 @@ router.patch(
   validateBody(refuseRequestSchema),
   timeoff.refuseRequest
 );
+router.post(
+  '/requests/:id/refuse',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  validateBody(refuseRequestSchema),
+  timeoff.refuseRequest
+);
 
 export default router;
+

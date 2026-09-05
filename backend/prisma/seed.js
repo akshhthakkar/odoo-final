@@ -489,7 +489,88 @@ async function main() {
     });
   }
 
+  console.log('Seeding time off types & allocations...');
+  const clType = await prisma.timeOffType.upsert({
+    where: { code: 'CL' },
+    update: {},
+    create: {
+      name: 'Casual Leave',
+      code: 'CL',
+      unit: 'DAYS',
+      requiresAllocation: true,
+      allowsRequest: true,
+      color: '#f59e0b',
+      isActive: true,
+    },
+  });
+
+  const slType = await prisma.timeOffType.upsert({
+    where: { code: 'SL' },
+    update: {},
+    create: {
+      name: 'Sick Leave',
+      code: 'SL',
+      unit: 'DAYS',
+      requiresAllocation: true,
+      allowsRequest: true,
+      color: '#10b981',
+      isActive: true,
+    },
+  });
+
+  const plType = await prisma.timeOffType.upsert({
+    where: { code: 'PL' },
+    update: {},
+    create: {
+      name: 'Privilege Leave',
+      code: 'PL',
+      unit: 'DAYS',
+      requiresAllocation: true,
+      allowsRequest: true,
+      color: '#3b82f6',
+      isActive: true,
+    },
+  });
+
+  // Seed approved allocations for all employees for the current year
+  const allEmpIds = Object.values(empMap);
+  for (const empId of allEmpIds) {
+    await prisma.timeOffAllocation.createMany({
+      data: [
+        {
+          employeeId: empId,
+          typeId: clType.id,
+          validFrom: new Date('2026-01-01'),
+          validTo: new Date('2026-12-31'),
+          allocatedDays: 12,
+          takenDays: 0,
+          status: 'APPROVED',
+        },
+        {
+          employeeId: empId,
+          typeId: slType.id,
+          validFrom: new Date('2026-01-01'),
+          validTo: new Date('2026-12-31'),
+          allocatedDays: 10,
+          takenDays: 0,
+          status: 'APPROVED',
+        },
+        {
+          employeeId: empId,
+          typeId: plType.id,
+          validFrom: new Date('2026-01-01'),
+          validTo: new Date('2026-12-31'),
+          allocatedDays: 15,
+          takenDays: 0,
+          status: 'APPROVED',
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
+
   console.log('✅ Full database seed finished successfully!');
+
 }
 
 main()

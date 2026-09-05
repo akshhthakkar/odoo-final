@@ -12,10 +12,11 @@ import {
   Briefcase,
   DollarSign,
   Clock,
-  Loader2,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
-import { INITIAL_EMPLOYEES, getEmployeeById as getMockEmployeeById } from '../data/employeesData.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './EmployeeProfilePage.scss';
 
 function getInitials(name) {
@@ -31,101 +32,164 @@ function getInitials(name) {
 export default function EmployeeProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
 
-  // Initial fallback
-  const mockFallback = getMockEmployeeById(id) || INITIAL_EMPLOYEES[0];
-  const [employee, setEmployee] = useState(mockFallback);
-  const [loading, setLoading] = useState(false);
+  const [employee, setEmployee] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'job' | 'salary' | 'attendance' | 'contracts'
 
-  // Fetch real employee details from backend if available
+  // Fetch real employee details from backend
   useEffect(() => {
     async function loadEmployee() {
-      // If it looks like a valid UUID or ID, try fetching from backend
-      if (id && id.length > 5) {
-        setLoading(true);
-        try {
-          const res = await api.get(`/employees/${id}`).catch(() => null);
-          if (res?.data?.data) {
-            const data = res.data.data;
-            const wageNum = data.active_contract?.wage || 50000;
-            const wageFormatted = `₹${Number(wageNum).toLocaleString('en-IN')}`;
-            const annualFormatted = `₹${(Number(wageNum) * 12).toLocaleString('en-IN')}`;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const [empRes, allocRes] = await Promise.all([
+          api.get(`/employees/${id}`).catch(() => null),
+          api.get(`/time-off/allocations`, { params: { employee_id: id } }).catch(() => null),
+        ]);
 
-            setEmployee({
-              id: data.id,
-              code: data.employee_code,
-              name: `${data.first_name} ${data.last_name}`,
-              jobTitle: data.job?.name || 'Staff Member',
-              department: data.department?.name || 'General',
-              status: data.status,
-              wage: wageFormatted,
-              annualCtc: annualFormatted,
-              email: data.email,
-              phone: data.phone || '+91 98765 00000',
-              location: data.address || 'Bengaluru, India (HQ)',
-              hireDate: data.hire_date ? new Date(data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
-              contractType: data.active_contract?.contract_type ? data.active_contract.contract_type.replace('_', ' ') : 'Full-time',
-              manager: data.manager ? `${data.manager.first_name} ${data.manager.last_name}` : 'Executive Manager',
-              workingSchedule: data.working_schedule?.name || 'Standard 40h (Mon-Fri 09:00 - 18:00)',
-              gender: data.gender || 'Not specified',
-              dob: data.date_of_birth ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '14 Aug 1994',
-              maritalStatus: 'Single',
-              emergencyContact: 'Family Contact — +91 98765 00112',
-              pan: 'ABCDE1234F',
-              aadhaar: 'XXXX-XXXX-4589',
-              uan: '100982347891',
-              bankDetails: {
-                bankName: data.bank_account_name ? `${data.bank_account_name}'s Bank` : 'HDFC Bank Ltd',
-                accountNumber: data.bank_account_number || '50100458921102',
-                ifsc: data.bank_ifsc || 'HDFC0001245',
-                accountType: 'Salary Account',
-                branch: 'Koramangala, Bengaluru',
-              },
-              salaryBreakdown: {
-                basic: `₹${(wageNum * 0.5).toLocaleString('en-IN')}`,
-                hra: `₹${(wageNum * 0.25).toLocaleString('en-IN')}`,
-                special: `₹${(wageNum * 0.15).toLocaleString('en-IN')}`,
-                conveyance: `₹${(wageNum * 0.1).toLocaleString('en-IN')}`,
-                gross: wageFormatted,
-                pfEmployee: `₹${Math.round(wageNum * 0.5 * 0.12).toLocaleString('en-IN')}`,
-                professionalTax: '₹200',
-                tds: `₹${Math.round(wageNum * 0.05).toLocaleString('en-IN')}`,
-                totalDeductions: `₹${Math.round(wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05).toLocaleString('en-IN')}`,
-                netPay: `₹${Math.round(wageNum - (wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05)).toLocaleString('en-IN')}`,
-              },
-              leaveBalances: mockFallback.leaveBalances || {
-                paidLeave: { used: 4, total: 18 },
-                sickLeave: { used: 2, total: 10 },
-                casualLeave: { used: 1, total: 6 },
-              },
-              recentAttendance: mockFallback.recentAttendance || [
-                { date: '04 Sep 2026', checkIn: '09:02 AM', checkOut: '06:14 PM', hours: '9h 12m', status: 'PRESENT' },
-                { date: '03 Sep 2026', checkIn: '08:58 AM', checkOut: '06:05 PM', hours: '9h 07m', status: 'PRESENT' },
-              ],
-              contracts: data.active_contract
-                ? [
-                    {
-                      id: data.active_contract.id,
-                      title: `${data.job?.name || 'Staff'} Employment Agreement (${data.active_contract.reference})`,
-                      status: data.active_contract.status,
-                      startDate: new Date(data.active_contract.start_date || data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-                      endDate: data.active_contract.end_date ? new Date(data.active_contract.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent',
-                      wage: wageFormatted,
-                    },
-                  ]
-                : mockFallback.contracts,
-            });
-          }
-        } catch {
-          // fallback to mock
-        } finally {
-          setLoading(false);
+        if (empRes?.data?.data) {
+          const data = empRes.data.data;
+          const wageNum = Number(data.wage || data.active_contract?.wage || 50000);
+          const wageFormatted = `₹${wageNum.toLocaleString('en-IN')}`;
+          const annualFormatted = `₹${(wageNum * 12).toLocaleString('en-IN')}`;
+
+          // Format leave balances if allocations are returned
+          const allocItems = allocRes?.data?.data?.items || allocRes?.data?.data || [];
+          let paidLeaveTotal = 18, paidLeaveUsed = 0;
+          let sickLeaveTotal = 10, sickLeaveUsed = 0;
+          let casualLeaveTotal = 6, casualLeaveUsed = 0;
+
+          allocItems.forEach((al) => {
+            const typeName = al.leave_type?.name?.toLowerCase() || '';
+            const days = Number(al.number_of_days) || 0;
+            if (typeName.includes('privilege') || typeName.includes('paid')) paidLeaveTotal = days;
+            if (typeName.includes('sick')) sickLeaveTotal = days;
+            if (typeName.includes('casual')) casualLeaveTotal = days;
+          });
+
+          setEmployee({
+            id: data.id,
+            code: data.employee_code,
+            name: `${data.first_name} ${data.last_name}`,
+            jobTitle: data.job?.name || 'Staff Member',
+            department: data.department?.name || 'General',
+            status: data.status || 'ACTIVE',
+            wage: wageFormatted,
+            annualCtc: annualFormatted,
+            email: data.email,
+            phone: data.phone || '+91 98765 00000',
+            location: data.address || 'Bengaluru, India (HQ)',
+            hireDate: data.hire_date
+              ? new Date(data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : '01 Jan 2023',
+            contractType: data.active_contract?.contract_type
+              ? data.active_contract.contract_type.replace('_', ' ')
+              : 'Full-time',
+            manager: data.manager ? `${data.manager.first_name} ${data.manager.last_name}` : 'Executive Manager',
+            workingSchedule: data.working_schedule?.name || 'Standard 40h (Mon-Fri 09:00 - 18:00)',
+            gender: data.gender || 'Not specified',
+            dob: data.date_of_birth
+              ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : '14 Aug 1994',
+            maritalStatus: 'Single',
+            emergencyContact: 'Family Contact — +91 98765 00112',
+            pan: data.pan || 'ABCDE1234F',
+            aadhaar: data.aadhaar || 'XXXX-XXXX-4589',
+            uan: data.uan || '100982347891',
+            bankDetails: {
+              bankName: data.bank_account_name ? `${data.bank_account_name}'s Bank` : 'HDFC Bank Ltd',
+              accountNumber: data.bank_account_number || '50100458921102',
+              ifsc: data.bank_ifsc || 'HDFC0001245',
+              accountType: 'Salary Account',
+              branch: 'Koramangala, Bengaluru',
+            },
+            salaryBreakdown: {
+              basic: `₹${Math.round(wageNum * 0.5).toLocaleString('en-IN')}`,
+              hra: `₹${Math.round(wageNum * 0.25).toLocaleString('en-IN')}`,
+              special: `₹${Math.round(wageNum * 0.15).toLocaleString('en-IN')}`,
+              conveyance: `₹${Math.round(wageNum * 0.1).toLocaleString('en-IN')}`,
+              gross: wageFormatted,
+              pfEmployee: `₹${Math.round(wageNum * 0.5 * 0.12).toLocaleString('en-IN')}`,
+              professionalTax: '₹200',
+              tds: `₹${Math.round(wageNum * 0.05).toLocaleString('en-IN')}`,
+              totalDeductions: `₹${Math.round(wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05).toLocaleString('en-IN')}`,
+              netPay: `₹${Math.round(wageNum - (wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05)).toLocaleString('en-IN')}`,
+            },
+            leaveBalances: {
+              paidLeave: { used: paidLeaveUsed, total: paidLeaveTotal },
+              sickLeave: { used: sickLeaveUsed, total: sickLeaveTotal },
+              casualLeave: { used: casualLeaveUsed, total: casualLeaveTotal },
+            },
+            recentAttendance: [
+              { date: '04 Sep 2026', checkIn: '09:02 AM', checkOut: '06:14 PM', hours: '9h 12m', status: 'PRESENT' },
+              { date: '03 Sep 2026', checkIn: '08:58 AM', checkOut: '06:05 PM', hours: '9h 07m', status: 'PRESENT' },
+            ],
+            contracts: data.active_contract
+              ? [
+                  {
+                    id: data.active_contract.id,
+                    title: `${data.job?.name || 'Staff'} Employment Agreement (${data.active_contract.reference || 'REF-CNT'})`,
+                    status: data.active_contract.status || 'ACTIVE',
+                    startDate: data.active_contract.start_date
+                      ? new Date(data.active_contract.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : '01 Jan 2023',
+                    endDate: data.active_contract.end_date
+                      ? new Date(data.active_contract.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Permanent',
+                    wage: wageFormatted,
+                  },
+                ]
+              : data.contracts?.map((c) => ({
+                  id: c.id,
+                  title: `Employment Contract (${c.reference || 'REF-CNT'})`,
+                  status: c.status || 'ACTIVE',
+                  startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
+                  endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent',
+                  wage: `₹${Number(c.wage || 50000).toLocaleString('en-IN')}`,
+                })) || [],
+          });
+        } else {
+          setEmployee(null);
         }
+      } catch (err) {
+        toast.error('Could not load employee details.');
+        setEmployee(null);
+      } finally {
+        setLoading(false);
       }
     }
     loadEmployee();
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="emp-profile-page" style={{ padding: '24px' }}>
+        <Skeleton variant="card" count={2} />
+        <div style={{ marginTop: '24px' }}>
+          <Skeleton variant="row" count={4} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="emp-profile-page" style={{ padding: '40px 24px' }}>
+        <EmptyState
+          icon={User}
+          title="Employee Not Found"
+          hint={`We could not locate an employee record for identifier "${id}".`}
+          actionLabel="Back to Employees"
+          onAction={() => navigate('/employees')}
+        />
+      </div>
+    );
+  }
 
   const {
     name,
@@ -183,7 +247,7 @@ export default function EmployeeProfilePage() {
           <div className="emp-profile__avatar-wrap">
             <div className="emp-profile__avatar">{getInitials(name)}</div>
             <span
-              className={`emp-profile__status-dot-badge emp-profile__status-dot-badge--${status.toLowerCase()}`}
+              className={`emp-profile__status-dot-badge emp-profile__status-dot-badge--${status?.toLowerCase()}`}
             />
           </div>
 
@@ -192,9 +256,9 @@ export default function EmployeeProfilePage() {
               <h1 className="emp-profile__name">{name}</h1>
               <span className="emp-profile__code-pill">{code}</span>
               <span
-                className={`emp-profile__status-pill emp-profile__status-pill--${status.toLowerCase()}`}
+                className={`emp-profile__status-pill emp-profile__status-pill--${status?.toLowerCase()}`}
               >
-                ● {status.replace('_', ' ')}
+                ● {status?.replace('_', ' ')}
               </span>
             </div>
 
@@ -613,7 +677,7 @@ export default function EmployeeProfilePage() {
                     <div
                       className="emp-profile__progress-fill"
                       style={{
-                        width: `${(leaveBalances.paidLeave.used / leaveBalances.paidLeave.total) * 100}%`,
+                        width: `${Math.min(100, (leaveBalances.paidLeave.used / (leaveBalances.paidLeave.total || 1)) * 100)}%`,
                       }}
                     />
                   </div>
@@ -633,7 +697,7 @@ export default function EmployeeProfilePage() {
                     <div
                       className="emp-profile__progress-fill emp-profile__progress-fill--orange"
                       style={{
-                        width: `${(leaveBalances.sickLeave.used / leaveBalances.sickLeave.total) * 100}%`,
+                        width: `${Math.min(100, (leaveBalances.sickLeave.used / (leaveBalances.sickLeave.total || 1)) * 100)}%`,
                       }}
                     />
                   </div>
@@ -653,7 +717,7 @@ export default function EmployeeProfilePage() {
                     <div
                       className="emp-profile__progress-fill emp-profile__progress-fill--blue"
                       style={{
-                        width: `${(leaveBalances.casualLeave.used / leaveBalances.casualLeave.total) * 100}%`,
+                        width: `${Math.min(100, (leaveBalances.casualLeave.used / (leaveBalances.casualLeave.total || 1)) * 100)}%`,
                       }}
                     />
                   </div>
