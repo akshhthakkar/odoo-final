@@ -350,54 +350,227 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* ── 4. Recent Payruns Batch Table ── */}
-      <section className="recent-payruns-card" aria-label="Recent Payroll Batches">
-        <div className="recent-payruns-card__header">
-          <h2 className="recent-payruns-card__title">Recent Payroll Batches</h2>
+      {/* ── 4. Payruns Section: Batches Table (Left) + Payrun Status Donut (Right) ── */}
+      <div className="dash-payruns-row">
+        
+        {/* Left: Recent Batches Table */}
+        <section className="recent-payruns-card" aria-label="Recent Payroll Batches">
+          <div className="recent-payruns-card__header">
+            <h2 className="recent-payruns-card__title">Recent Payroll Batches</h2>
+          </div>
+
+          <div className="recent-payruns-card__table-wrap">
+            <table className="recent-payruns-card__table">
+              <thead>
+                <tr>
+                  <th>Batch Name</th>
+                  <th>Status</th>
+                  <th>Employees</th>
+                  <th>Gross Payout</th>
+                  <th>Deductions</th>
+                  <th>Net Paid</th>
+                  <th>Disbursed Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {RECENT_PAYRUNS.map((run) => (
+                  <tr key={run.id}>
+                    <td className="recent-payruns-card__batch-name">{run.batch}</td>
+                    <td>
+                      <span className="recent-payruns-card__status-pill recent-payruns-card__status-pill--completed">
+                        ● {run.status}
+                      </span>
+                    </td>
+                    <td>{run.employees} staff</td>
+                    <td>{run.gross}</td>
+                    <td>{run.deductions}</td>
+                    <td style={{ fontWeight: 700, color: '#0f172a' }}>{run.net}</td>
+                    <td>{run.paidDate}</td>
+                    <td>
+                      <button
+                        className="recent-payruns-card__action-btn"
+                        onClick={() => navigate('/payroll')}
+                      >
+                        View Details →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Right: Payrun Status Donut Chart */}
+        <div className="donut-card">
+          <h2 className="donut-card__title">Payrun Status</h2>
+
+          <div className="donut-card__content">
+            <div className="donut-card__svg-wrap">
+              <svg className="donut-card__svg" viewBox="0 0 120 120">
+                {/* Background circle */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="#f1f5f9"
+                  strokeWidth="14"
+                />
+                {/* Paid stroke (100% or 3/3) */}
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="46"
+                  fill="none"
+                  stroke="#6366f1"
+                  strokeWidth="14"
+                  strokeDasharray="289"
+                  strokeDashoffset="0"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="donut-card__center-text">
+                <span className="donut-card__pct">100%</span>
+                <span className="donut-card__sub">paid</span>
+              </div>
+            </div>
+
+            <div className="donut-card__legend">
+              <span className="donut-card__dot" />
+              <span>Paid × 3</span>
+            </div>
+          </div>
         </div>
 
-        <div className="recent-payruns-card__table-wrap">
-          <table className="recent-payruns-card__table">
-            <thead>
-              <tr>
-                <th>Batch Name</th>
-                <th>Status</th>
-                <th>Employees</th>
-                <th>Gross Payout</th>
-                <th>Deductions</th>
-                <th>Net Paid</th>
-                <th>Disbursed Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {RECENT_PAYRUNS.map((run) => (
-                <tr key={run.id}>
-                  <td className="recent-payruns-card__batch-name">{run.batch}</td>
-                  <td>
-                    <span className="recent-payruns-card__status-pill recent-payruns-card__status-pill--completed">
-                      ● {run.status}
-                    </span>
-                  </td>
-                  <td>{run.employees} staff</td>
-                  <td>{run.gross}</td>
-                  <td>{run.deductions}</td>
-                  <td style={{ fontWeight: 700, color: '#0f172a' }}>{run.net}</td>
-                  <td>{run.paidDate}</td>
-                  <td>
-                    <button
-                      className="recent-payruns-card__action-btn"
-                      onClick={() => navigate('/payroll')}
-                    >
-                      View Details →
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      </div>
+
+      {/* ── 5. Bottom 3 Overview Containers ── */}
+      <div className="dash-bottom-grid">
+        
+        {/* Card 1: Attendance Overview */}
+        <div className="overview-card">
+          <div className="overview-card__header">
+            <h2 className="overview-card__title">Attendance Overview</h2>
+          </div>
+
+          <div className="overview-card__chips-row">
+            <div className="overview-card__chip overview-card__chip--green">
+              <span className="overview-card__chip-num">626</span>
+              <span className="overview-card__chip-lbl">Present</span>
+            </div>
+            <div className="overview-card__chip overview-card__chip--yellow">
+              <span className="overview-card__chip-num">61</span>
+              <span className="overview-card__chip-lbl">Late</span>
+            </div>
+            <div className="overview-card__chip overview-card__chip--red">
+              <span className="overview-card__chip-num">9</span>
+              <span className="overview-card__chip-lbl">Absent</span>
+            </div>
+            <div className="overview-card__chip overview-card__chip--purple">
+              <span className="overview-card__chip-num">1</span>
+              <span className="overview-card__chip-lbl">Half Day</span>
+            </div>
+          </div>
+
+          <div className="overview-card__list">
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Overtime logged</span>
+              <span className="overview-card__row-val">78 h</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Missing check-outs</span>
+              <span className="overview-card__row-val">0</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Manual corrections</span>
+              <span className="overview-card__row-val">1</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Leave days tracked</span>
+              <span className="overview-card__row-val">3</span>
+            </div>
+          </div>
         </div>
-      </section>
+
+        {/* Card 2: Time Off Overview */}
+        <div className="overview-card">
+          <div className="overview-card__header">
+            <h2 className="overview-card__title">Time Off Overview</h2>
+          </div>
+
+          <div className="overview-card__chips-row">
+            <div className="overview-card__chip overview-card__chip--blue">
+              <span className="overview-card__chip-num">12</span>
+              <span className="overview-card__chip-lbl">Requests</span>
+            </div>
+            <div className="overview-card__chip overview-card__chip--green">
+              <span className="overview-card__chip-num">8</span>
+              <span className="overview-card__chip-lbl">Approved</span>
+            </div>
+            <div className="overview-card__chip overview-card__chip--amber">
+              <span className="overview-card__chip-num">5</span>
+              <span className="overview-card__chip-lbl">Pending</span>
+            </div>
+          </div>
+
+          <div className="overview-card__list">
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Privilege Leave (PL)</span>
+              <span className="overview-card__row-val">4 d used</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Sick Leave (SL)</span>
+              <span className="overview-card__row-val">0 d used</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Casual Leave (CL)</span>
+              <span className="overview-card__row-val">1 d used</span>
+            </div>
+            <div className="overview-card__row">
+              <span className="overview-card__row-label">Leave Without Pay (LWP)</span>
+              <span className="overview-card__row-val">
+                3 d used <span className="overview-card__tag-unpaid">unpaid</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Operational Alerts */}
+        <div className="overview-card">
+          <div className="overview-card__header">
+            <span className="overview-card__alert-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </span>
+            <h2 className="overview-card__title">Operational Alerts</h2>
+          </div>
+
+          <div className="overview-card__alerts-list">
+            <div className="overview-card__alert-box overview-card__alert-box--warning">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              <span>Contract CTR-2025-002 expires 30 Sept 2026 — 25 days left</span>
+            </div>
+
+            <div className="overview-card__alert-box overview-card__alert-box--info">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+              </svg>
+              <span>5 time-off request(s) awaiting approval</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );

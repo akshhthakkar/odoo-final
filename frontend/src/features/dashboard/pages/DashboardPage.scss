@@ -472,7 +472,17 @@
   }
 }
 
-// ─── Recent Payruns Table ─────────────────────────────────────────────────────
+// ─── Payruns Row (Table + Donut Chart) ────────────────────────────────────────
+.dash-payruns-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 1080px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .recent-payruns-card {
   background: #ffffff;
   border: 1px solid $color-border;
@@ -571,6 +581,282 @@
 
     &:hover {
       text-decoration: underline;
+    }
+  }
+}
+
+// Donut Wheel Card
+.donut-card {
+  background: #ffffff;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 24px;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 17px;
+    font-weight: 700;
+    color: $color-text-primary;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 12px 0;
+  }
+
+  &__svg-wrap {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  &__center-text {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  &__pct {
+    font-family: $font-heading;
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+  }
+
+  &__sub {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  &__legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+    margin-top: 8px;
+  }
+
+  &__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #6366f1;
+  }
+}
+
+// ─── Bottom 3-Column Overview Grid ────────────────────────────────────────────
+.dash-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+
+  @media (max-width: 1080px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.overview-card {
+  background: #ffffff;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 24px;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 16.5px;
+    font-weight: 700;
+    color: $color-text-primary;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  &__alert-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f59e0b;
+  }
+
+  // Chips / Pills Top Row
+  &__chips-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__chip {
+    flex: 1;
+    min-width: 60px;
+    padding: 8px 6px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+
+    &--green {
+      background: #ecfdf5;
+      .overview-card__chip-num { color: #059669; }
+      .overview-card__chip-lbl { color: #10b981; }
+    }
+
+    &--yellow {
+      background: #fef9c3;
+      .overview-card__chip-num { color: #ca8a04; }
+      .overview-card__chip-lbl { color: #d97706; }
+    }
+
+    &--red {
+      background: #ffe4e6;
+      .overview-card__chip-num { color: #e11d48; }
+      .overview-card__chip-lbl { color: #f43f5e; }
+    }
+
+    &--purple {
+      background: #f3e8ff;
+      .overview-card__chip-num { color: #7e22ce; }
+      .overview-card__chip-lbl { color: #9333ea; }
+    }
+
+    &--blue {
+      background: #eff6ff;
+      .overview-card__chip-num { color: #1d4ed8; }
+      .overview-card__chip-lbl { color: #2563eb; }
+    }
+
+    &--amber {
+      background: #fef3c7;
+      .overview-card__chip-num { color: #b45309; }
+      .overview-card__chip-lbl { color: #d97706; }
+    }
+  }
+
+  &__chip-num {
+    font-family: $font-heading;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  &__chip-lbl {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  // Metric Rows List
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    padding-bottom: 2px;
+  }
+
+  &__row-label {
+    color: #64748b;
+  }
+
+  &__row-val {
+    font-weight: 600;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__tag-unpaid {
+    font-size: 11px;
+    font-weight: 600;
+    color: #e11d48;
+    background: #ffe4e6;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  // Alert Banners List
+  &__alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__alert-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: $radius-md;
+    font-size: 13px;
+    line-height: 1.4;
+    transition: all $transition-fast;
+
+    &--warning {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      color: #92400e;
+
+      svg {
+        color: #d97706;
+        flex-shrink: 0;
+      }
+    }
+
+    &--info {
+      background: #f0f9ff;
+      border: 1px solid #e0f2fe;
+      color: #0369a1;
+
+      svg {
+        color: #0284c7;
+        flex-shrink: 0;
+      }
     }
   }
 }
