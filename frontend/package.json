@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "node ../backend/scripts/kill-port.js 5173",
+    "predev": "node -e \"import('node:fs').then(fs => { if (fs.existsSync('../backend/scripts/kill-port.js')) import('node:child_process').then(cp => cp.execSync('node ../backend/scripts/kill-port.js 5173')); }).catch(()=>{})\"",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

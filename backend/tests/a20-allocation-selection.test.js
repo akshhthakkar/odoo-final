@@ -10,7 +10,7 @@ const approverEmpId = '55555555-5555-5555-5555-555555555555';
 const approverUserId = '66666666-6666-6666-6666-666666666666';
 
 describe('A-20: Deterministic Allocation Selection & Transactional Approval', () => {
-  it('selects the earliest applicable allocation deterministically (orderBy validFrom asc, createdAt asc)', async () => {
+  it('selects deterministically from ordered allocations, preferring sufficient remaining balance', async () => {
     const mockRequest = {
       id: reqId,
       employeeId: empId,
@@ -44,17 +44,14 @@ describe('A-20: Deterministic Allocation Selection & Transactional Approval', ()
         }),
       },
       timeOffAllocation: {
-        findFirst: vi.fn().mockImplementation(({ orderBy }) => {
+        findMany: vi.fn().mockImplementation(({ orderBy }) => {
           selectedOrder = orderBy;
-          return Promise.resolve({
-            id: allocId,
-            employeeId: empId,
-            typeId,
-            validFrom: new Date('2026-01-01'),
-            validTo: new Date('2026-12-31'),
-            allocatedDays: 10,
-            takenDays: 2,
-          });
+          // First allocation (earliest) is exhausted; the service must skip it
+          // and pick the later one that still has enough remaining balance.
+          return Promise.resolve([
+            { id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', employeeId: empId, typeId, validFrom: new Date('2026-01-01'), validTo: new Date('2026-03-31'), allocatedDays: 5, takenDays: 5 },
+            { id: allocId, employeeId: empId, typeId, validFrom: new Date('2026-01-01'), validTo: new Date('2026-12-31'), allocatedDays: 10, takenDays: 2 },
+          ]);
         }),
         findUnique: vi.fn().mockResolvedValue({
           allocatedDays: 10,
@@ -74,10 +71,15 @@ describe('A-20: Deterministic Allocation Selection & Transactional Approval', ()
     const approver = { id: approverUserId, employee_id: approverEmpId, role: 'HR_MANAGER' };
     const result = await timeoffService.approveRequest(reqId, approver);
     expect(result.request.status).toBe('APPROVED');
+    // Deterministic ordering contract is preserved...
     expect(selectedOrder).toEqual([
       { validFrom: 'asc' },
       { createdAt: 'asc' },
     ]);
+    // ...and the deduction targeted the allocation with sufficient remaining.
+    expect(mockTx.timeOffAllocation.findUnique).toHaveBeenCalledWith({
+      where: { id: allocId },
+    });
   });
 
   it('rejects self-approval with 403 FORBIDDEN when approver is the requester', async () => {
