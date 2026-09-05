@@ -22,7 +22,6 @@ export default function Router() {
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/contracts" element={<ContractsPage />} />
           <Route path="/schedules" element={<SchedulesPage />} />
