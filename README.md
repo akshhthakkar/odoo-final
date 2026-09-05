@@ -1,6 +1,7 @@
 <div align="center">
+  <img src="frontend/src/assets/pay365-banner.png" alt="Pay365 Banner" width="100%" style="border-radius: 16px; margin-bottom: 20px;" />
 
-# 💼 Pay365
+# Pay365
 
 **Modern HR & Payroll Operations Platform**
 
@@ -21,30 +22,30 @@
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Architecture](#-architecture)
-- [Payroll Calculation Engine](#-payroll-calculation-engine)
-- [Database Design](#-database-design)
-- [Business Workflows](#-business-workflows)
-- [Role-Based Access Control](#-role-based-access-control)
-- [Folder Structure](#-folder-structure)
-- [Getting Started](#-getting-started)
-- [Environment Variables](#-environment-variables)
-- [Business Rules](#-business-rules)
-- [Demo Scenarios](#-demo-scenarios)
-- [Design System](#-design-system)
-- [Testing](#-testing)
-- [Security](#-security)
-- [Documentation](#-documentation)
-- [Future Improvements](#-future-improvements)
-- [License](#-license)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Payroll Calculation Engine](#payroll-calculation-engine)
+- [Database Design](#database-design)
+- [Business Workflows](#business-workflows)
+- [Role-Based Access Control](#role-based-access-control)
+- [Folder Structure](#folder-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Business Rules](#business-rules)
+- [Demo Scenarios](#demo-scenarios)
+- [Design System](#design-system)
+- [Testing](#testing)
+- [Security](#security)
+- [Documentation](#documentation)
+- [Future Improvements](#future-improvements)
+- [License](#license)
 
 ---
 
-## 📌 Overview
+## Overview
 
 **The Problem:** Basic HR tools store employees, attendance, leave, and salary as disconnected records. Real HR and payroll teams need these records to work together: payroll must use the contract valid for the pay period, worked hours must come from an assigned schedule, leave balances depend on allocations and approvals, and all of it must transform into accurate, explainable payslips.
 
@@ -54,46 +55,46 @@
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 | Area | Features |
 | :--- | :--- |
-| 👥 **Employee Master** | Kanban/List/Form views, department–manager–schedule–job context, smart buttons linking to related records. |
-| 📜 **Contract Management** | Historical contracts with period-based resolution — payroll always uses the contract valid for the pay period; overlapping active contracts are rejected. |
-| 📅 **Working Schedules** | Weekly patterns (day, start, end, break) with **auto-computed weekly hours**; assignable to employees and contracts. |
-| ⏱ **Attendance** | Check-in/out with computed worked hours, status inference (Present / Late / Missing Checkout), HR corrections with audit trail. |
-| 🌴 **Time Off** | Configurable leave types, allocation lifecycle with approval, request → approve → **automatic balance deduction**. |
-| 🧮 **Salary Structures & Rules** | Sequenced rules with **fixed, percentage, and formula** computation; categories for Basic, Allowances, Gross, Deductions, Net. |
-| 🚀 **Payrun Wizard** | Two-step creation: scope (structure + period) → explicit employee selection → batch processing screen. |
-| 🧾 **Payslips** | Rule-by-rule computation breakdown, warnings surfaced before finalization, printable PDF, bulk email delivery. |
-| ⚠️ **Payroll Warnings** | Missing bank details, duplicate payslips, missing/ambiguous contracts — surfaced **before** validation. |
-| 📊 **Live Dashboard** | KPI cards, salary cost by department, monthly net trends, attendance & leave overviews — zero static data. |
-| 🛡 **RBAC** | 5 roles (Employee → Admin) enforced on every endpoint and every UI route. |
-| 📑 **Audit Trail** | Immutable logs for approvals, payroll finalization, role changes, and manual corrections. |
+| Employee Master | Kanban/List/Form views, department–manager–schedule–job context, smart buttons linking to related records. |
+| Contract Management | Historical contracts with period-based resolution — payroll always uses the contract valid for the pay period; overlapping active contracts are rejected. |
+| Working Schedules | Weekly patterns (day, start, end, break) with **auto-computed weekly hours**; assignable to employees and contracts. |
+| Attendance | Check-in/out with computed worked hours, status inference (Present / Late / Missing Checkout), HR corrections with audit trail. |
+| Time Off | Configurable leave types, allocation lifecycle with approval, request → approve → **automatic balance deduction**. |
+| Salary Structures & Rules | Sequenced rules with **fixed, percentage, and formula** computation; categories for Basic, Allowances, Gross, Deductions, Net. |
+| Payrun Wizard | Two-step creation: scope (structure + period) → explicit employee selection → batch processing screen. |
+| Payslips | Rule-by-rule computation breakdown, warnings surfaced before finalization, printable PDF, bulk email delivery. |
+| Payroll Warnings | Missing bank details, duplicate payslips, missing/ambiguous contracts — surfaced **before** validation. |
+| Live Dashboard | KPI cards, salary cost by department, monthly net trends, attendance & leave overviews — zero static data. |
+| RBAC | 5 roles (Employee → Admin) enforced on every endpoint and every UI route. |
+| Audit Trail | Immutable logs for approvals, payroll finalization, role changes, and manual corrections. |
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 Pay365 is a **3-tier system** with a strictly separated, pure in-process calculation engine:
 
 ```mermaid
 graph TD
-    subgraph BROWSER["🖥️ Browser"]
+    subgraph BROWSER["Browser"]
         UI["React 19 SPA<br/>Vite · SCSS · Redux Toolkit · React Query"]
     end
 
-    subgraph SERVER["⚙️ Node + Express (ES Modules)"]
+    subgraph SERVER["Node + Express (ES Modules)"]
         AUTH["Auth · JWT · RBAC Middleware"]
         MODS["HR & Payroll Modules<br/>Employees · Contracts · Schedules · Attendance<br/>Time Off · Payroll Config · Payruns · Reports"]
-        subgraph ENGINE["🧮 Payroll Calculation Engine — pure module"]
+        subgraph ENGINE["Payroll Calculation Engine — pure module"]
             EXEC["Sequenced Rule Executor"]
             DSL["Formula DSL Parser<br/>(whitelisted grammar, no eval)"]
         end
         NOTIF["PDF (pdfkit) · Email (nodemailer)"]
     end
 
-    DB[("🐘 PostgreSQL 16<br/>20 tables · Prisma ORM")]
+    DB[("PostgreSQL 16<br/>20 tables · Prisma ORM")]
 
     UI -->|"REST /api/v1 · JWT Bearer"| AUTH
     AUTH --> MODS
@@ -111,7 +112,7 @@ graph TD
 
 ---
 
-## 🧮 Payroll Calculation Engine
+## Payroll Calculation Engine
 
 The engine executes salary rules **in sequence**, where later rules can reference earlier rule codes as variables. It supports three computation types:
 
@@ -132,7 +133,7 @@ TRANSPORT  = fixed                   →   3,000
 GROSS      = BASIC + HRA + TRANSPORT →  63,000
 PF         = 12% of BASIC            →  −6,000
 TAX        = GROSS > 50000 ? 2000:0  →  −2,000
-NET        = GROSS − PF − TAX        →  55,000   ✅
+NET        = GROSS − PF − TAX        →  55,000
 ```
 
 **Compute orchestration flow:**
@@ -142,20 +143,20 @@ flowchart TD
     A["Payroll Manager clicks Compute"] --> B{"Payrun status?"}
     B -->|"DRAFT / COMPUTED"| C["Resolve period-active contracts<br/>(start ≤ period_end AND end ≥ period_start)"]
     B -->|"VALIDATED / PAID"| X["409 STATE_ERROR"]
-    C -->|"none / multiple found"| W1["⚠️ ERROR warning<br/>NO_ACTIVE_CONTRACT / AMBIGUOUS_CONTRACT<br/>employee skipped"]
+    C -->|"none / multiple found"| W1["ERROR warning:<br/>NO_ACTIVE_CONTRACT / AMBIGUOUS_CONTRACT<br/>employee skipped"]
     C -->|"exactly one"| D["Aggregate attendance + approved leave<br/>+ schedule weekly hours"]
     D --> E["Build flat variable map<br/>(wage, worked_days, overtime_hours…)"]
     E --> F["computeBatch() — pure engine<br/>sequenced rules → lines + warnings"]
     F --> G["Atomic transaction:<br/>replace payslips + payslip_lines + warnings"]
     G --> H["Status → COMPUTED<br/>totals stored"]
     H --> I{"ERROR-severity warnings?"}
-    I -->|"yes"| J["🚫 Validate blocked"]
-    I -->|"no"| K["✅ Validate → Mark Paid → Send Payslips"]
+    I -->|"yes"| J["Validate blocked"]
+    I -->|"no"| K["Validate → Mark Paid → Send Payslips"]
 ```
 
 ---
 
-## 🗄 Database Design
+## Database Design
 
 20 tables with historical snapshots, parent-child payroll relationships, and warning tracking:
 
@@ -284,7 +285,7 @@ erDiagram
 
 ---
 
-## 🔄 Business Workflows
+## Business Workflows
 
 ### Payrun Lifecycle (state machine)
 
@@ -321,29 +322,29 @@ sequenceDiagram
         S-->>API: 409 INSUFFICIENT_BALANCE
     else balance OK
         S->>DB: TX — request = APPROVED, allocation.taken_days += days
-        API-->>E: ✅ balance updated, smart buttons refresh
+        API-->>E: balance updated, smart buttons refresh
     end
 ```
 
 ---
 
-## 🛡 Role-Based Access Control
+## Role-Based Access Control
 
 | Resource | Employee | HR Manager | HR Payroll User | HR Payroll Manager | Admin |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Users & roles | — | — | — | — | ✏️ Full |
-| Employees / Contracts / Schedules / Attendance | Own (read) | ✏️ Full | ✏️ Full | ✏️ Full | ✏️ Full |
-| Time Off requests ⚡ approve/refuse | Own only | ⚡ | ⚡ | ⚡ | ⚡ |
-| Salary structures & rules | — | — | 👁 Read | ✏️ Full | ✏️ Full |
-| Payruns ⚡ compute | — | — | ✏️ CRU + ⚡ | ✏️ Full + ⚡ | ✏️ Full |
-| Payslips | Own (read) | — | ✏️ CRU | ✏️ Full | ✏️ Full |
-| Dashboard | — | 👁 HR widgets | 👁 | 👁 | 👁 |
+| Users & roles | — | — | — | — | Full |
+| Employees / Contracts / Schedules / Attendance | Own (read) | Full | Full | Full | Full |
+| Time Off requests — approve/refuse | Own only | Yes | Yes | Yes | Yes |
+| Salary structures & rules | — | — | Read | Full | Full |
+| Payruns | — | — | CRU + compute | Full + all actions | Full |
+| Payslips | Own (read) | — | CRU | Full | Full |
+| Dashboard | — | HR widgets | Read | Read | Read |
 
 Enforced by `requireAuth` + `requireRole` middleware on every route, plus row-level checks in services (employees see only their own data; nobody approves their own leave). The UI adapts to the role — the API remains the source of truth.
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 ```text
 pay365/
@@ -351,7 +352,7 @@ pay365/
 │   ├── prisma/                  # schema.prisma, migrations, seed.js
 │   └── src/
 │       ├── config/              # env config (validated at startup)
-│       ├── engine/              # 🧮 PAYROLL CALCULATION ENGINE (pure module)
+│       ├── engine/              # PAYROLL CALCULATION ENGINE (pure module)
 │       │   ├── executor/        # sequenced rule executor
 │       │   ├── formula/         # safe formula parser (no eval)
 │       │   ├── validator/       # rule-set validation
@@ -374,7 +375,7 @@ pay365/
 ├── frontend/
 │   └── src/
 │       ├── app/                 # router, providers, layout, guards
-│       ├── components/ui/       # DataTable, Modal, KpiCard, Badge…
+│       ├── components/ui/       # DataTable, Modal, KpiCard, Badge...
 │       ├── store/               # Redux store (authSlice, uiSlice)
 │       ├── styles/              # SCSS design system (_variables, _mixins)
 │       ├── lib/                 # api client, format, query-client
@@ -388,7 +389,7 @@ pay365/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -434,7 +435,7 @@ npm run dev
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 | Variable | Location | Description |
 | :--- | :--- | :--- |
@@ -450,7 +451,7 @@ npm run dev
 
 ---
 
-## ✅ Business Rules
+## Business Rules
 
 - [x] **Period-based contract selection** — payslips use the ACTIVE contract overlapping the payrun period; zero or multiple matches raise ERROR warnings (never a silent pick).
 - [x] **No concurrent active contracts** — enforced by a DB exclusion constraint + transactional service check.
@@ -465,7 +466,7 @@ npm run dev
 
 ---
 
-## 🎬 Demo Scenarios
+## Demo Scenarios
 
 **Scenario A — Employee to Payslip (~2.5 min):**
 Login as HR Manager → Employees (Kanban) → open employee (smart buttons) → Payroll → New Payrun wizard (structure + period → select employees) → Compute → review warnings → Validate → Mark Paid → open payslip (rule-by-rule breakdown) → Print PDF → Send Payslips.
@@ -475,7 +476,7 @@ Create Time Off Type → create & approve Allocation → submit Time Off Request
 
 ---
 
-## 🎨 Design System
+## Design System
 
 Clean, high-contrast SaaS aesthetic — pure white surfaces with an **Electric Royal Blue** accent (full spec in `docs/Implementation plan/DESIGN.md`):
 
@@ -493,7 +494,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 🧪 Testing
+## Testing
 
 | Layer | Tool | Coverage |
 | :--- | :--- | :--- |
@@ -505,7 +506,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 🔒 Security
+## Security
 
 - **Auth:** JWT access tokens (15 min) + hashed refresh tokens in httpOnly cookies with rotation and revocable sessions.
 - **Passwords:** bcrypt (cost 12); never logged, never returned.
@@ -517,7 +518,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 | Document | Contents |
 | :--- | :--- |
@@ -535,7 +536,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Category | Technologies |
 | :--- | :--- |
@@ -543,7 +544,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 | **State & Forms** | Redux Toolkit, TanStack React Query, React Hook Form, Zod |
 | **Data Visualization** | Recharts |
 | **Backend** | Node.js, Express 5 (ES Modules) |
-| **Payroll Engine** | In-process pure TypeScript-style module — sequenced executor, handwritten formula parser, decimal.js |
+| **Payroll Engine** | In-process pure module — sequenced executor, handwritten formula parser, decimal.js |
 | **Database & ORM** | PostgreSQL 16, Prisma |
 | **Auth** | JWT (access + refresh), bcrypt |
 | **Documents & Email** | pdfkit, nodemailer |
@@ -552,7 +553,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 🔮 Future Improvements
+## Future Improvements
 
 - [ ] Background job queue for large payruns (compute beyond request timeout).
 - [ ] Redis-backed caching layer for dashboard aggregates.
@@ -564,14 +565,14 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ---
 
-## 👨‍💻 Contributors
+## Contributors
 
-Built with ❤️ during a hackathon.
+Built with care during a hackathon.
 
 Contributions, issues, and feature requests are welcome!
 
 ---
 
-## 📄 License
+## License
 
 This project is [MIT](./LICENSE) licensed.
