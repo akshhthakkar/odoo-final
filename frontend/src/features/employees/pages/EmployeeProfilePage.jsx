@@ -491,12 +491,8 @@ export default function EmployeeProfilePage() {
                   <p>60 Days (2 Months)</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Probation Status</label>
-                  <p>
-                    {status === 'PROBATION'
-                      ? 'Under Probation (6 Months)'
-                      : 'Completed / Confirmed'}
-                  </p>
+                  <label>Employment Status</label>
+                  <p>{status ? status.replace('_', ' ') : '—'}</p>
                 </div>
               </div>
             </div>

@@ -111,6 +111,8 @@
     &--probation { background: #f59e0b; }
     &--on_leave { background: #3b82f6; }
     &--resigned { background: #ef4444; }
+    &--suspended { background: #f59e0b; }
+    &--terminated { background: #ef4444; }
   }
 
   &__hero-info {
@@ -155,6 +157,8 @@
     &--probation { background: #fef3c7; color: #d97706; }
     &--on_leave { background: #eff6ff; color: #2563eb; }
     &--resigned { background: #fef2f2; color: #dc2626; }
+    &--suspended { background: #fef3c7; color: #d97706; }
+    &--terminated { background: #fef2f2; color: #dc2626; }
   }
 
   &__title-dept {
