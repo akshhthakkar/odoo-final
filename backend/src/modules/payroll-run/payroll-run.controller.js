@@ -44,3 +44,13 @@ export async function statusChange(req, res, next) {
     next(err);
   }
 }
+
+export async function dispatch(req, res, next) {
+  try {
+    const result = await service.dispatchPayrunPayslips(req.params.id, req.user.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
