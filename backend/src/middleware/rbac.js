@@ -3,11 +3,13 @@ import { AppError } from '../shared/errors.js';
 export const requireRole =
   (...roles) =>
   (req, res, next) => {
-    if (!req.user) {
-      return next(new AppError(401, 'UNAUTHORIZED', 'Authentication required'));
+    const role = req.user?.role || req.session?.role;
+    if (!role) {
+      return next(new AppError(401, 'SESSION_INVALID', 'Authentication required'));
     }
-    if (!roles.includes(req.user.role)) {
-      return next(new AppError(403, 'FORBIDDEN', 'Insufficient role'));
+    if (!roles.includes(role)) {
+      return next(new AppError(403, 'FORBIDDEN', 'Insufficient role permissions'));
     }
     return next();
   };
+
