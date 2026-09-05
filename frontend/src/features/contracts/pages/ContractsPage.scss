@@ -151,7 +151,8 @@
 }
 
 // ─── 3. Filter Toolbar ───────────────────────────────────────────────────────
-.cnt-filter-card {
+// ─── 3. Filter Toolbar ───────────────────────────────────────────────────────
+.cnt-filter-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,127 +164,117 @@
   padding: 12px 18px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 
-  &__left {
+  &__search {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
+    min-width: 280px;
 
-  &__right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-}
-
-.cnt-status-tabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cnt-status-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 6px 14px;
-  border-radius: $radius-pill;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &__badge {
-    background: #e2e8f0;
-    color: #475569;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 9999px;
-  }
-
-  &:hover {
-    background: #f1f5f9;
-    color: #0f172a;
-  }
-
-  &--active {
-    background: $color-primary;
-    border-color: $color-primary;
-    color: #ffffff;
-
-    .cnt-status-tab__badge {
-      background: rgba(255, 255, 255, 0.25);
-      color: #ffffff;
-    }
-
-    &:hover {
-      background: $color-primary-hover;
-      color: #ffffff;
-    }
-  }
-}
-
-.cnt-search-input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-width: 260px;
-
-  svg {
-    position: absolute;
-    left: 12px;
-    pointer-events: none;
-  }
-
-  input {
-    width: 100%;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: $radius-pill;
-    padding: 7px 12px 7px 34px;
-    font-family: inherit;
-    font-size: 12.5px;
-    color: #0f172a;
-    transition: all $transition-fast;
-
-    &::placeholder {
+    svg {
+      position: absolute;
+      left: 12px;
       color: #94a3b8;
+      pointer-events: none;
     }
 
-    &:focus {
+    input {
+      width: 100%;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9999px;
+      padding: 8px 14px 8px 36px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #0f172a;
       outline: none;
-      background: #ffffff;
-      border-color: $color-primary;
-      box-shadow: 0 0 0 3px $color-primary-subtle;
+      transition: all 0.15s ease;
+
+      &::placeholder {
+        color: #94a3b8;
+      }
+
+      &:focus {
+        background: #ffffff;
+        border-color: #2357fe;
+        box-shadow: 0 0 0 3px rgba(35, 87, 254, 0.12);
+      }
     }
   }
-}
 
-.cnt-select-wrap {
-  select {
+  &__select-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    select {
+      appearance: none;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 9999px;
+      padding: 8px 34px 8px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+
+      &:focus {
+        border-color: #2357fe;
+        box-shadow: 0 0 0 3px rgba(35, 87, 254, 0.12);
+      }
+    }
+
+    svg {
+      position: absolute;
+      right: 12px;
+      color: #94a3b8;
+      pointer-events: none;
+    }
+  }
+
+  &__status-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  &__status-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: $radius-pill;
-    padding: 7px 14px;
+    padding: 6px 14px;
+    border-radius: 9999px;
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 600;
-    color: #334155;
+    color: #475569;
     cursor: pointer;
-    transition: all $transition-fast;
+    transition: all 0.15s ease;
 
     &:hover {
       background: #f1f5f9;
+      color: #0f172a;
     }
 
-    &:focus {
-      outline: none;
-      border-color: $color-primary;
+    &--active {
+      background: #2357fe;
+      border-color: #2357fe;
+      color: #ffffff;
+
+      &:hover {
+        background: #1c46ce;
+        color: #ffffff;
+      }
     }
   }
 }
