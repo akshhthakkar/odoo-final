@@ -1,14 +1,57 @@
-$primary: #4f46e5;
-$bg: #0f1117;
-$surface: #171a23;
-$surface-hover: #232734;
-$border: #2a2f3d;
-$text: #e5e7eb;
-$text-muted: #9ca3af;
+// ==========================================
+// Pay365 SCSS Design System Tokens
+// Primary: #2357FE (Electric Royal Blue)
+// Surface: #FFFFFF (Pure White)
+// ==========================================
+
+// Teammate base variables
+$primary: #2357fe;
+$bg: #f8fafc;
+$surface: #ffffff;
+$surface-hover: #f1f5f9;
+$border: #e2e8f0;
+$text: #0f172a;
+$text-muted: #475569;
 $danger: #ef4444;
-$success: #22c55e;
+$success: #10b981;
 $warning: #f59e0b;
 
+// Extended Design System Tokens
+$color-primary: #2357fe;
+$color-primary-hover: #1a46d8;
+$color-primary-light: #5b86ff;
+$color-primary-subtle: #eef3ff;
+$color-primary-glow: rgba(35, 87, 254, 0.35);
+
+$color-bg-app: #f8fafc;
+$color-bg-card: #ffffff;
+$color-bg-overlay: rgba(15, 23, 42, 0.4);
+
+$color-text-primary: #0f172a;
+$color-text-secondary: #475569;
+$color-text-muted: #94a3b8;
+
+$color-border: #e2e8f0;
+$color-border-subtle: #f1f5f9;
+$color-border-focus: #2357fe;
+
+// Status Colors
+$color-success: #10b981;
+$color-success-bg: #ecfdf5;
+$color-warning: #f59e0b;
+$color-warning-bg: #fffbeb;
+$color-danger: #ef4444;
+$color-danger-bg: #fef2f2;
+
+// Shadows & Glows
+$shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+$shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04);
+$shadow-md: 0 6px 16px -2px rgba(15, 23, 42, 0.06);
+$shadow-lg: 0 12px 32px -4px rgba(15, 23, 42, 0.08);
+$shadow-primary-btn: 0 8px 20px -4px rgba(35, 87, 254, 0.45);
+$shadow-primary-hover: 0 12px 25px -4px rgba(35, 87, 254, 0.55);
+
+// Spacing & Border Radiuses
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
@@ -17,5 +60,14 @@ $spacing-xl: 32px;
 
 $radius-sm: 6px;
 $radius-md: 10px;
+$radius-lg: 16px;
+$radius-xl: 24px;
+$radius-pill: 9999px;
 
-$shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+// Typography Stacks
+$font-heading: 'Bricolage Grotesque', sans-serif;
+$font-body: 'Bricolage Grotesque', sans-serif;
+
+// Transitions
+$transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+$transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
