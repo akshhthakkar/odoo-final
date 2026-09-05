@@ -4,11 +4,21 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const demoUsers = [
-  { email: 'admin@pay365.dev', fullName: 'System Admin', role: 'ADMIN' },
-  { email: 'hr.manager@pay365.dev', fullName: 'Hema Rao', role: 'HR_MANAGER' },
-  { email: 'payroll.user@pay365.dev', fullName: 'Praveen Nair', role: 'HR_PAYROLL_USER' },
-  { email: 'payroll.manager@pay365.dev', fullName: 'Asha Kulkarni', role: 'HR_PAYROLL_MANAGER' },
-  { email: 'employee@pay365.dev', fullName: 'Rahul Verma', role: 'EMPLOYEE' },
+  { email: 'admin@pay365.dev', fullName: 'System Administrator', role: 'ADMIN', empCode: null },
+  { email: 'sec.admin@pay365.dev', fullName: 'Security Officer', role: 'ADMIN', empCode: null },
+  { email: 'hr.manager@pay365.dev', fullName: 'Hema Rao', role: 'HR_MANAGER', empCode: null },
+  { email: 'payroll.manager@pay365.dev', fullName: 'Asha Kulkarni', role: 'HR_PAYROLL_MANAGER', empCode: null },
+  { email: 'payroll.user@pay365.dev', fullName: 'Praveen Nair', role: 'HR_PAYROLL_USER', empCode: null },
+  { email: 'arjun.nair@peoplepay360.io', fullName: 'Arjun Nair', role: 'HR_PAYROLL_MANAGER', empCode: 'EMP-001' },
+  { email: 'meera.krishnan@peoplepay360.io', fullName: 'Meera Krishnan', role: 'EMPLOYEE', empCode: 'EMP-002' },
+  { email: 'employee@pay365.dev', fullName: 'Rahul Verma', role: 'EMPLOYEE', empCode: 'EMP-003' },
+  { email: 'sneha.patil@peoplepay360.io', fullName: 'Sneha Patil', role: 'HR_MANAGER', empCode: 'EMP-004' },
+  { email: 'karthik.menon@peoplepay360.io', fullName: 'Karthik Menon', role: 'HR_PAYROLL_USER', empCode: 'EMP-005' },
+  { email: 'vikram.rao@peoplepay360.io', fullName: 'Vikram Rao', role: 'HR_PAYROLL_MANAGER', empCode: 'EMP-006' },
+  { email: 'ananya.deshmukh@peoplepay360.io', fullName: 'Ananya Deshmukh', role: 'EMPLOYEE', empCode: 'EMP-007' },
+  { email: 'rohan.gupta@peoplepay360.io', fullName: 'Rohan Gupta', role: 'EMPLOYEE', empCode: 'EMP-008' },
+  { email: 'aditya.joshi@peoplepay360.io', fullName: 'Aditya Joshi', role: 'EMPLOYEE', empCode: 'EMP-009' },
+  { email: 'priya.sharma@peoplepay360.io', fullName: 'Priya Sharma', role: 'EMPLOYEE', empCode: 'EMP-010' },
 ];
 
 const departmentsData = [
@@ -238,11 +248,15 @@ const employeesData = [
 async function main() {
   console.log('Seeding demo users...');
   for (const u of demoUsers) {
+    const { empCode, ...userData } = u;
     await prisma.user.upsert({
-      where: { email: u.email },
-      update: {},
+      where: { email: userData.email },
+      update: {
+        fullName: userData.fullName,
+        role: userData.role,
+      },
       create: {
-        ...u,
+        ...userData,
         passwordHash: await bcrypt.hash('Password@123', 12),
       },
     });
@@ -481,12 +495,14 @@ async function main() {
     });
   }
 
-  // Link employee@pay365.dev user with Rahul Verma employee
-  if (empMap['EMP-003']) {
-    await prisma.user.updateMany({
-      where: { email: 'employee@pay365.dev' },
-      data: { employeeId: empMap['EMP-003'] },
-    });
+  // Link demo users with employee profiles
+  for (const u of demoUsers) {
+    if (u.empCode && empMap[u.empCode]) {
+      await prisma.user.updateMany({
+        where: { email: u.email },
+        data: { employeeId: empMap[u.empCode] },
+      });
+    }
   }
 
   console.log('Seeding time off types & allocations...');
