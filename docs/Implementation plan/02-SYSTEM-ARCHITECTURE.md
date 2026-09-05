@@ -26,7 +26,7 @@
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  BROWSER — React 19 + TypeScript SPA (Vite)                │
+│  BROWSER — React 19 + JavaScript SPA (Vite)                │
 │  Login · Dashboard · Employees · Contracts · Attendance    │
 │  Time Off · Schedules · Salary Structures/Rules · Payruns  │
 │  Payslips · Reports                                        │
@@ -34,7 +34,7 @@
                            │ HTTPS / JSON  (JWT Bearer)
                            ▼
 ┌────────────────────────────────────────────────────────────┐
-│  NODE + EXPRESS + TypeScript  — API / Orchestration        │
+│  NODE + EXPRESS + JavaScript (ES Modules) — API            │
 │  Auth(JWT) · RBAC(5 roles) · Validation(zod) · CRUD        │
 │  Workflows: approve leave · payrun compute/validate/paid   │
 │  Audit log · PDF generation · Email dispatch               │
@@ -148,7 +148,7 @@ GET /api/v1/dashboard/metrics?period_start&period_end&department_id&employee_typ
 | Layer | What | TTL | Invalidation |
 |---|---|---|---|
 | Web (React Query) | All GET API data | 30 s staleTime | Invalidate on mutation (query keys per module) |
-| Web | Auth session (Zustand) | Session | On logout/401-after-refresh |
+| Web | Auth session (Redux Toolkit) | Session | On logout/401-after-refresh |
 | API | None (hackathon scale) | — | — |
 | Dashboard | React Query cache only, refetch on filter change | 0 | On navigation |
 

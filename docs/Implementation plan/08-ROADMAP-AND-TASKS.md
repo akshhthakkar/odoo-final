@@ -20,7 +20,7 @@
 
 ### TASK-001: Monorepo scaffolding + docker-compose (P0, deps: —)
 **Goal:** Runnable skeleton of all four tiers.
-**Scope:** monorepo layout (apps/api, apps/web, services/payroll-engine); Express+TS hello-API with health; Vite React app; FastAPI with /health; docker-compose (postgres 16, api, web, engine) with env templates; eslint/prettier; CI-less scripts.
+**Scope:** monorepo layout (apps/api, apps/web, services/payroll-engine); Express+JS hello-API with health; Vite React app with SCSS; FastAPI with /health; docker-compose (postgres 16, api, web, engine) with env templates; eslint/prettier; CI-less scripts.
 **AC:** `docker-compose up` → web loads, API `/api/health` 200, engine `/health` 200; `.env.example` complete for all apps; no secrets committed.
 
 ### TASK-002: Database schema + migrations (P0, deps: 001)
@@ -129,6 +129,6 @@
 - [ ] Meets all acceptance criteria; zod validation on new endpoints; error envelope everywhere
 - [ ] Role enforcement implemented + tested (403 paths)
 - [ ] Happy + error path tests for P0 endpoints; engine changes have pytest
-- [ ] No secrets, no console.log, no `any` escapes in TS, lint clean
+- [ ] No secrets, no console.log, no unused variable warnings in JS, lint clean
 - [ ] Audit rows for security-sensitive actions; UI follows `06-FRONTEND-ARCHITECTURE.md` §6 patterns
 - [ ] Board status updated in `00-MASTER-PLAN.md` §6

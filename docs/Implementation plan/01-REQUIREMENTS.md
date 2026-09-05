@@ -77,7 +77,7 @@ Basic HR tools store employees, attendance, leave, and salary as disconnected re
 
 ## 5. Technical Requirements
 
-- Monorepo: `apps/api` (Express+TS), `apps/web` (React+TS+Vite), `services/payroll-engine` (FastAPI), shared PostgreSQL.
+- Monorepo: `apps/api` (Express+JS), `apps/web` (React+JS+Vite), `services/payroll-engine` (FastAPI), shared PostgreSQL.
 - All config via environment variables validated at startup; `.env.example` per app; no secrets in code.
 - Node ↔ Python communication: HTTP/JSON over internal network (docker-compose service name).
 - PDF generation Node-side from persisted payslip lines (not from live recalculation).

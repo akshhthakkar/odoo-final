@@ -322,6 +322,6 @@ Conventions: all tables get `id (uuid, pk, default gen_random_uuid())`, `created
 
 - Tool: `prisma migrate dev` (dev) / `prisma migrate deploy` (prod-like). Naming: `YYYYMMDDHHMMSS_description`.
 - Rollback: forward-only; corrective migrations preferred (documented in each migration folder) — acceptable for hackathon.
-- Seed (`prisma/seed.ts`, idempotent upserts): 1 admin + demo users per role (password `Password123!`), 4 departments, 12 employees with varied contracts (FULL_TIME/PART_TIME/CONTRACT), 2 working schedules, attendance for 60 days, 3 time off types + allocations + requests in mixed states, "Regular Salary" structure with rules BASIC (fixed=wage), HRA (20% BASIC), TRANSPORT (fixed 3000), GROSS (subtotal), PF (12% BASIC), TAX (formula), NET (subtotal); 2 historical PAID payruns (for dashboard trends) + 1 fresh DRAFT payrun for the live demo.
+- Seed (`prisma/seed.js`, idempotent upserts): 1 admin + demo users per role (password `Password123!`), 4 departments, 12 employees with varied contracts (FULL_TIME/PART_TIME/CONTRACT), 2 working schedules, attendance for 60 days, 3 time off types + allocations + requests in mixed states, "Regular Salary" structure with rules BASIC (fixed=wage), HRA (20% BASIC), TRANSPORT (fixed 3000), GROSS (subtotal), PF (12% BASIC), TAX (formula), NET (subtotal); 2 historical PAID payruns (for dashboard trends) + 1 fresh DRAFT payrun for the live demo.
 
 **Numerical guarantee:** engine math uses `Decimal`/fixed-2 rounding at line level; payslip totals are stored, never recomputed for display.

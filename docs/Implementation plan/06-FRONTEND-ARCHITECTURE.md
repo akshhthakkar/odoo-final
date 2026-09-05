@@ -1,4 +1,4 @@
-# PeoplePay360 — Frontend Architecture (React 19 + TypeScript + Vite)
+# PeoplePay360 — Frontend Architecture (React 19 + JavaScript + Vite + SCSS)
 
 **Date:** 2026-09-05 · **Rendering:** CSR SPA (ADR-002) — authenticated operational app, SEO irrelevant.
 
@@ -8,11 +8,11 @@
 
 | Category | Purpose | State | May import | Naming / Location |
 |---|---|---|---|---|
-| Pages | Route-level screens | Compose features | features, ui, lib | `PascalCase.tsx` in `src/features/<module>/pages/` |
+| Pages | Route-level screens | Compose features | features, ui, lib | `PascalCase.jsx` in `src/features/<module>/pages/` |
 | Features | Business composites (PayrunWizard, PayslipTable, EmployeeSmartButtons) | Local + query hooks | own module's api/hooks, ui | `src/features/<module>/components/` |
 | UI components | Reusable, stateless (DataTable, Modal, Badge, KpiCard, EmptyState, FormField) | Stateless props-in | nothing app-specific | `src/components/ui/` |
 | Layout | AppShell (top nav, role-aware menu), AuthLayout | — | ui, lib | `src/app/layout/` |
-| Providers | QueryClientProvider, AuthProvider, ToastProvider | Global | lib | `src/app/providers.tsx` |
+| Providers | QueryClientProvider, Provider (Redux), ToastProvider | Global | lib | `src/app/providers.jsx` |
 
 **Dependency rule:** pages → features → ui. Never the reverse. Features never import other features' internals — shared things move to `components/ui` or `lib`.
 
@@ -21,7 +21,7 @@
 | State type | Solution | Examples |
 |---|---|---|
 | Server state | TanStack React Query (all GET/POST via api client hooks) | employees, payruns, dashboard |
-| Global UI/session | Zustand (`useAuthStore`, `useUiStore`) | user+role, sidebar, toasts |
+| Global UI/session | Redux Toolkit (`authSlice`, `uiSlice`) | user+role, sidebar, toasts |
 | Local | useState | form drafts, modal open |
 | URL state | React Router search params | list filters, page, payrun wizard step |
 | Forms | react-hook-form + zod resolvers | employee form, rule editor, wizard |
@@ -53,7 +53,7 @@ Query keys: `[module, params]` e.g. `["payslips", { payrunId }]`. Mutations inva
 | /settings/salary-structures/:id | StructureForm + RuleEditor | HR_PAYROLL_MANAGER | drag-order rule sequencing; Test button → /payslips/preview dry-run |
 | /admin/users | UserManagement | ADMIN | role assignment |
 
-Route guards: `<RequireRole roles={[...]}>` wrapper reads `useAuthStore`; unauthorized → friendly 403 page. API remains the real enforcement.
+Route guards: `<RequireRole roles={[...]}>` wrapper reads Redux auth state (`useSelector(selectAuth)`); unauthorized → friendly 403 page. API remains the real enforcement.
 
 ## 4. API Client
 
@@ -93,16 +93,25 @@ PayslipDetail:    identity block (employee, structure, run, period, worked days)
 - **Optimistic updates:** only for low-risk toggles; never for payrun state transitions.
 - **Role gating:** `useRole()` hook + `<Can roles>` wrapper for action buttons; UI hides what the role can't do.
 
-## 7. Folder Structure
+## 7. SCSS & Styling Architecture
+
+- **Engine:** SASS / SCSS compiled via Vite's native SCSS plugin (`sass`).
+- **Global Design Tokens (`src/styles/_variables.scss`):** Color palette (primary indigo, background dark/light, status colors), font stacks, spacing metrics, border radiuses, shadows.
+- **Mixins (`src/styles/_mixins.scss`):** Responsive breakpoints, flex/grid aligners, button variants, card containers.
+- **Base & Main (`src/styles/main.scss`):** Global CSS resets, typography base, scrollbar styling, utility classes.
+- **Component / Feature Styles:** Co-located `.scss` files (or `.module.scss`) per component and feature screen.
+
+## 8. Folder Structure
 
 ```
 apps/web/src/
-├── app/            # router.tsx, providers.tsx, layout/, guards/
-├── components/ui/  # DataTable, Modal, Badge, KpiCard, FormField, EmptyState, Toast…
-├── lib/            # api.ts (axios), auth-store.ts, format.ts, query-client.ts
+├── app/            # router.jsx, providers.jsx, layout/, guards/
+├── components/ui/  # DataTable.jsx, Modal.jsx, Badge.jsx, KpiCard.jsx, FormField.jsx…
+├── store/          # store.js, slices/ (authSlice.js, uiSlice.js)
+├── lib/            # api.js (axios), format.js, query-client.js
+├── styles/         # main.scss, _variables.scss, _mixins.scss, _base.scss
 ├── features/
 │   ├── auth/  dashboard/  employees/  contracts/  schedules/
 │   ├── attendance/  timeoff/  payroll-config/  payroll-run/  admin/
-│   └── (each: pages/ components/ api/ hooks/ types.ts)
-└── types/          # shared API response types (mirrors API contracts)
+│   └── (each: pages/ components/ api/ hooks/ styles.scss)
 ```

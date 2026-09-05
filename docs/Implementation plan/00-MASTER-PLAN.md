@@ -15,8 +15,8 @@ The architecture is a **4-tier system**:
 
 | Tier | Technology | Responsibility |
 |---|---|---|
-| Frontend | React 19 + TypeScript + Vite (SPA) | Show it — screens, dashboards, wizards |
-| API Layer | Node.js + Express + TypeScript | Control it — auth, RBAC, workflows, orchestration |
+| Frontend | React 19 + JavaScript + Vite (SPA) | Show it — screens, dashboards, wizards |
+| API Layer | Node.js + Express + JavaScript (ES Modules) | Control it — auth, RBAC, workflows, orchestration |
 | Database | PostgreSQL 16 + Prisma ORM | Store it — all HR/payroll data |
 | Calculation | Python 3.12 + FastAPI Payroll Engine | Calculate it — salary rule execution engine |
 
@@ -28,14 +28,14 @@ The architecture is a **4-tier system**:
 
 | Concern | Choice | Notes |
 |---|---|---|
-| Frontend framework | React 19 + TypeScript, Vite build | SPA, client-side rendering |
+| Frontend framework | React 19 + JavaScript (JSX), Vite build | SPA, client-side rendering |
 | Server state | TanStack React Query v5 | All API data fetching/caching |
-| Client state | Zustand | Auth session + UI state only |
-| UI | Tailwind CSS 4 + shadcn/ui-style components | Fast hackathon velocity |
+| Client state | Redux Toolkit (RTK) | Auth session + UI state only |
+| UI | SCSS (SASS/SCSS modular styles) + custom components | Clean, modular CSS design system |
 | Forms | react-hook-form + zod | Zod schemas shared shape with API validation |
 | Charts | Recharts | Dashboard charts |
-| API framework | Express 5 + TypeScript | Layered: routes → controllers → services → repositories |
-| ORM | Prisma | Type-safe PostgreSQL access, migrations |
+| API framework | Express 5 + JavaScript (ES Modules) | Layered: routes → controllers → services → repositories |
+| ORM | Prisma | PostgreSQL access via Prisma Client JS, migrations |
 | Auth | JWT access (15 min) + refresh (7 days, httpOnly cookie) | 5 roles, RBAC middleware |
 | Validation | zod on every endpoint | Never trust client input |
 | Payroll engine | FastAPI + uvicorn | Stateless JSON service |
@@ -52,7 +52,7 @@ The architecture is a **4-tier system**:
 ```
 odoo-final/
 ├── apps/
-│   ├── api/                     # Node + Express + TypeScript backend
+│   ├── api/                     # Node + Express + JavaScript backend
 │   │   ├── src/
 │   │   │   ├── config/          # Env config (validated at startup)
 │   │   │   ├── modules/
@@ -69,16 +69,16 @@ odoo-final/
 │   │   │   │   └── notifications/ # PDF + email
 │   │   │   ├── middleware/      # auth, rbac, validate, errors, request-id
 │   │   │   ├── shared/          # errors, logger, pagination, helpers
-│   │   │   └── server.ts
-│   │   └── prisma/              # schema.prisma, migrations, seed.ts
+│   │   │   └── server.js
+│   │   └── prisma/              # schema.prisma, migrations, seed.js
 │   ├── web/                     # React SPA
 │   │   └── src/
 │   │       ├── app/             # router, providers, layout
 │   │       ├── features/        # per-module: pages + components + api hooks
 │   │       ├── components/ui/   # reusable presentational components
-│   │       ├── lib/             # api client, auth store, utils
-│   │       └── types/
-│   └── (shared zod/ts types via packages/shared if time permits)
+│   │       ├── styles/          # SCSS design system (variables, mixins, main.scss)
+│   │       └── lib/             # api client, auth store, utils
+│   └── (shared zod schemas via packages/shared if time permits)
 ├── services/
 │   └── payroll-engine/          # Python FastAPI
 │       ├── app/
@@ -178,7 +178,7 @@ The spec requires a 5-minute walkthrough of two end-to-end scenarios:
 |---|---|
 | Functionality & completeness | Every spec module A1–A7, B1–B9 has a task and an API contract |
 | Business logic quality | Period-based contract selection, leave balance deduction, rule sequencing, duplicate-payslip warnings — all modeled explicitly |
-| Technical versatility | 4-tier polyglot stack (TS + Python) with clean service contracts |
+| Technical versatility | 4-tier polyglot stack (JS + Python) with clean service contracts |
 | Systems architecture | RBAC (5 roles), layered API, stateless calculation service, audit logging |
 | Data relationships | 19-table schema with historical contracts, parent-child payrun→payslips, warnings |
 | Live dashboard | Aggregates computed from real records via dedicated report queries — no static data |
