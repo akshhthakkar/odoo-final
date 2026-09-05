@@ -23,7 +23,7 @@ services:
       NODE_ENV: development
       PORT: 4000
       DATABASE_URL: postgresql://pay365:pay365@db:5432/pay365
-      SESSION_SECRET: 4aefb68d29c3a1290e4f35b2341b5d63f89e210a47d3d1984c3c92170a4efb3c
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-change-me-in-prod}
       SESSION_MAX_AGE_DAYS: 7
       WEB_ORIGIN: http://localhost:5173
     volumes:

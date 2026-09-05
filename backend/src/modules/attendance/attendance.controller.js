@@ -51,7 +51,14 @@ export async function getAttendance(req, res, next) {
 
 export async function checkIn(req, res, next) {
   try {
-    const employeeId = req.body.employee_id || req.user?.employee_id;
+    // Object-level authorization: an EMPLOYEE may only ever target their own
+    // attendance. A client-supplied employee_id must NOT override the session.
+    let employeeId;
+    if (req.user?.role === 'EMPLOYEE') {
+      employeeId = req.user.employee_id;
+    } else {
+      employeeId = req.body.employee_id || req.user?.employee_id;
+    }
     if (!employeeId) {
       throw new AppError(400, 'VALIDATION_ERROR', 'No employee associated with this account');
     }
@@ -62,6 +69,7 @@ export async function checkIn(req, res, next) {
       employee_id: employeeId,
       check_in_time: req.body.check_in,
       source,
+      actorId: req.user.id,
     });
 
     return res.status(201).json({
@@ -75,7 +83,13 @@ export async function checkIn(req, res, next) {
 
 export async function checkOut(req, res, next) {
   try {
-    const employeeId = req.body.employee_id || req.user?.employee_id;
+    // Same self-scoping rule as check-in (see above).
+    let employeeId;
+    if (req.user?.role === 'EMPLOYEE') {
+      employeeId = req.user.employee_id;
+    } else {
+      employeeId = req.body.employee_id || req.user?.employee_id;
+    }
     if (!employeeId) {
       throw new AppError(400, 'VALIDATION_ERROR', 'No employee associated with this account');
     }
@@ -83,6 +97,7 @@ export async function checkOut(req, res, next) {
     const record = await attendanceService.checkOut({
       employee_id: employeeId,
       check_out_time: req.body.check_out,
+      actorId: req.user.id,
     });
 
     return res.status(200).json({
@@ -96,7 +111,10 @@ export async function checkOut(req, res, next) {
 
 export async function createManualAttendance(req, res, next) {
   try {
-    const record = await attendanceService.createManualAttendance(req.body);
+    const record = await attendanceService.createManualAttendance({
+      ...req.body,
+      actorId: req.user.id,
+    });
     return res.status(201).json({
       success: true,
       data: record,
@@ -108,7 +126,10 @@ export async function createManualAttendance(req, res, next) {
 
 export async function updateAttendance(req, res, next) {
   try {
-    const record = await attendanceService.updateAttendance(req.params.id, req.body);
+    const record = await attendanceService.updateAttendance(req.params.id, {
+      ...req.body,
+      actorId: req.user.id,
+    });
     return res.status(200).json({
       success: true,
       data: record,

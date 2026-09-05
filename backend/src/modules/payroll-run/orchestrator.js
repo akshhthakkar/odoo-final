@@ -44,22 +44,50 @@ function findActiveContracts(tx, employeeId, periodStart, periodEnd) {
 
 // STEP 2 (per employee): attendance + approved leave aggregates for the period.
 async function aggregatePeriodInputs(tx, contract, periodStart, periodEnd) {
-  const [attendance, leave] = await Promise.all([
+  const [attendance, leaveRequests] = await Promise.all([
     tx.attendance.aggregate({
       where: { employeeId: contract.employeeId, attendanceDate: { gte: periodStart, lte: periodEnd } },
       _count: { _all: true },
       _sum: { workedHours: true, overtimeHours: true },
     }),
-    tx.timeOffRequest.aggregate({
+    tx.timeOffRequest.findMany({
       where: {
         employeeId: contract.employeeId,
         status: 'APPROVED',
-        dateFrom: { gte: periodStart },
-        dateTo: { lte: periodEnd },
+        dateFrom: { lte: periodEnd },
+        dateTo: { gte: periodStart },
       },
-      _sum: { days: true },
+      select: {
+        dateFrom: true,
+        dateTo: true,
+        days: true,
+      },
     }),
   ]);
+
+  let totalLeaveDays = 0;
+  for (const req of leaveRequests) {
+    const from = new Date(req.dateFrom);
+    const to = new Date(req.dateTo);
+    const pStart = new Date(periodStart);
+    const pEnd = new Date(periodEnd);
+
+    const overlapStart = new Date(Math.max(from.getTime(), pStart.getTime()));
+    const overlapEnd = new Date(Math.min(to.getTime(), pEnd.getTime()));
+
+    if (overlapStart <= overlapEnd) {
+      const totalReqDays = Number(req.days);
+      const totalCalendarDays = Math.max(1, Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      const overlapCalendarDays = Math.max(1, Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+      if (overlapCalendarDays >= totalCalendarDays) {
+        totalLeaveDays += totalReqDays;
+      } else {
+        const overlapRatio = overlapCalendarDays / totalCalendarDays;
+        totalLeaveDays += Number((totalReqDays * overlapRatio).toFixed(2));
+      }
+    }
+  }
 
   return {
     workedDays: attendance._count._all,
@@ -70,7 +98,7 @@ async function aggregatePeriodInputs(tx, contract, periodStart, periodEnd) {
       worked_days: attendance._count._all,
       worked_hours: Number(attendance._sum.workedHours ?? 0),
       overtime_hours: Number(attendance._sum.overtimeHours ?? 0),
-      leave_days: Number(leave._sum.days ?? 0),
+      leave_days: Number(totalLeaveDays.toFixed(2)),
     },
   };
 }
@@ -112,6 +140,11 @@ function buildPayslip(payrun, plan, result, ruleByCode) {
 // change and the payslip/warning replacement commit or roll back together.
 export async function computePayrun(payrunId, actorId) {
   return prisma.$transaction(async (tx) => {
+    // Serialize concurrent COMPUTEs on the payrun row: a second transaction
+    // blocks here until the first commits, then re-reads the committed state.
+    // This prevents both duplicate payslips and unique-violation 500s.
+    await tx.$queryRaw`SELECT id FROM payruns WHERE id = ${payrunId}::uuid FOR UPDATE`;
+
     const payrun = await tx.payrun.findUnique({
       where: { id: payrunId },
       include: { structure: true },

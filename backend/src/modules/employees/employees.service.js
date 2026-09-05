@@ -1,7 +1,32 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../shared/errors.js';
+import { writeAudit } from '../../shared/audit.js';
 
 const prisma = new PrismaClient();
+
+// FK-reference validation for update paths (create validates via dedicated
+// checks; update previously wrote unvalidated FKs -> raw 500s).
+async function assertReferencesExist(data) {
+  if (data.department_id) {
+    const dept = await prisma.department.findUnique({ where: { id: data.department_id } });
+    if (!dept) throw new AppError(404, 'NOT_FOUND', 'Department not found');
+  }
+  if (data.job_id) {
+    const job = await prisma.job.findUnique({ where: { id: data.job_id } });
+    if (!job) throw new AppError(404, 'NOT_FOUND', 'Job position not found');
+  }
+  if (data.manager_id) {
+    const mgr = await prisma.employee.findUnique({ where: { id: data.manager_id } });
+    if (!mgr) throw new AppError(404, 'NOT_FOUND', 'Manager employee not found');
+    if (data.self_id && data.manager_id === data.self_id) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Employee cannot be their own manager');
+    }
+  }
+  if (data.working_schedule_id) {
+    const schedule = await prisma.workingSchedule.findUnique({ where: { id: data.working_schedule_id } });
+    if (!schedule) throw new AppError(404, 'NOT_FOUND', 'Working schedule not found');
+  }
+}
 
 const formatEmployee = (emp) => ({
   id: emp.id,
@@ -133,7 +158,7 @@ export async function getEmployeeById(id) {
   return formatted;
 }
 
-export async function createEmployee(data) {
+export async function createEmployee(data, actorId) {
   const existingCode = await prisma.employee.findUnique({
     where: { employeeCode: data.employee_code },
   });
@@ -189,10 +214,18 @@ export async function createEmployee(data) {
     },
   });
 
+  await writeAudit(prisma, {
+    actorId,
+    action: 'EMPLOYEE_CREATED',
+    entity: 'employee',
+    entityId: employee.id,
+    payload: { employee_code: employee.employeeCode, email: employee.email },
+  });
+
   return formatEmployee(employee);
 }
 
-export async function updateEmployee(id, data) {
+export async function updateEmployee(id, data, actorId) {
   const employee = await prisma.employee.findUnique({ where: { id } });
   if (!employee) {
     throw new AppError(404, 'NOT_FOUND', 'Employee not found');
@@ -203,9 +236,7 @@ export async function updateEmployee(id, data) {
     if (existingEmail) throw new AppError(409, 'DUPLICATE', 'Email already in use');
   }
 
-  if (data.manager_id && data.manager_id === id) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'Employee cannot be their own manager');
-  }
+  await assertReferencesExist({ ...data, self_id: id });
 
   const updateData = {};
   if (data.first_name !== undefined) updateData.firstName = data.first_name;
@@ -236,10 +267,18 @@ export async function updateEmployee(id, data) {
     },
   });
 
+  await writeAudit(prisma, {
+    actorId,
+    action: 'EMPLOYEE_UPDATED',
+    entity: 'employee',
+    entityId: id,
+    payload: { employee_code: employee.employeeCode, fields: Object.keys(updateData) },
+  });
+
   return formatEmployee(updated);
 }
 
-export async function updateEmployeeStatus(id, { status, termination_date }) {
+export async function updateEmployeeStatus(id, { status, termination_date }, actorId) {
   const employee = await prisma.employee.findUnique({ where: { id } });
   if (!employee) {
     throw new AppError(404, 'NOT_FOUND', 'Employee not found');
@@ -260,6 +299,14 @@ export async function updateEmployeeStatus(id, { status, termination_date }) {
       job: { select: { id: true, name: true } },
       manager: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
     },
+  });
+
+  await writeAudit(prisma, {
+    actorId,
+    action: 'EMPLOYEE_STATUS_CHANGED',
+    entity: 'employee',
+    entityId: id,
+    payload: { employee_code: employee.employeeCode, from: employee.status, to: status },
   });
 
   return formatEmployee(updated);
