@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   FileText,
   Clock,
@@ -12,11 +13,17 @@ import {
   ArrowRight,
   ShieldCheck,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Download,
+  LogIn,
+  LogOut,
+  Coffee,
+  CheckSquare
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './DashboardPage.scss';
 
 // Department color palette tokens
@@ -39,8 +46,444 @@ function formatFullINR(val) {
   return `₹${Math.round(Number(val)).toLocaleString('en-IN')}`;
 }
 
+// ─── Employee Self-Service Dashboard Subcomponent ───
+function EmployeeSelfServiceDashboard({ user }) {
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  const [attendanceToday, setAttendanceToday] = useState(null);
+  const [allocations, setAllocations] = useState([]);
+  const [recentRequests, setRecentRequests] = useState([]);
+  const [myPayslips, setMyPayslips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const todayStr = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const loadSelfServiceData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const [attRes, allocRes, reqRes, payslipsRes] = await Promise.all([
+        api.get('/attendance', { params: { start_date: todayISO, end_date: todayISO } }).catch(() => null),
+        api.get('/time-off/allocations').catch(() => null),
+        api.get('/time-off/requests').catch(() => null),
+        api.get('/me/payslips').catch(() => null),
+      ]);
+
+      if (attRes?.data?.data) {
+        const items = Array.isArray(attRes.data.data) ? attRes.data.data : attRes.data.data.items || [];
+        setAttendanceToday(items[0] || null);
+      }
+
+      if (allocRes?.data?.data) {
+        const items = Array.isArray(allocRes.data.data) ? allocRes.data.data : allocRes.data.data.items || [];
+        setAllocations(items);
+      }
+
+      if (reqRes?.data?.data) {
+        const items = Array.isArray(reqRes.data.data) ? reqRes.data.data : reqRes.data.data.items || [];
+        setRecentRequests(items.slice(0, 5));
+      }
+
+      if (payslipsRes?.data?.data) {
+        const items = Array.isArray(payslipsRes.data.data) ? payslipsRes.data.data : payslipsRes.data.data.items || [];
+        setMyPayslips(items);
+      }
+    } catch (e) {
+      console.warn('Error loading employee portal data:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSelfServiceData();
+  }, [loadSelfServiceData]);
+
+  // Check In
+  const handleCheckIn = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/attendance/check-in', {});
+      toast.success('Successfully checked in!');
+      await loadSelfServiceData();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Check-in failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Check Out
+  const handleCheckOut = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/attendance/check-out', {});
+      toast.success('Successfully checked out!');
+      await loadSelfServiceData();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Check-out failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Download PDF
+  const handleDownloadPdf = async (id, period) => {
+    try {
+      const res = await api.get(`/payslips/${id}/pdf`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payslip-${period || id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download payslip PDF');
+    }
+  };
+
+  const totalRemainingDays = allocations.reduce((sum, a) => sum + (Number(a.remaining) || 0), 0);
+
+  return (
+    <div className="dashboard-page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem' }}>
+      {/* Welcome Banner */}
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1e3a8a 0%, #2357fe 100%)',
+          borderRadius: '16px',
+          padding: '2rem',
+          color: '#ffffff',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1.5rem',
+          marginBottom: '2rem',
+          boxShadow: '0 4px 20px rgba(35, 87, 254, 0.2)',
+        }}
+      >
+        <div>
+          <span style={{ fontSize: '0.85rem', color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+            Employee Self-Service Portal
+          </span>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: '0.25rem 0 0.5rem 0' }}>
+            Welcome back, {user?.full_name || 'Staff Member'}!
+          </h1>
+          <p style={{ margin: 0, color: '#dbeafe', fontSize: '0.9rem' }}>
+            {todayStr} · Standard Working Schedule (09:00 - 18:00 IST)
+          </p>
+        </div>
+
+        {/* Check-In / Check-Out Widget */}
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.12)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: '12px',
+            padding: '1rem 1.25rem',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.75rem', color: '#bfdbfe', fontWeight: 600, textTransform: 'uppercase' }}>
+              Today's Attendance
+            </span>
+            <span style={{ fontSize: '1rem', fontWeight: 700 }}>
+              {attendanceToday?.check_in
+                ? `In: ${new Date(attendanceToday.check_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Not Checked In'}
+              {attendanceToday?.check_out &&
+                ` · Out: ${new Date(attendanceToday.check_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+            </span>
+          </div>
+
+          {!attendanceToday?.check_in ? (
+            <button
+              onClick={handleCheckIn}
+              disabled={actionLoading}
+              style={{
+                background: '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0.55rem 1rem',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <LogIn size={15} />
+              <span>{actionLoading ? 'Saving...' : 'Check In'}</span>
+            </button>
+          ) : !attendanceToday?.check_out ? (
+            <button
+              onClick={handleCheckOut}
+              disabled={actionLoading}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '0.55rem 1rem',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <LogOut size={15} />
+              <span>{actionLoading ? 'Saving...' : 'Check Out'}</span>
+            </button>
+          ) : (
+            <span
+              style={{
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: '#6ee7b7',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              }}
+            >
+              Completed ✓
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 3 Quick Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        {/* Card 1: Leave Balances */}
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+              My Leave Balances
+            </h3>
+            <button
+              onClick={() => navigate('/timeoff')}
+              style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+            >
+              Request Leave →
+            </button>
+          </div>
+
+          {allocations.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>No active leave allocations found.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {allocations.map((al) => {
+                const typeName = al.type?.name || 'Leave';
+                const total = Number(al.allocated_days) || 0;
+                const taken = Number(al.taken_days) || 0;
+                const remaining = Number(al.remaining) || Math.max(0, total - taken);
+                const pct = total > 0 ? Math.min(100, Math.round((taken / total) * 100)) : 0;
+
+                return (
+                  <div key={al.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                      <span style={{ fontWeight: 600, color: '#334155' }}>{typeName}</span>
+                      <span style={{ color: '#059669', fontWeight: 700 }}>
+                        {remaining} days left <span style={{ color: '#94a3b8', fontWeight: 400 }}>({taken}/{total} used)</span>
+                      </span>
+                    </div>
+                    <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: '#2357fe', borderRadius: '999px' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Card 2: Recent Leave Requests */}
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+              Recent Requests
+            </h3>
+            <button
+              onClick={() => navigate('/timeoff')}
+              style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+            >
+              View Calendar →
+            </button>
+          </div>
+
+          {recentRequests.length === 0 ? (
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>No recent leave requests.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {recentRequests.map((r) => {
+                const typeName = r.type?.name || 'Leave';
+                const status = r.status || 'TO_APPROVE';
+
+                return (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      background: '#f8fafc',
+                      border: '1px solid #f1f5f9',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>{typeName}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        {r.date_from} → {r.date_to} ({r.days}d)
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.725rem',
+                        fontWeight: 600,
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: '6px',
+                        background:
+                          status === 'APPROVED'
+                            ? '#ecfdf5'
+                            : status === 'REFUSED'
+                            ? '#fef2f2'
+                            : '#eff6ff',
+                        color:
+                          status === 'APPROVED'
+                            ? '#059669'
+                            : status === 'REFUSED'
+                            ? '#dc2626'
+                            : '#2563eb',
+                      }}
+                    >
+                      {status === 'TO_APPROVE' ? 'Pending' : status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* My Payslips Table */}
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+          My Payslips History ({myPayslips.length})
+        </h3>
+
+        {myPayslips.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No payslips generated yet"
+            description="Your salary payslips will appear here once payroll is processed and finalized."
+          />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Period</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Worked Days</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Gross Salary</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Deductions</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Net Take-Home</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b' }}>Status</th>
+                  <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'right' }}>PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myPayslips.map((ps) => {
+                  const gross = `₹${Number(ps.gross_salary || 0).toLocaleString('en-IN')}`;
+                  const ded = `₹${Number(ps.total_deductions || 0).toLocaleString('en-IN')}`;
+                  const net = `₹${Number(ps.net_salary || 0).toLocaleString('en-IN')}`;
+
+                  return (
+                    <tr key={ps.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#0f172a' }}>
+                        {ps.period_start} — {ps.period_end}
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#475569' }}>
+                        {ps.worked_days} days
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#334155' }}>{gross}</td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#dc2626' }}>-{ded}</td>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#059669' }}>{net}</td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <span
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            background: '#ecfdf5',
+                            color: '#059669',
+                          }}
+                        >
+                          {ps.status || 'PAID'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => handleDownloadPdf(ps.id, ps.period_start)}
+                          style={{
+                            background: '#f1f5f9',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '0.35rem 0.65rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            color: '#334155',
+                          }}
+                        >
+                          <Download size={13} />
+                          <span>PDF</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Executive Management Dashboard Component ───
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const authUser = useSelector((state) => state.auth.user);
+
+  // If logged in user is EMPLOYEE, render employee-safe portal view (F-06)
+  if (authUser?.role === 'EMPLOYEE') {
+    return <EmployeeSelfServiceDashboard user={authUser} />;
+  }
 
   // Filter States
   const [period, setPeriod] = useState('all');

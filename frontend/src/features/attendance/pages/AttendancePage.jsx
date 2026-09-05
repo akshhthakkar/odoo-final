@@ -37,16 +37,19 @@ function formatDateDisplay(dateStr) {
   }
 }
 
-// Time formatter: ISO or HH:mm -> '09:00'
+// Time formatter: ISO or HH:mm -> '09:00' (IST / Asia/Kolkata)
 function formatTimeDisplay(isoStr) {
   if (!isoStr) return '—';
   try {
     if (isoStr.includes('T')) {
       const d = new Date(isoStr);
       if (isNaN(d.getTime())) return '—';
-      const hh = String(d.getHours()).padStart(2, '0');
-      const mm = String(d.getMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
+      return d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kolkata',
+      });
     }
     return isoStr.slice(0, 5);
   } catch {
@@ -114,7 +117,10 @@ export default function AttendancePage() {
       try {
         const activeDate = overrideDate !== undefined ? overrideDate : dateFilter;
         const params = { limit: 100 };
-        if (activeDate) params.date = activeDate;
+        if (activeDate) {
+          params.start_date = activeDate;
+          params.end_date = activeDate;
+        }
         if (statusFilter !== 'ALL') params.status = statusFilter;
         if (employeeFilter !== 'ALL') params.employee_id = employeeFilter;
         if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -309,8 +315,11 @@ export default function AttendancePage() {
 
     try {
       const dateStr = formData.attendanceDate;
-      const checkInISO = `${dateStr}T${formData.checkInTime}:00.000Z`;
-      const checkOutISO = formData.checkOutTime ? `${dateStr}T${formData.checkOutTime}:00.000Z` : null;
+      const formattedInTime = formData.checkInTime.length === 5 ? `${formData.checkInTime}:00` : formData.checkInTime;
+      const checkInISO = `${dateStr}T${formattedInTime}+05:30`;
+      const checkOutISO = formData.checkOutTime
+        ? `${dateStr}T${formData.checkOutTime.length === 5 ? `${formData.checkOutTime}:00` : formData.checkOutTime}+05:30`
+        : null;
 
       if (modalMode === 'create') {
         const payload = {
@@ -334,11 +343,8 @@ export default function AttendancePage() {
       } else {
         // Edit / Correct mode
         const payload = {
-          employee_id: formData.employeeId,
-          attendance_date: dateStr,
           check_in: checkInISO,
           check_out: checkOutISO,
-          status: formData.status,
           note: formData.note || undefined,
         };
 

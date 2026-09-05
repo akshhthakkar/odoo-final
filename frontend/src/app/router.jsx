@@ -12,7 +12,6 @@ import ContractsPage from '../features/contracts/pages/ContractsPage.jsx';
 import SchedulesPage from '../features/schedules/pages/SchedulesPage.jsx';
 import AttendancePage from '../features/attendance/pages/AttendancePage.jsx';
 import TimeOffPage from '../features/timeoff/pages/TimeOffPage.jsx';
-import PayrollPage from '../features/payroll-run/pages/PayrollPage.jsx';
 import PayrunsPage from '../features/payroll-run/pages/PayrunsPage.jsx';
 import SalaryConfigPage from '../features/payroll-config/pages/SalaryConfigPage.jsx';
 import AdminPage from '../features/admin/pages/AdminPage.jsx';
