@@ -17,7 +17,7 @@
 
 ### TASK-001: Foundation / Auth & Scaffolding (P0, deps: —)
 **Goal:** Monorepo skeleton + DB migrations + base authentication.
-**Scope:** Monorepo layout (`apps/api`, `apps/web`), Express+JS hello API, Vite React app with SCSS, Docker Compose (PostgreSQL 16, API, Web), Prisma ORM migrations, JWT auth endpoints (`/login`, `/refresh`, `/logout`, `/me`), bcrypt password hashing, session cookies.
+**Scope:** Monorepo layout (`backend/`, `frontend/`), Express+JS hello API, Vite React app with SCSS, Docker Compose (PostgreSQL 16, API, Web), Prisma ORM migrations, JWT auth endpoints (`/login`, `/refresh`, `/logout`, `/me`), bcrypt password hashing, session cookies.
 **AC:** `docker-compose up` serves API + Web + DB; login returns token + cookie; `/me` returns user identity; rate limiting blocks 5 bad attempts.
 
 ### TASK-002: Departments & Jobs CRUD (P0, deps: 001)
@@ -81,7 +81,7 @@
 **AC:** Contract resolution executes strictly in Node orchestration layer; employees without active contract flagged; flat variable map assembled cleanly.
 
 ### TASK-014: Pure In-Process TypeScript Payroll Engine Module (P0, deps: 012 — parallelizable from TASK-001)
-**Goal:** In-process, pure, zero-I/O calculation engine in `apps/api/src/engine/`.
+**Goal:** In-process, pure, zero-I/O calculation engine in `backend/src/engine/`.
 **Scope:** `computeBatch()` and `validateRules()` functions; sequenced rule executor; handwritten tokenizer and recursive descent parser for formula DSL; strict grammar whitelist (numbers, identifiers, arithmetic, comparisons, logical, ternary) and explicit rejection of calls, property access, loops, objects, prototype pollution; `decimal.js` half-up 2 dp rounding.
 **AC:** Pure function (no DB, no HTTP, no I/O, no `Date.now()`, no `Math.random()`); identical inputs yield deep-equal outputs; ₹50,000 spec test case yields exact breakdown: BASIC 50000, HRA 10000, TRANSPORT 3000, GROSS 63000, PF -6000, TAX -2000, NET 55000.
 

@@ -104,7 +104,7 @@ PayslipDetail:    identity block (employee, structure, run, period, worked days)
 ## 8. Folder Structure
 
 ```
-apps/web/src/
+frontend/src/
 ├── app/            # router.jsx, providers.jsx, layout/, guards/
 ├── components/ui/  # DataTable.jsx, Modal.jsx, Badge.jsx, KpiCard.jsx, FormField.jsx…
 ├── store/          # store.js, slices/ (authSlice.js, uiSlice.js)

@@ -1,6 +1,6 @@
 # Pay365 — Payroll Calculation Engine Contract (TypeScript, in-process) (ADR-005, revised v1.1)
 
-**Date:** 2026-09-05 · **Module:** `apps/api/src/engine/` (TypeScript) inside the Node.js + Express backend
+**Date:** 2026-09-05 · **Module:** `backend/src/engine/` (TypeScript) inside the Node.js + Express backend
 **Pure function library. No database. No HTTP. No I/O of any kind. Same input → same output, always.**
 Previously (v1.0) a dedicated Python/FastAPI service — relocated in-process; the compute contract below is unchanged.
 

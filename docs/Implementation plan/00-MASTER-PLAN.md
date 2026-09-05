@@ -51,40 +51,38 @@ The architecture is a **3-tier system**:
 
 ```
 odoo-final/
-├── apps/
-│   ├── api/                     # Node + Express + JavaScript backend
-│   │   ├── src/
-│   │   │   ├── config/          # Env config (validated at startup)
-│   │   │   ├── engine/          # PAYROLL CALCULATION ENGINE (pure module)
-│   │   │   │   ├── executor/    # sequenced rule executor
-│   │   │   │   ├── formula/     # safe formula parser/evaluator (no eval)
-│   │   │   │   ├── validator/   # rule-set validation (validateRules)
-│   │   │   │   └── types/       # compute request/response schemas (zod)
-│   │   │   ├── modules/
-│   │   │   │   ├── auth/        # login, JWT, refresh
-│   │   │   │   ├── users/       # admin user management
-│   │   │   │   ├── employees/   # employees, departments, jobs
-│   │   │   │   ├── contracts/
-│   │   │   │   ├── schedules/   # working schedules + lines
-│   │   │   │   ├── attendance/
-│   │   │   │   ├── timeoff/     # types, allocations, requests
-│   │   │   │   ├── payroll-config/  # structures, rules
-│   │   │   │   ├── payroll-run/ # payruns, payslips, warnings (calls engine)
-│   │   │   │   ├── reports/     # dashboard aggregates
-│   │   │   │   └── notifications/ # PDF + email
-│   │   │   ├── middleware/      # auth, rbac, validate, errors, request-id
-│   │   │   ├── shared/          # errors, logger, pagination, helpers
-│   │   │   └── server.js
-│   │   └── prisma/              # schema.prisma, migrations, seed.js
-│   ├── web/                     # React SPA
-│   │   └── src/
-│   │       ├── app/             # router, providers, layout
-│   │       ├── features/        # per-module: pages + components + api hooks
-│   │       ├── components/ui/   # reusable presentational components
-│   │       ├── store/           # Redux store, authSlice, uiSlice
-│   │       ├── styles/          # SCSS design system (variables, mixins, main.scss)
-│   │       └── lib/             # api client, format, query-client
-│   └── (shared zod schemas via packages/shared if time permits)
+├── backend/                      # Node + Express + JavaScript backend
+│   ├── src/
+│   │   ├── config/          # Env config (validated at startup)
+│   │   ├── engine/          # PAYROLL CALCULATION ENGINE (pure module)
+│   │   │   ├── executor/    # sequenced rule executor
+│   │   │   ├── formula/     # safe formula parser/evaluator (no eval)
+│   │   │   ├── validator/   # rule-set validation (validateRules)
+│   │   │   └── types/       # compute request/response schemas (zod)
+│   │   ├── modules/
+│   │   │   ├── auth/        # login, JWT, refresh
+│   │   │   ├── users/       # admin user management
+│   │   │   ├── employees/   # employees, departments, jobs
+│   │   │   ├── contracts/
+│   │   │   ├── schedules/   # working schedules + lines
+│   │   │   ├── attendance/
+│   │   │   ├── timeoff/     # types, allocations, requests
+│   │   │   ├── payroll-config/  # structures, rules
+│   │   │   ├── payroll-run/ # payruns, payslips, warnings (calls engine)
+│   │   │   ├── reports/     # dashboard aggregates
+│   │   │   └── notifications/ # PDF + email
+│   │   ├── middleware/      # auth, rbac, validate, errors, request-id
+│   │   ├── shared/          # errors, logger, pagination, helpers
+│   │   └── server.js
+│   └── prisma/              # schema.prisma, migrations, seed.js
+├── frontend/                     # React SPA
+│   └── src/
+│       ├── app/             # router, providers, layout
+│       ├── features/        # per-module: pages + components + api hooks
+│       ├── components/ui/   # reusable presentational components
+│       ├── store/           # Redux store, authSlice, uiSlice
+│       ├── styles/          # SCSS design system (variables, mixins, main.scss)
+│       └── lib/             # api client, format, query-client
 ├── docs/
 │   ├── Implementation plan/     # ← this document set
 │   └── adr/

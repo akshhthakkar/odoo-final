@@ -77,7 +77,7 @@ Basic HR tools store employees, attendance, leave, and salary as disconnected re
 
 ## 5. Technical Requirements
 
-- Monorepo: `apps/api` (Express + JavaScript/ES Modules, containing the in-process `src/engine/` Payroll Calculation Engine), `apps/web` (React 19 + JavaScript + Vite + SCSS), shared PostgreSQL. No separate calculation microservice.
+- Monorepo: `backend/` (Express + JavaScript/ES Modules, containing the in-process `src/engine/` Payroll Calculation Engine), `frontend/` (React 19 + JavaScript + Vite + SCSS), shared PostgreSQL. No separate calculation microservice.
 - All config via environment variables validated at startup; `.env.example` per app; no secrets in code.
 - Payroll-run service calls the calculation engine via direct, in-process TypeScript function calls (pure functions — no network, no DB inside the engine).
 - PDF generation Node-side from persisted payslip lines (not from live recalculation).
