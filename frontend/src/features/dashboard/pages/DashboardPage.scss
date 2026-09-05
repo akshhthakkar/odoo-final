@@ -325,9 +325,7 @@
 
 .chart-tooltip {
   position: absolute;
-  top: 10px;
-  right: 16px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.95);
   color: #ffffff;
   padding: 8px 12px;
   border-radius: $radius-md;
@@ -335,9 +333,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  box-shadow: $shadow-md;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   backdrop-filter: blur(8px);
+  z-index: 20;
+  white-space: nowrap;
+  transition: left 0.15s ease-out, top 0.15s ease-out;
+  animation: tooltipPop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
   &__month {
     font-weight: 700;
@@ -352,6 +354,29 @@
     justify-content: space-between;
     gap: 12px;
     font-weight: 600;
+  }
+
+  &__arrow {
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid rgba(15, 23, 42, 0.95);
+  }
+}
+
+@keyframes tooltipPop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -90%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
   }
 }
 
@@ -472,7 +497,17 @@
   }
 }
 
-// ─── Recent Payruns Table ─────────────────────────────────────────────────────
+// ─── Payruns Row (Table + Donut Chart) ────────────────────────────────────────
+.dash-payruns-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 1080px) {
+    grid-template-columns: 1fr;
+  }
+}
+
 .recent-payruns-card {
   background: #ffffff;
   border: 1px solid $color-border;
@@ -572,5 +607,468 @@
     &:hover {
       text-decoration: underline;
     }
+  }
+}
+
+// Donut Wheel Card
+.donut-card {
+  background: #ffffff;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 24px;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 17px;
+    font-weight: 700;
+    color: $color-text-primary;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 12px 0;
+  }
+
+  &__svg-wrap {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  &__center-text {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  &__pct {
+    font-family: $font-heading;
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+  }
+
+  &__sub {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  &__legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+    margin-top: 8px;
+  }
+
+  &__dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #6366f1;
+  }
+}
+
+// ─── Bottom 3-Column Overview Grid ────────────────────────────────────────────
+.dash-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+
+  @media (max-width: 1080px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.overview-card {
+  background: #ffffff;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 24px;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: transform $transition-fast, box-shadow $transition-fast;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__title {
+    font-family: $font-heading;
+    font-size: 16.5px;
+    font-weight: 700;
+    color: $color-text-primary;
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  &__live-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #059669;
+    background: #ecfdf5;
+    padding: 2px 7px;
+    border-radius: $radius-pill;
+
+    &::before {
+      content: '';
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+      animation: pulseGreen 2s infinite;
+    }
+  }
+
+  &__badge-tag {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: $radius-pill;
+    background: #f1f5f9;
+    color: #475569;
+
+    &--alert {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    &--blue {
+      background: $color-primary-subtle;
+      color: $color-primary;
+    }
+  }
+
+  // Segmented Bar (Attendance distribution)
+  &__segmented-bar {
+    width: 100%;
+    height: 8px;
+    border-radius: $radius-pill;
+    display: flex;
+    overflow: hidden;
+    background: #f1f5f9;
+    gap: 2px;
+  }
+
+  &__segment {
+    height: 100%;
+    transition: width 0.6s ease;
+
+    &--present { background: #10b981; }
+    &--late { background: #f59e0b; }
+    &--absent { background: #ef4444; }
+    &--half { background: #8b5cf6; }
+  }
+
+  // Stat Boxes Grid (4 or 3 items)
+  &__stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+
+    &--3col {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  &__stat-box {
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: $radius-md;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #ffffff;
+      border-color: #e2e8f0;
+      box-shadow: $shadow-sm;
+    }
+
+    &--green .overview-card__stat-num { color: #059669; }
+    &--yellow .overview-card__stat-num { color: #d97706; }
+    &--red .overview-card__stat-num { color: #e11d48; }
+    &--purple .overview-card__stat-num { color: #7c3aed; }
+    &--blue .overview-card__stat-num { color: #2563eb; }
+  }
+
+  &__stat-num {
+    font-family: $font-heading;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  &__stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  // Structured List
+  &__meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 4px;
+    border-top: 1px solid $color-border-subtle;
+  }
+
+  &__meta-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  &__meta-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+
+    svg {
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+  }
+
+  &__meta-right {
+    font-weight: 600;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__pill-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #475569;
+
+    &--unpaid {
+      background: #ffe4e6;
+      color: #e11d48;
+    }
+
+    &--blue {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    &--green {
+      background: #ecfdf5;
+      color: #059669;
+    }
+  }
+
+  // Leave Balances Track List (Time off overview)
+  &__leave-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__leave-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  &__leave-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+  }
+
+  &__leave-name {
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+
+  &__leave-count {
+    color: #64748b;
+    font-size: 12px;
+
+    strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+  }
+
+  &__progress-track {
+    width: 100%;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: $radius-pill;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: $radius-pill;
+    transition: width 0.6s ease;
+  }
+
+  // Refined Alert Cards
+  &__alerts-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__alert-card {
+    background: #fafbfc;
+    border: 1px solid $color-border;
+    border-left-width: 4px;
+    border-radius: $radius-md;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #ffffff;
+      box-shadow: $shadow-sm;
+    }
+
+    &--warning {
+      border-left-color: #f59e0b;
+      .overview-card__alert-icon-box { background: #fef3c7; color: #d97706; }
+    }
+
+    &--info {
+      border-left-color: $color-primary;
+      .overview-card__alert-icon-box { background: $color-primary-subtle; color: $color-primary; }
+    }
+
+    &--success {
+      border-left-color: #10b981;
+      .overview-card__alert-icon-box { background: #ecfdf5; color: #059669; }
+    }
+  }
+
+  &__alert-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__alert-icon-box {
+    width: 28px;
+    height: 28px;
+    border-radius: $radius-sm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  &__alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__alert-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.3;
+  }
+
+  &__alert-sub {
+    font-size: 11.5px;
+    color: #64748b;
+    line-height: 1.3;
+  }
+
+  &__alert-action {
+    background: none;
+    border: none;
+    color: $color-primary;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+    padding: 0;
+    align-self: center;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+@keyframes pulseGreen {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
   }
 }
