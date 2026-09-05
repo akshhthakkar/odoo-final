@@ -1,4 +1,4 @@
-# PeoplePay360 — Frontend Architecture (React 19 + JavaScript + Vite + SCSS)
+# Pay365 — Frontend Architecture (React 19 + JavaScript + Vite + SCSS)
 
 **Date:** 2026-09-05 · **Rendering:** CSR SPA (ADR-002) — authenticated operational app, SEO irrelevant.
 

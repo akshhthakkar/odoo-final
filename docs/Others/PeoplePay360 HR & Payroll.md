@@ -1,6 +1,6 @@
 
 
-# **PeoplePay360: HR & Payroll** 
+# **Pay365: HR & Payroll** 
 
 _An Integrated Human Resource and Payroll Operations Platform_ 
 

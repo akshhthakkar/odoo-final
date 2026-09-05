@@ -1,23 +1,24 @@
-# PeoplePay360 — System Architecture
+# Pay365 — System Architecture
 
-**Date:** 2026-09-05 · **Status:** Approved baseline (ADRs summarized below; full ADRs in `docs/adr/`)
+**Date:** 2026-09-05 · **Status:** Approved baseline v1.1 — ADR-001 and ADR-005 revised: the Payroll Calculation Engine is now an in-process TypeScript module inside the Node backend (previously a dedicated Python/FastAPI service). (Full ADRs in `docs/adr/`)
 
 ---
 
 ## 1. Architecture Style Decision (ADR-001, summarized)
 
-**Chosen:** Modular monolith (Node/Express) + one dedicated calculation microservice (Python/FastAPI) + PostgreSQL + React SPA.
+**Chosen:** Modular monolith (Node/Express) with an **in-process TypeScript Payroll Calculation Engine module** + PostgreSQL + React SPA.
 
 | Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| Everything in Node (no Python) | Simplest | Spec-inspired separation of calculation lost; mixing money math with I/O code; less "technical versatility" for judges | Rejected |
+| Dedicated calculation microservice (Python/FastAPI) — original v1.0 choice | Clear process separation; polyglot | Second runtime + network hop, circuit breaker/shared-secret ops overhead, harder atomicity and debugging for hackathon scale | Superseded (v1.1) |
+| Calculation logic scattered across I/O services | Simplest | Money math tangled with persistence/HTTP code; hard to unit test in isolation | Rejected |
 | Full microservices per domain | Scalable | Massive ops overhead for hackathon; no need | Rejected |
-| **Modular monolith + calc service (chosen)** | Clear separation: orchestration vs calculation; polyglot demonstrates versatility; one internal HTTP contract; engine stateless and independently testable | One extra service to run (mitigated by docker-compose) | ✅ Chosen |
+| **Modular monolith + in-process pure TS calc engine (chosen)** | Same separation of orchestration vs calculation via a module boundary; pure functions = trivially testable and deterministic; no network hop; single language/runtime; atomic transaction with persistence | All in one deployable (acceptable — engine is still a strictly pure, isolated module) | ✅ Chosen |
 
 **Key invariants:**
 1. React never talks to PostgreSQL; never computes salary.
 2. Node owns all persistence and all workflow state machines.
-3. Python owns payroll math only — stateless, no DB, idempotent: same input → same output.
+3. The `payroll-engine` module owns payroll math only — pure TypeScript functions, no DB, no HTTP, no I/O, idempotent: same input → same output.
 4. All module-to-module access inside Node goes through service-layer functions, never direct imports of another module's repositories.
 
 ---
@@ -33,23 +34,29 @@
 └──────────────────────────┬─────────────────────────────────┘
                            │ HTTPS / JSON  (JWT Bearer)
                            ▼
-┌────────────────────────────────────────────────────────────┐
-│  NODE + EXPRESS + JavaScript (ES Modules) — API            │
-│  Auth(JWT) · RBAC(5 roles) · Validation(zod) · CRUD        │
-│  Workflows: approve leave · payrun compute/validate/paid   │
-│  Audit log · PDF generation · Email dispatch               │
-└───────────┬────────────────────────────────┬───────────────┘
-            │ Prisma (SQL)                   │ HTTP/JSON (internal)
-            ▼                                ▼
-┌────────────────────────┐    ┌──────────────────────────────┐
-│  POSTGRESQL 16         │    │  PYTHON PAYROLL ENGINE       │
-│  19 tables: employees, │    │  FastAPI, stateless          │
-│  contracts, schedules, │    │  Salary rule executor        │
-│  attendance, time off, │    │  fixed / % / formula rules   │
-│  structures, rules,    │    │  sequenced execution         │
-│  payruns, payslips,    │    │  returns breakdown+warnings  │
-│  warnings, users…      │    │  NO database access          │
-└────────────────────────┘    └──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  NODE + EXPRESS + JavaScript (ES Modules) — API / Orchestration     │
+│  Auth(JWT) · RBAC(5 roles) · Validation(zod) · CRUD                 │
+│  Workflows: approve leave · payrun compute/validate/paid            │
+│  Audit log · PDF generation · Email dispatch                        │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │  PAYROLL CALCULATION ENGINE (in-process module)               │  │
+│  │  Salary rule executor · fixed / % / formula rules             │  │
+│  │  Sequenced execution · returns breakdown + warnings           │  │
+│  │  PURE: no database · no HTTP · no I/O · same input → same out │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │ Prisma (SQL)
+                           ▼
+┌────────────────────────┐
+│  POSTGRESQL 16         │
+│  19 tables: employees, │
+│  contracts, schedules, │
+│  attendance, time off, │
+│  structures, rules,    │
+│  payruns, payslips,    │
+│  warnings, users…      │
+└────────────────────────┘
 ```
 
 ## 3. Frontend ↔ Backend Contract
@@ -76,10 +83,10 @@ Each module = routes → controller → service → (Prisma via repositories). C
 | attendance | attendance records, worked-hours computation, corrections | /attendance/* | employees | time off |
 | timeoff | types, allocations, requests, approval workflow, balance deduction | /time-off/* | employees | attendance |
 | payroll-config | salary_structures, salary_rules, sequencing validation | /salary-structures/*, /salary-rules/* | — | run payroll |
-| payroll-run | payruns, payrun_employees, payslips, payslip_lines, warnings, state machine, period-contract selection, engine invocation | /payruns/*, /payslips/* | employees, contracts, attendance, timeoff, payroll-config, engine-client | edit salary config |
+| payroll-run | payruns, payrun_employees, payslips, payslip_lines, warnings, state machine, period-contract selection, engine invocation (in-process) | /payruns/*, /payslips/* | employees, contracts, attendance, timeoff, payroll-config, payroll-engine | edit salary config |
 | notifications | PDF rendering from persisted payslip lines; SMTP send + delivery status | /payslips/:id/pdf, /payruns/:id/send-payslips | payroll-run (read) | recompute anything |
 | reports | dashboard aggregate queries (KPIs, charts, alerts) | /dashboard/* | read-only across modules | mutate anything |
-| engine-client | typed HTTP client to Python engine, timeout/retry, circuit behavior | internal service | — | parse/validate formulas |
+| payroll-engine | pure TypeScript calculation module: rule sequencing, condition evaluation, fixed/%/formula computation, safe formula evaluator, warnings; direct function API (`computeBatch`, `validateRules`) | internal module (called by payroll-run + payroll-config) | — | touch DB, HTTP, or any I/O; decide payrun membership; persist anything |
 
 ## 5. Core Data Flows
 
@@ -95,11 +102,11 @@ HR Manager clicks Approve (web)
 → audit log → response → React Query invalidates balances + request list
 ```
 
-### 5.2 Payrun Compute (the heart of the system)
+### 5.2 Payrun Compute Orchestration
 ```
 Payroll Manager clicks Compute (web)
 → POST /api/v1/payruns/:id/compute   [HR Payroll User+]
-→ payroll-run service:
+→ payroll-run service (Node Orchestration Layer):
   1. Guard: payrun.status = DRAFT (or COMPUTED for recompute) → else 409
   2. For each selected employee (payrun_employees):
      a. Find ACTIVE contract overlapping [period_start, period_end]
@@ -107,39 +114,46 @@ Payroll Manager clicks Compute (web)
         → none: ERROR warning NO_ACTIVE_CONTRACT; >1: ERROR AMBIGUOUS_CONTRACT; skip employee
      b. Aggregate attendance: worked_days = distinct attendance dates in period,
         worked_hours = Σ worked_hours, overtime_hours = Σ overtime
-     c. Approved leave days in period (from time off requests)
-     d. Build per-employee inputs: wage, weekly_hours (from schedule),
-        worked_days, worked_hours, overtime_hours, leave_days
-  3. POST engine /v1/compute-batch  { employees: [...], rules: [structure rules sorted by sequence] }
-  4. Tx per payslip: create payslip + payslip_lines (from engine lines) + payroll_warnings
-     (duplicates: existing non-cancelled payslip overlapping period → DUPLICATE_PAYSLIP warning;
-      missing bank details → MISSING_BANK_DETAILS warning)
-  5. payrun.status = COMPUTED; store gross/deduction/net totals
-→ React: payrun screen shows payslip list + warnings panel
+     c. Aggregate approved leave days in period (from time off requests)
+     d. Build flat variable map: wage, weekly_hours, worked_days, worked_hours, overtime_hours, leave_days
+  3. Call in-process calculation engine: `computeBatch({ employees, rules })`
+     (Pure function with zero I/O, no DB, no network, deterministic)
+  4. Database Transaction:
+     - If RECOMPUTE on same payrun: atomically delete previous payslips and payslip_lines for this payrun.
+     - Insert payslips + payslip_lines from engine computation.
+     - Evaluate duplicate warnings: If employee has a payslip in another overlapping payrun → record DUPLICATE_PAYSLIP warning.
+     - If employee lacks bank details → record MISSING_BANK_DETAILS warning.
+  5. Update payrun: status = COMPUTED; store aggregate totals (total_gross, total_deductions, total_net)
+→ React: payrun screen renders updated payslips list and warnings panel
 ```
 
-### 5.3 Payslip PDF & Email
+### 5.3 Payslip PDF & Bulk Email (P1 Finishing Layer — Non-blocking)
 ```
-GET /api/v1/payslips/:id/pdf → notifications module renders an HTML template from
-PERSISTED payslip_lines (never recalculates) → pdfkit → application/pdf stream
-POST /api/v1/payruns/:id/send-payslips → for each payslip with computed/validated status:
-render PDF → attach → nodemailer to employee.email → record email_sent_at per payslip
+Core Lifecycle: Compute → Validate → Paid → Payslips generated
+Finishing Layer: Payslips ├── PDF Generation (`pdfkit`)
+                          └── Bulk Email Dispatch (`nodemailer`)
+
+GET /api/v1/payslips/:id/pdf → renders HTML template from PERSISTED payslip_lines (zero recompute) → pdfkit stream
+POST /api/v1/payruns/:id/send-payslips → renders and attaches PDF → dispatches via nodemailer → records email_sent_at
 ```
 
-### 5.4 Dashboard
+### 5.4 Live Operations Dashboard (P1 — SQL-Backed)
 ```
 GET /api/v1/dashboard/metrics?period_start&period_end&department_id&employee_type
-→ reports module runs aggregate queries: net paid Σ, payslip count, avg salary,
-  approved time-off days, attendance health (present/late/missing-checkout ratios),
-  salary cost by department, monthly net trend, open warnings/contract alerts
-→ one JSON payload → Recharts renders KPI cards + charts (live data only)
+→ reports module executes live SQL aggregations:
+  - Total Net Paid: SUM(payslips.net) WHERE status = 'PAID'
+  - Payslips Generated: COUNT(payslips.id) WHERE status != 'DRAFT'
+  - Approved Time Off Days: SUM(time_off_requests.days) WHERE status = 'APPROVED'
+  - Attendance health: ratios grouped by status (PRESENT / LATE / MISSING_CHECKOUT / MANUAL_EDIT)
+  - Salary cost breakdown grouped by department
+→ Recharts renders live metrics and charts (zero hardcoded mock data)
 ```
 
 ## 6. Integration Specifications
 
 | Integration | Purpose | Protocol | Auth | Sync/Async | Failure handling | Credentials |
 |---|---|---|---|---|---|---|
-| Python Payroll Engine | Salary computation | HTTP/JSON (`http://engine:8000`) | internal network + shared secret header | Sync (batch endpoint) | 1 retry on 5xx/network; 60 s timeout; circuit opens 30 s → 503 ENGINE_UNAVAILABLE; payslips stay DRAFT, payrun stays DRAFT | `ENGINE_SHARED_SECRET` env |
+| Payroll Calculation Engine (in-process TS module) | Salary computation | Direct TypeScript function calls (`computeBatch`, `validateRules`) | — (module boundary only) | Sync | Pure functions — cannot time out or go down; rule errors returned per-employee (`ok:false`) → ERROR warnings + 422 ENGINE_RULE_ERROR if all fail; unexpected engine throw → 500, payrun stays DRAFT, nothing persisted | — |
 | SMTP | Payslip email | SMTP (nodemailer) | user/pass | Sync per send; per-recipient try/catch | Per-recipient failure logged, others continue; report per-payrun send summary | `SMTP_HOST/PORT/USER/PASS/FROM` |
 | PDF renderer | Payslip PDF | In-process (pdfkit) | — | Sync | Render failure → 500, logged with payslip id | — |
 
@@ -158,11 +172,11 @@ GET /api/v1/dashboard/metrics?period_start&period_end&department_id&employee_typ
 
 | ADR | Title | Status |
 |---|---|---|
-| ADR-001 | Modular monolith + Python calculation service | Accepted |
+| ADR-001 | Modular monolith with in-process TypeScript calculation engine (v1.1 — supersedes the Python calculation service) | Accepted |
 | ADR-002 | React 19 SPA (CSR) over Next.js SSR | Accepted |
 | ADR-003 | PostgreSQL + Prisma ORM | Accepted |
 | ADR-004 | JWT access + httpOnly refresh cookie | Accepted |
-| ADR-005 | Stateless Python engine with batch compute; safe AST formula evaluator (no eval) | Accepted |
+| ADR-005 | Pure in-process TypeScript engine with batch compute; grammar-whitelisted formula evaluator (no eval / no new Function) | Accepted (revised v1.1) |
 | ADR-006 | Node-side PDF (pdfkit) from persisted lines, not headless browser | Accepted |
 | ADR-007 | Synchronous compute within request (no job queue) | Accepted |
 | ADR-008 | Payrun state machine DRAFT→COMPUTED→VALIDATED→PAID; duplicates as warnings, not hard constraint | Accepted |

@@ -1,16 +1,16 @@
-# PeoplePay360 — Requirements Analysis
+# Pay365 — Requirements Analysis
 
-**Date:** 2026-09-05 · **Source:** `docs/Others/PeoplePay360 HR & Payroll.md`
+**Date:** 2026-09-05 · **Source:** `docs/Others/Pay365 HR & Payroll.md`
 
 ---
 
 ## 1. Problem Statement Summary
 
-Basic HR tools store employees, attendance, leave, and salary as disconnected records. PeoplePay360 must connect them into one operational flow: the Employee is the hub; Contracts + Working Schedules provide payroll context; Attendance and Time Off capture daily activity; Salary Structures and Rules define computation; Payruns transform eligible employees into validated payslips that can be printed and emailed. The dashboard must aggregate live data across all of it.
+Basic HR tools store employees, attendance, leave, and salary as disconnected records. Pay365 must connect them into one operational flow: the Employee is the hub; Contracts + Working Schedules provide payroll context; Attendance and Time Off capture daily activity; Salary Structures and Rules define computation; Payruns transform eligible employees into validated payslips that can be printed and emailed. The dashboard must aggregate live data across all of it.
 
 **Domain:** HR / Payroll operations
 **Stakeholders:** HR Managers, HR Payroll Users, HR Payroll Managers, Employees, Admins
-**Constraints:** Hackathon timeline; business logic must be in application code (not hardcoded values); salary rules must actively drive payslip generation; stack is free choice (we chose React + Node + PostgreSQL + Python).
+**Constraints:** Hackathon timeline; business logic must be in application code (not hardcoded values); salary rules must actively drive payslip generation; stack is free choice (we chose React + Node + PostgreSQL — all TypeScript, with the payroll calculation engine as an in-process TypeScript module in the Node backend).
 
 ---
 
@@ -71,15 +71,15 @@ Basic HR tools store employees, attendance, leave, and salary as disconnected re
 | NFR-02 | Payroll correctness | Rule sequencing deterministic; identical inputs → identical payslip |
 | NFR-03 | Security | OWASP basics: hashed passwords (bcrypt), JWT, input validation everywhere, parameterized queries (Prisma), rate-limited login |
 | NFR-04 | Auditability | Security-sensitive actions (approvals, payroll finalization, role changes) audit-logged |
-| NFR-05 | Testability | All P0 API endpoints have happy-path + error-path tests; engine has pytest coverage of rule types |
+| NFR-05 | Testability | All P0 API endpoints have happy-path + error-path tests; engine has Vitest coverage of rule types |
 | NFR-06 | Deployability | `docker-compose up` brings up the whole stack with seed data |
 | NFR-07 | Demo reliability | Two scripted E2E scenarios run on seeded data without manual fixes |
 
 ## 5. Technical Requirements
 
-- Monorepo: `apps/api` (Express+JS), `apps/web` (React+JS+Vite), `services/payroll-engine` (FastAPI), shared PostgreSQL.
+- Monorepo: `apps/api` (Express + JavaScript/ES Modules, containing the in-process `src/engine/` Payroll Calculation Engine), `apps/web` (React 19 + JavaScript + Vite + SCSS), shared PostgreSQL. No separate calculation microservice.
 - All config via environment variables validated at startup; `.env.example` per app; no secrets in code.
-- Node ↔ Python communication: HTTP/JSON over internal network (docker-compose service name).
+- Payroll-run service calls the calculation engine via direct, in-process TypeScript function calls (pure functions — no network, no DB inside the engine).
 - PDF generation Node-side from persisted payslip lines (not from live recalculation).
 
 ## 6. Business Rules (must live in application logic)

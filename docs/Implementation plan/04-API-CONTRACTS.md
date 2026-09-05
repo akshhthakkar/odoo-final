@@ -1,4 +1,4 @@
-# PeoplePay360 — API Architecture (REST `/api/v1`)
+# Pay365 — API Architecture (REST `/api/v1`)
 
 **Date:** 2026-09-05 · Node/Express contract for all endpoints. Auth column = minimum role (see 07-SECURITY-RBAC.md). All endpoints require auth unless marked **Public**.
 
@@ -10,7 +10,7 @@
 **Error envelope** `{ "success": false, "error": { "code", "message", "details": [{ "field", "rule", "message" }] }, "meta": {…} }`
 **Pagination** query `?page=1&limit=20&sort=field:asc|desc&filter=field:op:value`; response adds
 `"pagination": { page, limit, total_items, total_pages, has_next, has_previous }`.
-**Status codes:** 200 OK · 201 Created · 204 No Content · 400 VALIDATION_ERROR · 401 UNAUTHORIZED · 403 FORBIDDEN · 404 NOT_FOUND · 409 CONFLICT/STATE_ERROR · 422 UNPROCESSABLE · 429 RATE_LIMITED · 500 INTERNAL · 503 ENGINE_UNAVAILABLE.
+**Status codes:** 200 OK · 201 Created · 204 No Content · 400 VALIDATION_ERROR · 401 UNAUTHORIZED · 403 FORBIDDEN · 404 NOT_FOUND · 409 CONFLICT/STATE_ERROR · 422 UNPROCESSABLE · 429 RATE_LIMITED · 500 INTERNAL.
 **Conventions:** kebab-case resource paths, plural nouns, snake_case JSON fields, `X-Request-Id` echoed on every response, zod validation on every input.
 
 ## 2. Error Code Catalog
@@ -26,8 +26,7 @@
 | CONTRACT_OVERLAP | 409 | new/updated contract overlaps an ACTIVE one |
 | INSUFFICIENT_BALANCE | 409 | leave approval exceeds allocation remaining |
 | DUPLICATE | 409 | uniqueness violation (e.g. rule code) |
-| ENGINE_UNAVAILABLE | 503 | Python engine down/timeout |
-| ENGINE_RULE_ERROR | 422 | engine returned rule errors for all employees |
+| ENGINE_RULE_ERROR | 422 | calculation engine returned rule errors for all employees (in-process TS engine) |
 
 ## 3. Endpoint Catalog
 
@@ -137,7 +136,7 @@ Response 200:
                     "lines":[{"code","name","category","sequence","amount"}] } ],
     "warnings": [ { "payslip_id|null","code","severity","message" } ]
 } }
-Errors: 409 STATE_ERROR (status VALIDATED/PAID) · 503 ENGINE_UNAVAILABLE · 422 ENGINE_RULE_ERROR
+Errors: 409 STATE_ERROR (status VALIDATED/PAID) · 422 ENGINE_RULE_ERROR
 Business rules: recompute allowed only in DRAFT/COMPUTED (replaces payslips+warnings atomically);
 employees with NO_ACTIVE_CONTRACT / AMBIGUOUS_CONTRACT get ERROR warnings and no payslip;
 duplicate-payslip (overlapping period, any non-cancelled run) → WARNING DUPLICATE_PAYSLIP.

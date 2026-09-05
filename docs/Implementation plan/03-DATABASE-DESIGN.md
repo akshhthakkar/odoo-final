@@ -1,4 +1,4 @@
-# PeoplePay360 — Database Design (PostgreSQL 16 + Prisma)
+# Pay365 — Database Design (PostgreSQL 16 + Prisma)
 
 **Date:** 2026-09-05 · **Owner:** Architecture · **ORM:** Prisma · **Migration tool:** `prisma migrate`
 
@@ -202,7 +202,7 @@ Conventions: all tables get `id (uuid, pk, default gen_random_uuid())`, `created
 | condition | text | NULLABLE | optional DSL gate, e.g. `worked_days > 0` |
 | appears_on_payslip | boolean | NOT NULL default true | GROSS/NET subtotal lines may be display-only |
 | is_active | boolean | NOT NULL default true | |
-| — | — | UNIQUE (structure_id, code); UNIQUE (structure_id, sequence) | deterministic ordering |
+| — | — | **UNIQUE (structure_id, code)** | Deterministic execution ordering via `ORDER BY sequence ASC, id ASC`. Sequence itself does not require global database-level uniqueness. |
 
 ### payruns
 | Field | Type | Constraints | Notes |
@@ -237,7 +237,7 @@ Conventions: all tables get `id (uuid, pk, default gen_random_uuid())`, `created
 | currency | varchar(3) | NOT NULL | |
 | status | PayslipStatus | NOT NULL | mirrors payrun progression |
 | email_sent_at | timestamptz | NULLABLE | |
-| — | — | UNIQUE (payrun_id, employee_id) | duplicates ACROSS payruns are warnings, not hard blocks |
+| — | — | **UNIQUE (payrun_id, employee_id)** | Exactly one payslip per employee per payrun. Recompute within the same payrun atomically deletes/replaces existing payslips in that payrun. Overlapping payslips across different payruns trigger a non-blocking `DUPLICATE_PAYSLIP` warning. |
 
 ### payslip_lines
 | Field | Type | Constraints | Notes |
