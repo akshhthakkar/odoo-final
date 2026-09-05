@@ -3,7 +3,6 @@ import helmet from 'helmet';
 import cors from 'cors';
 import session from 'express-session';
 import pgSimple from 'connect-pg-simple';
-import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import requestId from './middleware/request-id.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -26,7 +25,6 @@ app.use(requestId);
 app.use(helmet());
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
 app.use(express.json());
-app.use(cookieParser());
 
 app.use(
   session({
