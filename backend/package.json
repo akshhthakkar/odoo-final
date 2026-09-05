@@ -18,12 +18,14 @@
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "bcryptjs": "^3.0.2",
+    "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "express-rate-limit": "^7.4.0",
+    "express-session": "^1.19.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "zod": "^3.23.8"
