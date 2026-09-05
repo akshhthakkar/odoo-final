@@ -285,18 +285,23 @@
   border: 1px solid #eef2f6;
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  overflow-x: auto;
+  overflow: hidden;
+
+  &__wrap {
+    overflow-x: auto;
+    width: 100%;
+  }
 }
 
 .cnt-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  min-width: 900px;
+  min-width: 960px;
 
   th {
     text-align: left;
-    padding: 12px 16px;
+    padding: 12px 18px;
     font-size: 11px;
     font-weight: 700;
     color: #64748b;
@@ -307,7 +312,7 @@
   }
 
   td {
-    padding: 14px 16px;
+    padding: 14px 18px;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
     vertical-align: middle;
@@ -318,160 +323,226 @@
   }
 
   tr:hover td {
-    background: rgba(248, 250, 252, 0.6);
+    background: rgba(248, 250, 252, 0.7);
   }
-}
 
-.cnt-ref-pill {
-  font-family: monospace;
-  font-size: 12px;
-  font-weight: 700;
-  color: $color-primary;
-  background: $color-primary-subtle;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
+  // User Cell
+  &__user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
-.cnt-emp-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+  &__avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #EEF3FF;
+    color: #2357fe;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid #dbeafe;
+  }
 
-.cnt-emp-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: $color-primary-subtle;
-  color: $color-primary;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+  &__user-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
 
-.cnt-emp-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.cnt-emp-name {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.cnt-emp-code {
-  font-size: 11px;
-  color: #94a3b8;
-}
-
-.cnt-dept-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-
-  strong {
+  &__user-name {
+    font-weight: 700;
     color: #0f172a;
+    font-size: 13.5px;
   }
 
-  span {
+  &__user-code {
     font-size: 11.5px;
-    color: #64748b;
-  }
-}
-
-.cnt-type-pill {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: #f1f5f9;
-  color: #475569;
-  letter-spacing: 0.3px;
-}
-
-.cnt-wage-val {
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.cnt-period-cell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #475569;
-}
-
-.cnt-period-sep {
-  color: #94a3b8;
-}
-
-.cnt-status-tag {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 9999px;
-
-  &--active {
-    background: #ecfdf5;
-    color: #059669;
+    color: #94a3b8;
+    font-family: monospace;
+    font-weight: 600;
   }
 
-  &--draft {
-    background: #fef3c7;
-    color: #d97706;
+  // Ref Code
+  &__ref-code {
+    display: inline-block;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2357fe;
+    background: #EEF3FF;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #dbeafe;
   }
 
-  &--expired {
-    background: #f1f5f9;
-    color: #64748b;
-  }
+  // Department & Role
+  &__dept-role {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 
-  &--cancelled {
-    background: #fef2f2;
-    color: #dc2626;
-  }
-}
+    strong {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 600;
+    }
 
-.cnt-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cnt-action-btn {
-  border: none;
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &--activate {
-    background: #ecfdf5;
-    color: #059669;
-
-    &:hover {
-      background: #10b981;
-      color: #ffffff;
+    span {
+      font-size: 11.5px;
+      color: #64748b;
     }
   }
 
-  &--cancel {
-    background: #fef2f2;
-    color: #dc2626;
+  // Contract Type
+  &__type-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #475569;
+    text-transform: capitalize;
+    letter-spacing: 0.3px;
+  }
+
+  // Wage Box
+  &__wage-box {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  &__wage-amount {
+    font-weight: 700;
+    color: #0f172a;
+    font-size: 13.5px;
+  }
+
+  &__wage-per {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+
+  // Duration
+  &__duration {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #475569;
+  }
+
+  &__arrow {
+    color: #94a3b8;
+    font-size: 11px;
+  }
+
+  // Status Badge
+  &__status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    text-transform: capitalize;
+
+    &--active {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+
+    &--draft {
+      background: #fef3c7;
+      color: #d97706;
+      border: 1px solid #fde68a;
+    }
+
+    &--expired {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    &--cancelled {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+  }
+
+  // Actions
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &--approve {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+
+      &:hover {
+        background: #10b981;
+        color: #ffffff;
+        border-color: #10b981;
+        box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+      }
+    }
+
+    &--cancel {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+
+      &:hover {
+        background: #ef4444;
+        color: #ffffff;
+        border-color: #ef4444;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+      }
+    }
+  }
+
+  &__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
 
     &:hover {
-      background: #ef4444;
-      color: #ffffff;
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
     }
   }
 }

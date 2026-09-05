@@ -42,7 +42,7 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
 
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'PROBATION' | 'ON_LEAVE' | 'RESIGNED'
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'ON_LEAVE' | 'SUSPENDED' | 'TERMINATED'
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
@@ -84,21 +84,10 @@ export default function EmployeesPage() {
   async function fetchEmployees() {
     setLoading(true);
     try {
-      const params = { limit: 100 };
-      if (statusFilter !== 'ALL') {
-        params.status = statusFilter;
-      }
-      if (departmentFilter !== 'all') {
-        const foundDept = departments.find(
-          (d) => d.name.toLowerCase() === departmentFilter.toLowerCase()
-        );
-        if (foundDept) params.department_id = foundDept.id;
-      }
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
-      }
-
-      const res = await api.get('/employees', { params });
+      // Always fetch the full directory — status/department/search filters are
+      // applied client-side (see filteredEmployees) so the tab counts stay
+      // stable no matter which filter is selected.
+      const res = await api.get('/employees', { params: { limit: 100 } });
       const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
 
       // Map backend schema to UI format
@@ -133,7 +122,11 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     fetchEmployees();
-  }, [statusFilter, departmentFilter]);
+    // Refetch only on mount and after mutations (create employee calls it
+    // explicitly). Filtering is client-side, so filter changes must NOT
+    // trigger a refetch — otherwise the tab counts would shift.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Open modal with fresh auto-generated code and clean state
   function handleOpenModal() {
@@ -184,7 +177,7 @@ export default function EmployeesPage() {
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
-    const counts = { ALL: employees.length, ACTIVE: 0, PROBATION: 0, ON_LEAVE: 0, RESIGNED: 0, TERMINATED: 0 };
+    const counts = { ALL: employees.length, ACTIVE: 0, ON_LEAVE: 0, SUSPENDED: 0, TERMINATED: 0 };
     employees.forEach((emp) => {
       const st = emp.status?.toUpperCase();
       if (counts[st] !== undefined) {
@@ -294,12 +287,12 @@ export default function EmployeesPage() {
             </button>
 
             <button
-              className={`emp-header__status-tab emp-header__status-tab--probation-tab ${statusFilter === 'PROBATION' ? 'emp-header__status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('PROBATION')}
+              className={`emp-header__status-tab emp-header__status-tab--suspended-tab ${statusFilter === 'SUSPENDED' ? 'emp-header__status-tab--active' : ''}`}
+              onClick={() => setStatusFilter('SUSPENDED')}
             >
-              <span className="emp-kanban__status-dot emp-kanban__status-dot--probation" />
-              <span>Probation</span>
-              <span className="emp-header__status-tab-badge">{statusCounts.PROBATION}</span>
+              <span className="emp-kanban__status-dot emp-kanban__status-dot--suspended" />
+              <span>Suspended</span>
+              <span className="emp-header__status-tab-badge">{statusCounts.SUSPENDED}</span>
             </button>
 
             <button
@@ -312,12 +305,12 @@ export default function EmployeesPage() {
             </button>
 
             <button
-              className={`emp-header__status-tab emp-header__status-tab--resigned-tab ${statusFilter === 'RESIGNED' ? 'emp-header__status-tab--active' : ''}`}
-              onClick={() => setStatusFilter('RESIGNED')}
+              className={`emp-header__status-tab emp-header__status-tab--terminated-tab ${statusFilter === 'TERMINATED' ? 'emp-header__status-tab--active' : ''}`}
+              onClick={() => setStatusFilter('TERMINATED')}
             >
-              <span className="emp-kanban__status-dot emp-kanban__status-dot--resigned" />
-              <span>Resigned</span>
-              <span className="emp-header__status-tab-badge">{statusCounts.RESIGNED}</span>
+              <span className="emp-kanban__status-dot emp-kanban__status-dot--terminated" />
+              <span>Terminated</span>
+              <span className="emp-header__status-tab-badge">{statusCounts.TERMINATED}</span>
             </button>
           </div>
 

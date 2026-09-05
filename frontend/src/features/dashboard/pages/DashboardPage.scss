@@ -95,6 +95,72 @@
       color: $color-text-muted;
     }
   }
+
+  &__refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    border: 1px solid $color-border;
+    border-radius: $radius-pill;
+    padding: 8px 16px;
+    font-family: $font-body;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    box-shadow: $shadow-sm;
+    transition: all $transition-fast;
+
+    &:hover:not(:disabled) {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.spin-anim {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.dash-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 12px 18px;
+  color: #b91c1c;
+  font-size: 13.5px;
+  font-weight: 500;
+
+  button {
+    margin-left: auto;
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background: #b91c1c;
+    }
+  }
 }
 
 // ─── KPI Cards Grid ───────────────────────────────────────────────────────────

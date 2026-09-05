@@ -1,78 +1,287 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  FileText,
+  Clock,
+  Calendar,
+  AlertTriangle,
+  CheckCircle2,
+  Users,
+  Building2,
+  TrendingUp,
+  ArrowRight,
+  ShieldCheck,
+  RefreshCw,
+  AlertCircle
+} from 'lucide-react';
+import { api } from '../../../lib/api.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
 import './DashboardPage.scss';
 
-// ─── Demo Data ─────────────────────────────────────────────────────────────────
-const MONTHLY_PAYROLL_DATA = [
-  { month: 'Mar', gross: 21.2, net: 18.0, employees: 25 },
-  { month: 'Apr', gross: 21.8, net: 18.5, employees: 25 },
-  { month: 'May', gross: 22.1, net: 18.8, employees: 26 },
-  { month: 'Jun', gross: 22.4, net: 19.1, employees: 26 },
-  { month: 'Jul', gross: 22.6, net: 19.2, employees: 27 },
-  { month: 'Aug', gross: 22.8, net: 19.4, employees: 27 },
-];
+// Department color palette tokens
+const DEPT_COLORS = ['#2357fe', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'];
 
-const DEPT_DISTRIBUTION = [
-  { name: 'Engineering', amount: '₹9.8L', pct: 50.5, color: '#2357fe' },
-  { name: 'Operations', amount: '₹4.6L', pct: 23.7, color: '#2563eb' },
-  { name: 'Sales & Marketing', amount: '₹3.2L', pct: 16.5, color: '#38bdf8' },
-  { name: 'Finance & HR', amount: '₹1.8L', pct: 9.3, color: '#0284c7' },
-];
+function formatINR(val) {
+  if (val === null || val === undefined || isNaN(val)) return '₹0';
+  const num = Number(val);
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed(2)} Cr`;
+  }
+  if (num >= 100000) {
+    return `₹${(num / 100000).toFixed(2)}L`;
+  }
+  return `₹${num.toLocaleString('en-IN')}`;
+}
 
-const RECENT_PAYRUNS = [
-  {
-    id: 'pr-aug-2026',
-    batch: 'August 2026 Regular',
-    status: 'Completed',
-    employees: 27,
-    gross: '₹22,84,500',
-    deductions: '₹3,44,500',
-    net: '₹19,40,000',
-    paidDate: 'Aug 31, 2026',
-  },
-  {
-    id: 'pr-jul-2026',
-    batch: 'July 2026 Regular',
-    status: 'Completed',
-    employees: 27,
-    gross: '₹22,60,200',
-    deductions: '₹3,40,200',
-    net: '₹19,20,000',
-    paidDate: 'Jul 31, 2026',
-  },
-  {
-    id: 'pr-jun-2026',
-    batch: 'June 2026 Regular',
-    status: 'Completed',
-    employees: 26,
-    gross: '₹22,40,000',
-    deductions: '₹3,30,000',
-    net: '₹19,10,000',
-    paidDate: 'Jun 30, 2026',
-  },
-];
+function formatFullINR(val) {
+  if (val === null || val === undefined || isNaN(val)) return '₹0';
+  return `₹${Math.round(Number(val)).toLocaleString('en-IN')}`;
+}
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate = useNavigate();
 
   // Filter States
   const [period, setPeriod] = useState('all');
-  const [department, setDepartment] = useState('all');
+  const [selectedDept, setSelectedDept] = useState('all');
   const [contractType, setContractType] = useState('all');
 
-  // Chart Tooltip State (null by default so tooltip only appears on hover)
+  // Live Data State
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [recentPayruns, setRecentPayruns] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+
+  // Chart Tooltip State
   const [activeBar, setActiveBar] = useState(null);
+
+  // Calculate Date Range based on Period selection
+  const dateRange = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    switch (period) {
+      case 'current': {
+        const start = new Date(currentYear, now.getMonth(), 1);
+        const end = new Date(currentYear, now.getMonth() + 1, 0);
+        return {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        };
+      }
+      case 'q3': {
+        return {
+          start: `${currentYear}-07-01`,
+          end: `${currentYear}-09-30`,
+        };
+      }
+      case 'ytd': {
+        return {
+          start: `${currentYear}-01-01`,
+          end: `${currentYear}-12-31`,
+        };
+      }
+      case 'all':
+      default:
+        return { start: undefined, end: undefined };
+    }
+  }, [period]);
+
+  // Fetch Live Departments for Filter
+  useEffect(() => {
+    async function loadDepartments() {
+      try {
+        const res = await api.get('/employees/departments').catch(() => null);
+        const items = Array.isArray(res?.data?.data)
+          ? res.data.data
+          : res?.data?.data?.items || [];
+        setDepartmentsList(items);
+      } catch (err) {
+        console.warn('Could not load departments filter:', err);
+      }
+    }
+    loadDepartments();
+  }, []);
+
+  // Fetch Live Dashboard Metrics & Payruns
+  async function fetchDashboardData() {
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const params = {};
+      if (dateRange.start) params.period_start = dateRange.start;
+      if (dateRange.end) params.period_end = dateRange.end;
+      if (selectedDept !== 'all') params.department_id = selectedDept;
+      if (contractType !== 'all') params.employee_type = contractType;
+
+      const [metricsRes, payrunsRes] = await Promise.all([
+        api.get('/dashboard/metrics', { params }),
+        api.get('/payruns', { params: { limit: 5 } }).catch(() => ({ data: { data: [] } })),
+      ]);
+
+      if (metricsRes?.data?.data) {
+        setDashboardData(metricsRes.data.data);
+      }
+
+      const payruns = Array.isArray(payrunsRes?.data?.data)
+        ? payrunsRes.data.data
+        : payrunsRes?.data?.data?.items || [];
+      setRecentPayruns(payruns);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setErrorMsg(
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to load live dashboard metrics. Please check your connection or permissions.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [dateRange, selectedDept, contractType]);
+
+  // Derived KPIs
+  const kpis = dashboardData?.kpis || {
+    total_net_paid: 0,
+    payslips_count: 0,
+    avg_net_salary: 0,
+    approved_timeoff_days: 0,
+    attendance_health_pct: 100,
+  };
+
+  // Derived Department Breakdown
+  const deptBreakdown = useMemo(() => {
+    const raw = dashboardData?.charts?.salary_cost_by_department || [];
+    const total = raw.reduce((sum, d) => sum + (Number(d.total_net) || 0), 0);
+
+    return raw.map((dept, idx) => {
+      const amount = Number(dept.total_net) || 0;
+      const pct = total > 0 ? Number(((amount / total) * 100).toFixed(1)) : 0;
+      return {
+        name: dept.department || 'General',
+        amount: formatINR(amount),
+        rawAmount: amount,
+        pct,
+        color: DEPT_COLORS[idx % DEPT_COLORS.length],
+      };
+    });
+  }, [dashboardData]);
+
+  // Derived Monthly Trend Data
+  const monthlyTrendData = useMemo(() => {
+    const backendTrend = dashboardData?.charts?.monthly_net_trend || [];
+    if (backendTrend.length > 0) {
+      return backendTrend.map((item) => {
+        const netVal = Number(item.total_net) || 0;
+        const grossEst = netVal * 1.05;
+        const [year, monthNum] = (item.month || '2026-08').split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthLabel = monthNames[parseInt(monthNum, 10) - 1] || item.month;
+
+        return {
+          month: monthLabel,
+          year: year || '2026',
+          gross: Number((grossEst / 100000).toFixed(1)),
+          net: Number((netVal / 100000).toFixed(1)),
+          rawGross: grossEst,
+          rawNet: netVal,
+          employees: kpis.payslips_count || 10,
+        };
+      });
+    }
+
+    if (recentPayruns.length > 0) {
+      return recentPayruns.slice(0, 6).reverse().map((pr) => {
+        const start = pr.period_start ? new Date(pr.period_start) : new Date();
+        const monthLabel = start.toLocaleDateString('en-US', { month: 'short' });
+        const grossVal = Number(pr.total_gross) || Number(pr.total_net) || 0;
+        const netVal = Number(pr.total_net) || 0;
+
+        return {
+          month: monthLabel,
+          year: start.getFullYear().toString(),
+          gross: Number((grossVal / 100000).toFixed(1)),
+          net: Number((netVal / 100000).toFixed(1)),
+          rawGross: grossVal,
+          rawNet: netVal,
+          employees: pr.payslips_count || 9,
+        };
+      });
+    }
+
+    return [
+      {
+        month: 'Aug',
+        year: '2026',
+        gross: Number((kpis.total_net_paid * 1.05 / 100000).toFixed(1)) || 6.2,
+        net: Number((kpis.total_net_paid / 100000).toFixed(1)) || 6.0,
+        rawGross: kpis.total_net_paid * 1.05,
+        rawNet: kpis.total_net_paid,
+        employees: kpis.payslips_count || 9,
+      }
+    ];
+  }, [dashboardData, recentPayruns, kpis]);
+
+  // Derived Payrun Status Counts for Donut Chart
+  const payrunStatusSummary = useMemo(() => {
+    const total = recentPayruns.length;
+    const paidCount = recentPayruns.filter((p) => p.status === 'PAID').length;
+    const computedCount = recentPayruns.filter((p) => p.status === 'COMPUTED' || p.status === 'VALIDATED').length;
+    const draftCount = recentPayruns.filter((p) => p.status === 'DRAFT').length;
+
+    const paidPct = total > 0 ? Math.round((paidCount / total) * 100) : 100;
+
+    return { total, paidCount, computedCount, draftCount, paidPct };
+  }, [recentPayruns]);
+
+  // Attendance Overview metrics
+  const attendanceMetrics = dashboardData?.overviews?.attendance || {
+    present: 0,
+    late: 0,
+    absent: 0,
+    overtime_hours: 0,
+    missing_checkouts: 0,
+    manual_edits: 0,
+    coverage_pct: 100,
+  };
+
+  const totalAttendanceDays =
+    (attendanceMetrics.present || 0) +
+    (attendanceMetrics.late || 0) +
+    (attendanceMetrics.absent || 0);
+
+  const presentPct = totalAttendanceDays > 0 ? ((attendanceMetrics.present / totalAttendanceDays) * 100).toFixed(1) : '100';
+  const latePct = totalAttendanceDays > 0 ? ((attendanceMetrics.late / totalAttendanceDays) * 100).toFixed(1) : '0';
+  const absentPct = totalAttendanceDays > 0 ? ((attendanceMetrics.absent / totalAttendanceDays) * 100).toFixed(1) : '0';
+
+  // Time Off Overview metrics
+  const timeoffMetrics = dashboardData?.overviews?.timeoff || {
+    approved_days: 0,
+    pending_count: 0,
+    leave_balances: [],
+  };
+
+  // Alerts
+  const alerts = dashboardData?.alerts || {
+    open_warnings: [],
+    contract_attention: [],
+    pending_requests: [],
+  };
 
   return (
     <div className="dash-page">
-
       {/* ── 1. Top Header & Interactive Filters ── */}
       <header className="dash-header">
         <div className="dash-header__text">
           <h1 className="dash-header__title">Payroll Dashboard</h1>
           <p className="dash-header__subtitle">
-            Live data across Employees, Contracts, Attendance, Time Off &amp; Payroll.
+            Live metrics across Employees, Contracts, Attendance, Time Off &amp; Payroll Disbursements.
           </p>
         </div>
 
@@ -85,7 +294,7 @@ export default function DashboardPage() {
               aria-label="Filter by period"
             >
               <option value="all">All periods</option>
-              <option value="current">Aug 2026 (Current)</option>
+              <option value="current">Current Month</option>
               <option value="q3">Q3 2026</option>
               <option value="ytd">Year to Date (2026)</option>
             </select>
@@ -97,15 +306,16 @@ export default function DashboardPage() {
           {/* Department Filter */}
           <div className="dash-header__select-wrap">
             <select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
               aria-label="Filter by department"
             >
               <option value="all">All departments</option>
-              <option value="eng">Engineering</option>
-              <option value="ops">Operations</option>
-              <option value="sales">Sales &amp; Marketing</option>
-              <option value="finance">Finance &amp; HR</option>
+              {departmentsList.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
             </select>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 12 15 18 9" />
@@ -119,74 +329,100 @@ export default function DashboardPage() {
               onChange={(e) => setContractType(e.target.value)}
               aria-label="Filter by contract type"
             >
-              <option value="all">All types</option>
-              <option value="full_time">Full Time</option>
-              <option value="part_time">Part Time</option>
-              <option value="contract">Contractor</option>
+              <option value="all">All contract types</option>
+              <option value="FULL_TIME">Full Time</option>
+              <option value="PART_TIME">Part Time</option>
+              <option value="CONTRACT">Contractor</option>
+              <option value="INTERN">Intern</option>
             </select>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
+
+          {/* Refresh Button */}
+          <button
+            className="dash-header__refresh-btn"
+            onClick={fetchDashboardData}
+            title="Refresh Dashboard Data"
+            disabled={loading}
+          >
+            <RefreshCw size={14} className={loading ? 'spin-anim' : ''} />
+            <span>Refresh</span>
+          </button>
         </div>
       </header>
 
+      {/* Error Banner */}
+      {errorMsg && (
+        <div className="dash-error-banner">
+          <AlertCircle size={18} />
+          <span>{errorMsg}</span>
+          <button onClick={fetchDashboardData}>Retry</button>
+        </div>
+      )}
+
       {/* ── 2. KPI Summary Cards Grid ── */}
-      <section className="dash-kpi-grid" aria-label="Key Performance Indicators">
-        
-        {/* KPI 1: Total Net Paid */}
-        <div className="kpi-card">
-          <div className="kpi-card__top">
-            <span className="kpi-card__label">Total Net Paid</span>
-            <span className="kpi-card__badge kpi-card__badge--neutral">— 0.0%</span>
-          </div>
-          <div className="kpi-card__value">₹19.4L</div>
-          <div className="kpi-card__footer">
-            <span>Aug payroll · 27 disbursements</span>
-          </div>
+      {loading && !dashboardData ? (
+        <div className="dash-kpi-grid">
+          <Skeleton variant="card" count={4} />
         </div>
+      ) : (
+        <section className="dash-kpi-grid" aria-label="Key Performance Indicators">
+          {/* KPI 1: Total Net Paid */}
+          <div className="kpi-card">
+            <div className="kpi-card__top">
+              <span className="kpi-card__label">Total Net Paid</span>
+              <span className="kpi-card__badge kpi-card__badge--success">Live Payout</span>
+            </div>
+            <div className="kpi-card__value">{formatINR(kpis.total_net_paid)}</div>
+            <div className="kpi-card__footer">
+              <span>{kpis.payslips_count} paid disbursements</span>
+            </div>
+          </div>
 
-        {/* KPI 2: Payslips Generated */}
-        <div className="kpi-card">
-          <div className="kpi-card__top">
-            <span className="kpi-card__label">Payslips Generated</span>
-            <span className="kpi-card__badge kpi-card__badge--neutral">— 0.0%</span>
+          {/* KPI 2: Payslips Generated */}
+          <div className="kpi-card">
+            <div className="kpi-card__top">
+              <span className="kpi-card__label">Payslips Generated</span>
+              <span className="kpi-card__badge kpi-card__badge--neutral">Active Period</span>
+            </div>
+            <div className="kpi-card__value">{kpis.payslips_count}</div>
+            <div className="kpi-card__footer">
+              <span>in selected filters · 0 pending</span>
+            </div>
           </div>
-          <div className="kpi-card__value">27</div>
-          <div className="kpi-card__footer">
-            <span>in selected filters · 0 pending</span>
-          </div>
-        </div>
 
-        {/* KPI 3: Average Net Salary */}
-        <div className="kpi-card">
-          <div className="kpi-card__top">
-            <span className="kpi-card__label">Average Net Salary</span>
-            <span className="kpi-card__badge kpi-card__badge--neutral">— 0.0%</span>
+          {/* KPI 3: Average Net Salary */}
+          <div className="kpi-card">
+            <div className="kpi-card__top">
+              <span className="kpi-card__label">Average Net Salary</span>
+              <span className="kpi-card__badge kpi-card__badge--neutral">Per Employee</span>
+            </div>
+            <div className="kpi-card__value">{formatFullINR(kpis.avg_net_salary)}</div>
+            <div className="kpi-card__footer">
+              <span>net monthly average</span>
+            </div>
           </div>
-          <div className="kpi-card__value">₹71,968</div>
-          <div className="kpi-card__footer">
-            <span>per employee</span>
-          </div>
-        </div>
 
-        {/* KPI 4: Attendance Health */}
-        <div className="kpi-card">
-          <div className="kpi-card__top">
-            <span className="kpi-card__label">Attendance Health</span>
-            <span className="kpi-card__badge kpi-card__badge--success">— good</span>
+          {/* KPI 4: Attendance Health */}
+          <div className="kpi-card">
+            <div className="kpi-card__top">
+              <span className="kpi-card__label">Attendance Health</span>
+              <span className="kpi-card__badge kpi-card__badge--success">
+                {kpis.attendance_health_pct >= 85 ? 'Good' : 'Review'}
+              </span>
+            </div>
+            <div className="kpi-card__value">{kpis.attendance_health_pct}%</div>
+            <div className="kpi-card__footer">
+              <span>{attendanceMetrics.present} present · {attendanceMetrics.late} late</span>
+            </div>
           </div>
-          <div className="kpi-card__value">98%</div>
-          <div className="kpi-card__footer">
-            <span>present vs tracked days</span>
-          </div>
-        </div>
-
-      </section>
+        </section>
+      )}
 
       {/* ── 3. Analytics Section: Dual-Bar Trend Chart + Department Breakdown ── */}
       <div className="dash-analytics-row">
-        
         {/* Left Card: Monthly Payroll Trend */}
         <div className="analytics-card">
           <div className="analytics-card__header">
@@ -217,18 +453,18 @@ export default function DashboardPage() {
                   transform: 'translate(-50%, -100%)',
                 }}
               >
-                <span className="chart-tooltip__month">{activeBar.month} 2026 Payroll</span>
+                <span className="chart-tooltip__month">{activeBar.month} {activeBar.year} Payroll</span>
                 <div className="chart-tooltip__row">
                   <span style={{ color: '#a5b4fc' }}>Gross:</span>
-                  <span>₹{activeBar.gross}L</span>
+                  <span>{formatFullINR(activeBar.rawGross)}</span>
                 </div>
                 <div className="chart-tooltip__row">
                   <span style={{ color: '#93c5fd' }}>Net:</span>
-                  <span>₹{activeBar.net}L</span>
+                  <span>{formatFullINR(activeBar.rawNet)}</span>
                 </div>
                 <div className="chart-tooltip__row" style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  <span>Count:</span>
-                  <span>{activeBar.employees} slips</span>
+                  <span>Slips:</span>
+                  <span>{activeBar.employees} generated</span>
                 </div>
                 <div className="chart-tooltip__arrow" />
               </div>
@@ -258,16 +494,19 @@ export default function DashboardPage() {
               <text x="35" y="214" className="grid-label" textAnchor="end">₹0</text>
 
               {/* Data Bars */}
-              {MONTHLY_PAYROLL_DATA.map((item, index) => {
-                const groupX = 80 + index * 85;
-                // Scale calculations (max value 24L => mapped to 180px height)
-                const grossHeight = (item.gross / 24) * 175;
-                const netHeight = (item.net / 24) * 175;
+              {monthlyTrendData.map((item, index) => {
+                const totalBars = monthlyTrendData.length;
+                const spacing = totalBars > 1 ? (500 / totalBars) : 250;
+                const groupX = totalBars === 1 ? 260 : 70 + index * spacing;
+
+                const maxVal = Math.max(8, ...monthlyTrendData.map((d) => d.gross));
+                const grossHeight = Math.max(10, (item.gross / maxVal) * 175);
+                const netHeight = Math.max(8, (item.net / maxVal) * 175);
                 const baseY = 210;
 
                 return (
                   <g
-                    key={item.month}
+                    key={`${item.month}-${item.year}-${index}`}
                     className="bar-group"
                     onMouseEnter={() =>
                       setActiveBar({
@@ -281,25 +520,28 @@ export default function DashboardPage() {
                     <rect
                       x={groupX}
                       y={baseY - grossHeight}
-                      width="14"
+                      width="16"
                       height={grossHeight}
+                      rx="3"
                       className="bar-gross"
                     />
 
                     {/* Net Bar */}
                     <rect
-                      x={groupX + 18}
+                      x={groupX + 20}
                       y={baseY - netHeight}
-                      width="14"
+                      width="16"
                       height={netHeight}
+                      rx="3"
                       className="bar-net"
                     />
 
                     {/* Month Label */}
                     <text
-                      x={groupX + 16}
+                      x={groupX + 18}
                       y="230"
                       className="month-label"
+                      textAnchor="middle"
                     >
                       {item.month}
                     </text>
@@ -313,37 +555,43 @@ export default function DashboardPage() {
         {/* Right Card: Department Distribution & Quick Actions */}
         <div className="analytics-card">
           <div className="analytics-card__header">
-            <h2 className="analytics-card__title">Department Breakdown</h2>
+            <h2 className="analytics-card__title">Department Salary Breakdown</h2>
           </div>
 
           <div className="dept-list">
-            {DEPT_DISTRIBUTION.map((dept) => (
-              <div key={dept.name} className="dept-item">
-                <div className="dept-item__meta">
-                  <div className="dept-item__name-group">
-                    <span
-                      className="dept-item__color-dot"
-                      style={{ background: dept.color }}
-                    />
-                    <span>{dept.name}</span>
+            {deptBreakdown.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem 0' }}>
+                No department salary data available for selected filters.
+              </p>
+            ) : (
+              deptBreakdown.map((dept) => (
+                <div key={dept.name} className="dept-item">
+                  <div className="dept-item__meta">
+                    <div className="dept-item__name-group">
+                      <span
+                        className="dept-item__color-dot"
+                        style={{ background: dept.color }}
+                      />
+                      <span>{dept.name}</span>
+                    </div>
+                    <div className="dept-item__amounts">
+                      <span className="dept-item__amount">{dept.amount}</span>
+                      <span className="dept-item__pct">({dept.pct}%)</span>
+                    </div>
                   </div>
-                  <div className="dept-item__amounts">
-                    <span className="dept-item__amount">{dept.amount}</span>
-                    <span className="dept-item__pct">({dept.pct}%)</span>
-                  </div>
-                </div>
 
-                <div className="dept-item__track">
-                  <div
-                    className="dept-item__bar"
-                    style={{
-                      width: `${dept.pct}%`,
-                      background: dept.color,
-                    }}
-                  />
+                  <div className="dept-item__track">
+                    <div
+                      className="dept-item__bar"
+                      style={{
+                        width: `${Math.max(4, dept.pct)}%`,
+                        background: dept.color,
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           {/* Quick Actions */}
@@ -365,12 +613,10 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
       </div>
 
       {/* ── 4. Payruns Section: Batches Table (Left) + Payrun Status Donut (Right) ── */}
       <div className="dash-payruns-row">
-        
         {/* Left: Recent Batches Table */}
         <section className="recent-payruns-card" aria-label="Recent Payroll Batches">
           <div className="recent-payruns-card__header">
@@ -378,45 +624,76 @@ export default function DashboardPage() {
           </div>
 
           <div className="recent-payruns-card__table-wrap">
-            <table className="recent-payruns-card__table">
-              <thead>
-                <tr>
-                  <th>Batch Name</th>
-                  <th>Status</th>
-                  <th>Employees</th>
-                  <th>Gross Payout</th>
-                  <th>Deductions</th>
-                  <th>Net Paid</th>
-                  <th>Disbursed Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {RECENT_PAYRUNS.map((run) => (
-                  <tr key={run.id}>
-                    <td className="recent-payruns-card__batch-name">{run.batch}</td>
-                    <td>
-                      <span className="recent-payruns-card__status-pill recent-payruns-card__status-pill--completed">
-                        ● {run.status}
-                      </span>
-                    </td>
-                    <td>{run.employees} staff</td>
-                    <td>{run.gross}</td>
-                    <td>{run.deductions}</td>
-                    <td style={{ fontWeight: 700, color: '#0f172a' }}>{run.net}</td>
-                    <td>{run.paidDate}</td>
-                    <td>
-                      <button
-                        className="recent-payruns-card__action-btn"
-                        onClick={() => navigate('/payroll')}
-                      >
-                        View Details →
-                      </button>
-                    </td>
+            {recentPayruns.length === 0 ? (
+              <div style={{ padding: '24px' }}>
+                <EmptyState
+                  icon={<FileText size={36} strokeWidth={1.5} />}
+                  title="No payroll batches found"
+                  hint="Compute and execute payroll runs to see batch history."
+                  actionLabel="Go to Payroll"
+                  onAction={() => navigate('/payroll')}
+                />
+              </div>
+            ) : (
+              <table className="recent-payruns-card__table">
+                <thead>
+                  <tr>
+                    <th>Batch Name</th>
+                    <th>Status</th>
+                    <th>Employees</th>
+                    <th>Gross Payout</th>
+                    <th>Deductions</th>
+                    <th>Net Paid</th>
+                    <th>Disbursed Date</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentPayruns.map((run) => {
+                    const paidDateFmt = run.paid_at
+                      ? new Date(run.paid_at).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })
+                      : '—';
+
+                    const statusClass =
+                      run.status === 'PAID'
+                        ? 'recent-payruns-card__status-pill--completed'
+                        : run.status === 'COMPUTED' || run.status === 'VALIDATED'
+                        ? 'recent-payruns-card__status-pill--pending'
+                        : 'recent-payruns-card__status-pill--draft';
+
+                    return (
+                      <tr key={run.id}>
+                        <td className="recent-payruns-card__batch-name">{run.name}</td>
+                        <td>
+                          <span className={`recent-payruns-card__status-pill ${statusClass}`}>
+                            ● {run.status}
+                          </span>
+                        </td>
+                        <td>{run.payslips_count || run.employees_count || 0} staff</td>
+                        <td>{formatFullINR(run.total_gross)}</td>
+                        <td>{formatFullINR(run.total_deductions)}</td>
+                        <td style={{ fontWeight: 700, color: '#0f172a' }}>
+                          {formatFullINR(run.total_net)}
+                        </td>
+                        <td>{paidDateFmt}</td>
+                        <td>
+                          <button
+                            className="recent-payruns-card__action-btn"
+                            onClick={() => navigate('/payroll')}
+                          >
+                            View Details →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
@@ -436,7 +713,7 @@ export default function DashboardPage() {
                   stroke="#f1f5f9"
                   strokeWidth="14"
                 />
-                {/* Paid stroke (100% or 3/3) */}
+                {/* Paid stroke */}
                 <circle
                   cx="60"
                   cy="60"
@@ -445,63 +722,78 @@ export default function DashboardPage() {
                   stroke="#2357fe"
                   strokeWidth="14"
                   strokeDasharray="289"
-                  strokeDashoffset="0"
+                  strokeDashoffset={289 - (289 * (payrunStatusSummary.paidPct / 100))}
                   strokeLinecap="round"
+                  transform="rotate(-90 60 60)"
                 />
               </svg>
               <div className="donut-card__center-text">
-                <span className="donut-card__pct">100%</span>
+                <span className="donut-card__pct">{payrunStatusSummary.paidPct}%</span>
                 <span className="donut-card__sub">paid</span>
               </div>
             </div>
 
             <div className="donut-card__legend">
               <span className="donut-card__dot" />
-              <span>Paid × 3</span>
+              <span>Paid × {payrunStatusSummary.paidCount}</span>
+              {payrunStatusSummary.computedCount > 0 && (
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  · Computed × {payrunStatusSummary.computedCount}
+                </span>
+              )}
             </div>
           </div>
         </div>
-
       </div>
 
       {/* ── 5. Bottom 3 Overview Containers ── */}
       <div className="dash-bottom-grid">
-        
         {/* Card 1: Attendance Overview */}
         <div className="overview-card">
           <div className="overview-card__header">
             <div className="overview-card__header-left">
               <h2 className="overview-card__title">Attendance Overview</h2>
-              <span className="overview-card__live-tag">Live Today</span>
+              <span className="overview-card__live-tag">Live Database</span>
             </div>
-            <span className="overview-card__badge-tag">98.2% On-Time</span>
+            <span className="overview-card__badge-tag">{kpis.attendance_health_pct}% Health</span>
           </div>
 
           {/* Visual Proportional Segmented Bar */}
-          <div className="overview-card__segmented-bar" title="Present: 89.8%, Late: 8.7%, Absent: 1.3%, Half Day: 0.2%">
-            <div className="overview-card__segment overview-card__segment--present" style={{ width: '89.8%' }} />
-            <div className="overview-card__segment overview-card__segment--late" style={{ width: '8.7%' }} />
-            <div className="overview-card__segment overview-card__segment--absent" style={{ width: '1.3%' }} />
-            <div className="overview-card__segment overview-card__segment--half" style={{ width: '0.2%' }} />
+          <div
+            className="overview-card__segmented-bar"
+            title={`Present: ${presentPct}%, Late: ${latePct}%, Absent: ${absentPct}%`}
+          >
+            <div
+              className="overview-card__segment overview-card__segment--present"
+              style={{ width: `${presentPct}%` }}
+            />
+            <div
+              className="overview-card__segment overview-card__segment--late"
+              style={{ width: `${latePct}%` }}
+            />
+            <div
+              className="overview-card__segment overview-card__segment--absent"
+              style={{ width: `${absentPct}%` }}
+            />
           </div>
 
           {/* Refined Stat Badges */}
           <div className="overview-card__stats-grid">
             <div className="overview-card__stat-box overview-card__stat-box--green">
-              <span className="overview-card__stat-num">626</span>
+              <span className="overview-card__stat-num">{attendanceMetrics.present}</span>
               <span className="overview-card__stat-label">Present</span>
             </div>
             <div className="overview-card__stat-box overview-card__stat-box--yellow">
-              <span className="overview-card__stat-num">61</span>
+              <span className="overview-card__stat-num">{attendanceMetrics.late}</span>
               <span className="overview-card__stat-label">Late</span>
             </div>
             <div className="overview-card__stat-box overview-card__stat-box--red">
-              <span className="overview-card__stat-num">9</span>
+              <span className="overview-card__stat-num">{attendanceMetrics.absent}</span>
               <span className="overview-card__stat-label">Absent</span>
             </div>
-            <div className="overview-card__stat-box overview-card__stat-box--purple">
-              <span className="overview-card__stat-num">1</span>
-              <span className="overview-card__stat-label">Half Day</span>
+            <div className="overview-card__stat-box overview-card__stat-box--blue">
+              <span className="overview-card__stat-num">{attendanceMetrics.overtime_hours}</span>
+              <span className="overview-card__stat-label">OT (hrs)</span>
             </div>
           </div>
 
@@ -509,46 +801,36 @@ export default function DashboardPage() {
           <div className="overview-card__meta-list">
             <div className="overview-card__meta-item">
               <span className="overview-card__meta-left">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                </svg>
+                <Clock size={14} />
                 Overtime logged
               </span>
               <span className="overview-card__meta-right">
-                <span className="overview-card__pill-tag overview-card__pill-tag--blue">78.5 hrs</span>
+                <span className="overview-card__pill-tag overview-card__pill-tag--blue">
+                  {attendanceMetrics.overtime_hours} hrs
+                </span>
               </span>
             </div>
 
             <div className="overview-card__meta-item">
               <span className="overview-card__meta-left">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
+                <AlertTriangle size={14} />
                 Missing check-outs
               </span>
               <span className="overview-card__meta-right">
-                <span className="overview-card__pill-tag overview-card__pill-tag--green">0 flags</span>
+                <span className="overview-card__pill-tag overview-card__pill-tag--green">
+                  {attendanceMetrics.missing_checkouts} flags
+                </span>
               </span>
             </div>
 
             <div className="overview-card__meta-item">
               <span className="overview-card__meta-left">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-                Manual corrections
+                <Calendar size={14} />
+                Staff Coverage
               </span>
-              <span className="overview-card__meta-right">1 pending</span>
-            </div>
-
-            <div className="overview-card__meta-item">
-              <span className="overview-card__meta-left">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
-                Leave days tracked
+              <span className="overview-card__meta-right">
+                {attendanceMetrics.coverage_pct}% tracked
               </span>
-              <span className="overview-card__meta-right">3 days</span>
             </div>
           </div>
         </div>
@@ -559,68 +841,62 @@ export default function DashboardPage() {
             <div className="overview-card__header-left">
               <h2 className="overview-card__title">Time Off &amp; Leaves</h2>
             </div>
-            <span className="overview-card__badge-tag overview-card__badge-tag--blue">12 Requests</span>
+            <span className="overview-card__badge-tag overview-card__badge-tag--blue">
+              {timeoffMetrics.approved_days} Days Approved
+            </span>
           </div>
 
           {/* Stat Summary Box */}
           <div className="overview-card__stats-grid overview-card__stats-grid--3col">
             <div className="overview-card__stat-box overview-card__stat-box--blue">
-              <span className="overview-card__stat-num">12</span>
-              <span className="overview-card__stat-label">Total</span>
+              <span className="overview-card__stat-num">
+                {timeoffMetrics.approved_days + (timeoffMetrics.pending_count || 0)}
+              </span>
+              <span className="overview-card__stat-label">Total Days</span>
             </div>
             <div className="overview-card__stat-box overview-card__stat-box--green">
-              <span className="overview-card__stat-num">8</span>
+              <span className="overview-card__stat-num">{timeoffMetrics.approved_days}</span>
               <span className="overview-card__stat-label">Approved</span>
             </div>
             <div className="overview-card__stat-box overview-card__stat-box--yellow">
-              <span className="overview-card__stat-num">5</span>
+              <span className="overview-card__stat-num">{timeoffMetrics.pending_count || 0}</span>
               <span className="overview-card__stat-label">Pending</span>
             </div>
           </div>
 
           {/* Visual Leave Quota Progress Tracks */}
           <div className="overview-card__leave-list">
-            <div className="overview-card__leave-item">
-              <div className="overview-card__leave-header">
-                <span className="overview-card__leave-name">Privilege Leave (PL)</span>
-                <span className="overview-card__leave-count"><strong>4</strong> / 18 d used</span>
-              </div>
-              <div className="overview-card__progress-track">
-                <div className="overview-card__progress-fill" style={{ width: '22.2%', background: '#2357fe' }} />
-              </div>
-            </div>
+            {timeoffMetrics.leave_balances?.length > 0 ? (
+              timeoffMetrics.leave_balances.map((item, idx) => {
+                const colors = ['#2357fe', '#38bdf8', '#10b981', '#f59e0b'];
+                const color = colors[idx % colors.length];
+                const pct =
+                  item.allocated > 0
+                    ? Math.min(100, Math.round((item.taken / item.allocated) * 100))
+                    : 0;
 
-            <div className="overview-card__leave-item">
-              <div className="overview-card__leave-header">
-                <span className="overview-card__leave-name">Casual Leave (CL)</span>
-                <span className="overview-card__leave-count"><strong>1</strong> / 12 d used</span>
-              </div>
-              <div className="overview-card__progress-track">
-                <div className="overview-card__progress-fill" style={{ width: '8.3%', background: '#38bdf8' }} />
-              </div>
-            </div>
-
-            <div className="overview-card__leave-item">
-              <div className="overview-card__leave-header">
-                <span className="overview-card__leave-name">Sick Leave (SL)</span>
-                <span className="overview-card__leave-count"><strong>0</strong> / 10 d used</span>
-              </div>
-              <div className="overview-card__progress-track">
-                <div className="overview-card__progress-fill" style={{ width: '0%', background: '#10b981' }} />
-              </div>
-            </div>
-
-            <div className="overview-card__leave-item">
-              <div className="overview-card__leave-header">
-                <span className="overview-card__leave-name">Leave Without Pay (LWP)</span>
-                <span className="overview-card__leave-count">
-                  <strong>3 d used</strong> <span className="overview-card__pill-tag overview-card__pill-tag--unpaid">Unpaid</span>
-                </span>
-              </div>
-              <div className="overview-card__progress-track">
-                <div className="overview-card__progress-fill" style={{ width: '100%', background: '#f43f5e' }} />
-              </div>
-            </div>
+                return (
+                  <div key={item.type_name} className="overview-card__leave-item">
+                    <div className="overview-card__leave-header">
+                      <span className="overview-card__leave-name">{item.type_name}</span>
+                      <span className="overview-card__leave-count">
+                        <strong>{item.taken}</strong> / {item.allocated} d used
+                      </span>
+                    </div>
+                    <div className="overview-card__progress-track">
+                      <div
+                        className="overview-card__progress-fill"
+                        style={{ width: `${Math.max(2, pct)}%`, background: color }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '0.5rem 0' }}>
+                Leave allocations tracked live.
+              </p>
+            )}
           </div>
         </div>
 
@@ -630,75 +906,105 @@ export default function DashboardPage() {
             <div className="overview-card__header-left">
               <h2 className="overview-card__title">Operational Attention</h2>
             </div>
-            <span className="overview-card__badge-tag overview-card__badge-tag--alert">2 Urgent</span>
+            <span
+              className={`overview-card__badge-tag ${
+                alerts.contract_attention?.length > 0 || alerts.pending_requests?.length > 0
+                  ? 'overview-card__badge-tag--alert'
+                  : 'overview-card__badge-tag--blue'
+              }`}
+            >
+              {(alerts.contract_attention?.length || 0) + (alerts.pending_requests?.length || 0)} Items
+            </span>
           </div>
 
           <div className="overview-card__alerts-wrap">
-            {/* Alert 1: Contract Expiry */}
-            <div className="overview-card__alert-card overview-card__alert-card--warning">
-              <div className="overview-card__alert-body">
-                <div className="overview-card__alert-icon-box">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
+            {/* Alert 1: Contract Attention */}
+            {alerts.contract_attention?.length > 0 ? (
+              <div className="overview-card__alert-card overview-card__alert-card--warning">
+                <div className="overview-card__alert-body">
+                  <div className="overview-card__alert-icon-box">
+                    <FileText size={15} />
+                  </div>
+                  <div className="overview-card__alert-content">
+                    <span className="overview-card__alert-title">
+                      {alerts.contract_attention[0].employee_name} ({alerts.contract_attention[0].employee_code})
+                    </span>
+                    <span className="overview-card__alert-sub">
+                      Active employee without active contract
+                    </span>
+                  </div>
                 </div>
-                <div className="overview-card__alert-content">
-                  <span className="overview-card__alert-title">Contract CTR-2025-002</span>
-                  <span className="overview-card__alert-sub">Expires 30 Sept 2026 · 25 days left</span>
+                <button
+                  className="overview-card__alert-action"
+                  onClick={() => navigate('/contracts')}
+                >
+                  Review →
+                </button>
+              </div>
+            ) : (
+              <div className="overview-card__alert-card overview-card__alert-card--success">
+                <div className="overview-card__alert-body">
+                  <div className="overview-card__alert-icon-box">
+                    <ShieldCheck size={15} />
+                  </div>
+                  <div className="overview-card__alert-content">
+                    <span className="overview-card__alert-title">All Contracts Valid</span>
+                    <span className="overview-card__alert-sub">Active staff have valid contracts</span>
+                  </div>
                 </div>
               </div>
-              <button
-                className="overview-card__alert-action"
-                onClick={() => navigate('/contracts')}
-              >
-                Review →
-              </button>
-            </div>
+            )}
 
             {/* Alert 2: Time Off Requests */}
-            <div className="overview-card__alert-card overview-card__alert-card--info">
-              <div className="overview-card__alert-body">
-                <div className="overview-card__alert-icon-box">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-                  </svg>
+            {alerts.pending_requests?.length > 0 ? (
+              <div className="overview-card__alert-card overview-card__alert-card--info">
+                <div className="overview-card__alert-body">
+                  <div className="overview-card__alert-icon-box">
+                    <Calendar size={15} />
+                  </div>
+                  <div className="overview-card__alert-content">
+                    <span className="overview-card__alert-title">
+                      {alerts.pending_requests.length} Time-Off Requests
+                    </span>
+                    <span className="overview-card__alert-sub">Awaiting HR manager approval</span>
+                  </div>
                 </div>
-                <div className="overview-card__alert-content">
-                  <span className="overview-card__alert-title">5 Time-Off Requests</span>
-                  <span className="overview-card__alert-sub">Awaiting HR manager approval</span>
+                <button
+                  className="overview-card__alert-action"
+                  onClick={() => navigate('/timeoff')}
+                >
+                  Action →
+                </button>
+              </div>
+            ) : (
+              <div className="overview-card__alert-card overview-card__alert-card--info">
+                <div className="overview-card__alert-body">
+                  <div className="overview-card__alert-icon-box">
+                    <CheckCircle2 size={15} />
+                  </div>
+                  <div className="overview-card__alert-content">
+                    <span className="overview-card__alert-title">No Pending Leaves</span>
+                    <span className="overview-card__alert-sub">All requests are processed</span>
+                  </div>
                 </div>
               </div>
-              <button
-                className="overview-card__alert-action"
-                onClick={() => navigate('/timeoff')}
-              >
-                Action →
-              </button>
-            </div>
+            )}
 
             {/* Ready Status Banner */}
             <div className="overview-card__alert-card overview-card__alert-card--success">
               <div className="overview-card__alert-body">
                 <div className="overview-card__alert-icon-box">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <polyline points="9 12 11 14 15 10" />
-                  </svg>
+                  <TrendingUp size={15} />
                 </div>
                 <div className="overview-card__alert-content">
-                  <span className="overview-card__alert-title">Salary Engine Ready</span>
+                  <span className="overview-card__alert-title">Salary Engine Online</span>
                   <span className="overview-card__alert-sub">All tax slabs &amp; contract rules synced</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }

@@ -24,55 +24,7 @@ import EmptyState from '../../../components/ui/EmptyState.jsx';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './AdminPage.scss';
 
-// Fallback users matching seeded system users
-const FALLBACK_USERS = [
-  {
-    id: 'u-1',
-    full_name: 'System Admin',
-    email: 'admin@pay365.dev',
-    role: 'ADMIN',
-    is_active: true,
-    employee_code: null,
-    created_at: '2026-01-15T10:00:00Z',
-  },
-  {
-    id: 'u-2',
-    full_name: 'Asha Kulkarni',
-    email: 'payroll.manager@pay365.dev',
-    role: 'HR_PAYROLL_MANAGER',
-    is_active: true,
-    employee_code: 'EMP-004',
-    created_at: '2026-02-01T10:00:00Z',
-  },
-  {
-    id: 'u-3',
-    full_name: 'Praveen Nair',
-    email: 'payroll.user@pay365.dev',
-    role: 'HR_PAYROLL_USER',
-    is_active: true,
-    employee_code: 'EMP-005',
-    created_at: '2026-02-10T10:00:00Z',
-  },
-  {
-    id: 'u-4',
-    full_name: 'Hema Rao',
-    email: 'hr.manager@pay365.dev',
-    role: 'HR_MANAGER',
-    is_active: true,
-    employee_code: 'EMP-006',
-    created_at: '2026-02-15T10:00:00Z',
-  },
-  {
-    id: 'u-5',
-    full_name: 'Rahul Verma',
-    email: 'employee@pay365.dev',
-    role: 'EMPLOYEE',
-    is_active: true,
-    employee_code: 'EMP-003',
-    created_at: '2026-03-01T10:00:00Z',
-  },
-];
-
+// Helper functions
 function getInitials(name) {
   if (!name) return 'U';
   return name
@@ -103,9 +55,10 @@ function formatRoleLabel(role) {
 export default function AdminPage() {
   const toast = useToast();
 
-  const [usersList, setUsersList] = useState(FALLBACK_USERS);
+  const [usersList, setUsersList] = useState([]);
   const [employeesList, setEmployeesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -135,16 +88,22 @@ export default function AdminPage() {
   // Fetch Users & Employees
   async function fetchUsers() {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await api.get('/users', { params: { limit: 100 } });
       const items = Array.isArray(res?.data?.data)
         ? res.data.data
         : res?.data?.data?.items || [];
-      if (items.length > 0) {
-        setUsersList(items);
-      }
+      setUsersList(items);
     } catch (err) {
-      console.warn('Using fallback users due to error:', err);
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        (err.response?.status === 403
+          ? 'Access denied. You must be logged in as an Administrator (ADMIN role) to manage system users.'
+          : 'Failed to fetch users from server.');
+      setErrorMsg(msg);
+      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
@@ -435,7 +394,39 @@ export default function AdminPage() {
       </div>
 
       {/* ── 4. Main Users Table Card ── */}
-      {loading ? (
+      {errorMsg ? (
+        <div style={{
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '12px',
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.75rem',
+          textAlign: 'center',
+          color: '#991b1b',
+        }}>
+          <AlertCircle size={32} color="#dc2626" />
+          <div style={{ fontWeight: 600, fontSize: '1rem' }}>{errorMsg}</div>
+          <button
+            onClick={fetchUsers}
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: '#dc2626',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Retry Fetching
+          </button>
+        </div>
+      ) : loading ? (
         <div className="adm-table-card">
           <div style={{ padding: '24px' }}>
             <Skeleton variant="row" count={5} />
