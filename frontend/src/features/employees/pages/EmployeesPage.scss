@@ -1,5 +1,19 @@
 @use '../../../styles/variables' as *;
 
+// Status dots (used in header filter tabs and employee cards)
+.emp-kanban__status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--active { background: #10b981; }
+  &--on_leave { background: #3b82f6; }
+  &--suspended { background: #f59e0b; }
+  &--terminated { background: #ef4444; }
+}
+
 .employees-page {
   display: flex;
   flex-direction: column;
@@ -415,6 +429,16 @@
       color: #2563eb;
     }
 
+    &--suspended {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &--terminated {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
     &--resigned {
       background: #fef2f2;
       color: #dc2626;
@@ -566,6 +590,16 @@
     &--on_leave {
       background: #eff6ff;
       color: #2563eb;
+    }
+
+    &--suspended {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &--terminated {
+      background: #fef2f2;
+      color: #dc2626;
     }
 
     &--resigned {
