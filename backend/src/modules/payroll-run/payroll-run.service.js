@@ -214,3 +214,5 @@ export async function statusChange(payrunId, action, actorId) {
 }
 
 export { getEligibility };
+export { dispatchPayrunPayslips } from './dispatch.service.js';
+

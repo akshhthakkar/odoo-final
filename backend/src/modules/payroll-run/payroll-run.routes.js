@@ -1,4 +1,4 @@
-﻿import { Router } from 'express';
+import { Router } from 'express';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireRole } from '../../middleware/rbac.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
@@ -7,7 +7,9 @@ import {
   createPayrunSchema,
   statusChangeSchema,
   eligibilitySchema,
+  dispatchSchema,
 } from './schemas.js';
+import { requireUuidParam } from './payslips.routes.js';
 
 // COMPUTE is a payroll-user action; VALIDATE/MARK_PAID/CANCEL need the manager.
 const COMPUTE_ROLES = ['HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN'];
@@ -25,9 +27,10 @@ router.get(
 );
 router.post('/', requireRole(...COMPUTE_ROLES), validateBody(createPayrunSchema), controller.create);
 router.get('/', requireRole(...COMPUTE_ROLES), controller.list);
-router.get('/:id', requireRole(...COMPUTE_ROLES), controller.get);
+router.get('/:id', requireRole(...COMPUTE_ROLES), requireUuidParam('id'), controller.get);
 router.post(
   '/:id/status-changes',
+  requireUuidParam('id'),
   // Role depends on the action in the body, so pick the middleware dynamically.
   (req, res, next) => {
     const roles = req.body?.action === 'COMPUTE' ? COMPUTE_ROLES : MANAGE_ROLES;
@@ -37,4 +40,13 @@ router.post(
   controller.statusChange
 );
 
+router.post(
+  '/:id/dispatches',
+  requireRole(...MANAGE_ROLES),
+  requireUuidParam('id'),
+  validateBody(dispatchSchema),
+  controller.dispatch
+);
+
 export default router;
+

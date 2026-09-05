@@ -22,3 +22,9 @@ export const eligibilitySchema = z.object({
   period_start: z.string().regex(DATE, 'Must be YYYY-MM-DD'),
   period_end: z.string().regex(DATE, 'Must be YYYY-MM-DD'),
 });
+
+// POST /payruns/:id/dispatches body (TASK-018)
+export const dispatchSchema = z.object({
+  channel: z.literal('EMAIL'),
+});
+
