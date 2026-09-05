@@ -1,0 +1,604 @@
+@use '../../../styles/variables' as *;
+
+.emp-profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: $font-body;
+  animation: fadeIn 0.25s ease-out;
+}
+
+// ─── Top Nav & Breadcrumbs ──────────────────────────────────────────────────
+.emp-profile {
+  &__nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  &__back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: #334155;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #f8fafc;
+      color: $color-primary;
+      border-color: #cbd5e1;
+      transform: translateX(-2px);
+    }
+  }
+
+  &__breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
+  }
+
+  &__breadcrumb-active {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  // ─── Hero Card ─────────────────────────────────────────────────────────────
+  &__hero-card {
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 16px;
+    padding: 24px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    flex-wrap: wrap;
+  }
+
+  &__hero-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  &__avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  &__avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: #4f46e5;
+    font-size: 22px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+    border: 3px solid #ffffff;
+  }
+
+  &__status-dot-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+
+    &--active { background: #10b981; }
+    &--probation { background: #f59e0b; }
+    &--on_leave { background: #3b82f6; }
+    &--resigned { background: #ef4444; }
+  }
+
+  &__hero-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &__name {
+    font-family: $font-heading;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+
+  &__code-pill {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  &__status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 9999px;
+
+    &--active { background: #ecfdf5; color: #059669; }
+    &--probation { background: #fef3c7; color: #d97706; }
+    &--on_leave { background: #eff6ff; color: #2563eb; }
+    &--resigned { background: #fef2f2; color: #dc2626; }
+  }
+
+  &__title-dept {
+    margin: 0;
+    font-size: 13.5px;
+    color: #64748b;
+
+    strong {
+      color: #334155;
+    }
+  }
+
+  &__quick-badges {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  &__quick-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #64748b;
+
+    svg {
+      color: #94a3b8;
+    }
+
+    a {
+      color: #4f46e5;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  &__hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__hero-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    padding: 10px 18px;
+    border-radius: 12px;
+  }
+
+  &__hero-stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+  }
+
+  &__hero-stat-val {
+    font-family: $font-heading;
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+
+    &--accent {
+      color: $color-primary;
+    }
+  }
+
+  // ─── Tabs Navigation ───────────────────────────────────────────────────────
+  &__tabs-nav {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+    gap: 4px;
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+  }
+
+  &__tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 7px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all $transition-fast;
+
+    svg {
+      color: inherit;
+    }
+
+    &:hover {
+      color: #0f172a;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    &--active {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+      svg {
+        color: $color-primary;
+      }
+    }
+  }
+
+  // ─── Tab Content Cards & Grid ──────────────────────────────────────────────
+  &__tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  &__grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__card {
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 14px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  &__card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  &__card-title {
+    font-family: $font-heading;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  &__data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+  }
+
+  &__data-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 13.5px;
+      color: #0f172a;
+      font-weight: 500;
+    }
+  }
+
+  &__mono-val {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.5px;
+    font-weight: 600 !important;
+  }
+
+  &__badge-soft {
+    display: inline-block;
+    background: #eef2ff;
+    color: #4f46e5;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  // ─── Salary Section ────────────────────────────────────────────────────────
+  &__salary-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__salary-overview-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+
+    @media (max-width: 900px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  &__sal-box {
+    background: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
+    &--highlight {
+      background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+      border-color: #c7d2fe;
+    }
+  }
+
+  &__sal-box-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  &__sal-box-val {
+    font-family: $font-heading;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+
+    &--deduct {
+      color: #dc2626;
+    }
+
+    &--net {
+      color: #059669;
+    }
+  }
+
+  // ─── Tables ────────────────────────────────────────────────────────────────
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      background: #fafbfc;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f8fafc;
+      color: #334155;
+    }
+
+    tfoot td {
+      border-top: 2px solid #e2e8f0;
+      border-bottom: none;
+      padding-top: 14px;
+      font-size: 13.5px;
+    }
+  }
+
+  &__bank-strip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 12px;
+  }
+
+  &__bank-icon {
+    font-size: 22px;
+  }
+
+  &__bank-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+
+  &__bank-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  &__bank-acc {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  &__bank-type {
+    font-size: 11px;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  // ─── Leaves List ───────────────────────────────────────────────────────────
+  &__leave-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__leave-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__leave-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  &__leave-name {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  &__leave-nums {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  &__progress-bar {
+    width: 100%;
+    height: 7px;
+    background: #f1f5f9;
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background: #10b981;
+    border-radius: 9999px;
+
+    &--orange { background: #f59e0b; }
+    &--blue { background: #3b82f6; }
+  }
+
+  // ─── Contracts List ────────────────────────────────────────────────────────
+  &__contracts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__contract-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    gap: 16px;
+  }
+
+  &__contract-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  &__doc-icon {
+    font-size: 24px;
+  }
+
+  &__doc-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 3px 0;
+  }
+
+  &__doc-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+  }
+
+  &__doc-action-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: $color-primary;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: $color-primary;
+      color: #ffffff;
+      border-color: $color-primary;
+    }
+  }
+}

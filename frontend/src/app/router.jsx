@@ -6,6 +6,7 @@ import RequireAuth from './guards/RequireAuth.jsx';
 import LoginPage from '../features/auth/pages/LoginPage.jsx';
 import DashboardPage from '../features/dashboard/pages/DashboardPage.jsx';
 import EmployeesPage from '../features/employees/pages/EmployeesPage.jsx';
+import EmployeeProfilePage from '../features/employees/pages/EmployeeProfilePage.jsx';
 import ContractsPage from '../features/contracts/pages/ContractsPage.jsx';
 import SchedulesPage from '../features/schedules/pages/SchedulesPage.jsx';
 import AttendancePage from '../features/attendance/pages/AttendancePage.jsx';
@@ -23,6 +24,7 @@ export default function Router() {
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
+          <Route path="/employees/:id" element={<EmployeeProfilePage />} />
           <Route path="/contracts" element={<ContractsPage />} />
           <Route path="/schedules" element={<SchedulesPage />} />
           <Route path="/attendance" element={<AttendancePage />} />
