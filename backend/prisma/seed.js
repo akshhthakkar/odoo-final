@@ -615,7 +615,8 @@ async function main() {
     },
   });
 
-  // Seed approved allocations for all employees for the current year
+  // Seed approved allocations for all employees for the current year (delete existing to avoid duplicate entries)
+  await prisma.timeOffAllocation.deleteMany({});
   const allEmpIds = Object.values(empMap);
   for (const empId of allEmpIds) {
     await prisma.timeOffAllocation.createMany({
@@ -623,8 +624,8 @@ async function main() {
         {
           employeeId: empId,
           typeId: clType.id,
-          validFrom: new Date('2026-01-01'),
-          validTo: new Date('2026-12-31'),
+          validFrom: new Date('2026-01-01T00:00:00.000Z'),
+          validTo: new Date('2026-12-31T00:00:00.000Z'),
           allocatedDays: 12,
           takenDays: 0,
           status: 'APPROVED',
@@ -632,8 +633,8 @@ async function main() {
         {
           employeeId: empId,
           typeId: slType.id,
-          validFrom: new Date('2026-01-01'),
-          validTo: new Date('2026-12-31'),
+          validFrom: new Date('2026-01-01T00:00:00.000Z'),
+          validTo: new Date('2026-12-31T00:00:00.000Z'),
           allocatedDays: 10,
           takenDays: 0,
           status: 'APPROVED',
@@ -641,14 +642,13 @@ async function main() {
         {
           employeeId: empId,
           typeId: plType.id,
-          validFrom: new Date('2026-01-01'),
-          validTo: new Date('2026-12-31'),
+          validFrom: new Date('2026-01-01T00:00:00.000Z'),
+          validTo: new Date('2026-12-31T00:00:00.000Z'),
           allocatedDays: 15,
           takenDays: 0,
           status: 'APPROVED',
         },
       ],
-      skipDuplicates: true,
     });
   }
 
