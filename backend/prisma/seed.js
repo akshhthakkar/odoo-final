@@ -585,6 +585,157 @@ async function main() {
     });
   }
 
+  // ─── 6. Seed Historical Payruns & Payslips across all months ───────────────
+  console.log('Seeding historical payruns and payslips across 6 months (Mar - Aug 2026)...');
+
+  const monthlyBatches = [
+    { name: 'Payroll — March 2026', start: new Date('2026-03-01'), end: new Date('2026-03-31'), paidAt: new Date('2026-03-31T18:30:00Z') },
+    { name: 'Payroll — April 2026', start: new Date('2026-04-01'), end: new Date('2026-04-30'), paidAt: new Date('2026-04-30T18:30:00Z') },
+    { name: 'Payroll — May 2026', start: new Date('2026-05-01'), end: new Date('2026-05-31'), paidAt: new Date('2026-05-31T18:30:00Z') },
+    { name: 'Payroll — June 2026', start: new Date('2026-06-01'), end: new Date('2026-06-30'), paidAt: new Date('2026-06-30T18:30:00Z') },
+    { name: 'Payroll — July 2026', start: new Date('2026-07-01'), end: new Date('2026-07-31'), paidAt: new Date('2026-07-31T18:30:00Z') },
+    { name: 'Payroll — August 2026', start: new Date('2026-08-01'), end: new Date('2026-08-31'), paidAt: new Date('2026-08-31T18:30:00Z') },
+  ];
+
+  const allEmployees = await prisma.employee.findMany({
+    include: { contracts: { where: { status: 'ACTIVE' } } },
+  });
+
+  for (const batch of monthlyBatches) {
+    // Find or create payrun
+    let payrun = await prisma.payrun.findFirst({
+      where: { name: batch.name },
+    });
+
+    if (!payrun) {
+      payrun = await prisma.payrun.create({
+        data: {
+          name: batch.name,
+          status: 'PAID',
+          periodStart: batch.start,
+          periodEnd: batch.end,
+          structure: { connect: { id: structure.id } },
+          createdByUser: { connect: { email: 'admin@pay365.dev' } },
+          totalGross: 0,
+          totalDeductions: 0,
+          totalNet: 0,
+          computedAt: batch.paidAt,
+          validatedAt: batch.paidAt,
+          paidAt: batch.paidAt,
+        },
+      });
+    }
+
+    let batchGross = 0;
+    let batchDeductions = 0;
+    let batchNet = 0;
+
+    for (const emp of allEmployees) {
+      if (emp.hireDate > batch.end) continue;
+      const contract = emp.contracts[0];
+      if (!contract) continue;
+
+      const wage = Number(contract.wage || 50000);
+      const basic = Math.round(wage * 0.5);
+      const hra = Math.round(wage * 0.25);
+      const special = Math.round(wage * 0.15);
+      const conveyance = Math.round(wage * 0.1);
+      const gross = basic + hra + special + conveyance;
+      const pf = Math.round(basic * 0.12);
+      const pt = 200;
+      const deductions = pf + pt;
+      const net = gross - deductions;
+
+      batchGross += gross;
+      batchDeductions += deductions;
+      batchNet += net;
+
+      // Upsert payslip for this employee and payrun
+      const existingSlip = await prisma.payslip.findFirst({
+        where: { payrunId: payrun.id, employeeId: emp.id },
+      });
+
+      if (!existingSlip) {
+        await prisma.payslip.create({
+          data: {
+            payrun: { connect: { id: payrun.id } },
+            employee: { connect: { id: emp.id } },
+            contract: { connect: { id: contract.id } },
+            structure: { connect: { id: structure.id } },
+            periodStart: batch.start,
+            periodEnd: batch.end,
+            workedDays: 22,
+            status: 'PAID',
+            gross,
+            deductions,
+            net,
+            currency: 'INR',
+            lines: {
+              create: [
+                { name: 'Basic Salary', code: 'BASIC', category: 'BASIC', sequence: 10, amount: basic, rate: 50, computationType: 'PERCENTAGE' },
+                { name: 'House Rent Allowance', code: 'HRA', category: 'ALLOWANCE', sequence: 20, amount: hra, rate: 25, computationType: 'PERCENTAGE' },
+                { name: 'Special Allowance', code: 'SPECIAL', category: 'ALLOWANCE', sequence: 30, amount: special, rate: 15, computationType: 'PERCENTAGE' },
+                { name: 'Conveyance Allowance', code: 'CONVEYANCE', category: 'ALLOWANCE', sequence: 40, amount: conveyance, rate: 10, computationType: 'PERCENTAGE' },
+                { name: 'Provident Fund', code: 'PF_EE', category: 'DEDUCTION', sequence: 50, amount: -pf, rate: 12, computationType: 'PERCENTAGE' },
+                { name: 'Professional Tax', code: 'PT', category: 'DEDUCTION', sequence: 60, amount: -pt, rate: 0, computationType: 'FIXED' },
+                { name: 'Net Salary', code: 'NET', category: 'NET', sequence: 100, amount: net, rate: 0, computationType: 'FIXED' },
+              ],
+            },
+          },
+        });
+      }
+    }
+
+    // Update payrun totals
+    await prisma.payrun.update({
+      where: { id: payrun.id },
+      data: {
+        totalGross: batchGross,
+        totalDeductions: batchDeductions,
+        totalNet: batchNet,
+      },
+    });
+  }
+
+  // ─── 7. Seed Attendance Across Months ──────────────────────────────────────
+  console.log('Seeding attendance across active employees...');
+  const sampleDates = [
+    new Date('2026-08-03'), new Date('2026-08-04'), new Date('2026-08-05'),
+    new Date('2026-08-06'), new Date('2026-08-07'), new Date('2026-08-10'),
+    new Date('2026-08-11'), new Date('2026-08-12'), new Date('2026-08-13'),
+  ];
+
+  for (const emp of allEmployees) {
+    for (let i = 0; i < sampleDates.length; i++) {
+      const attDate = sampleDates[i];
+      if (emp.hireDate > attDate) continue;
+
+      const isLate = i === 1 && emp.employeeCode === 'EMP-003';
+      const status = isLate ? 'LATE' : 'PRESENT';
+      const workedHours = isLate ? 7.5 : 8.0;
+      const overtimeHours = (i % 3 === 0) ? 1.5 : 0;
+
+      await prisma.attendance.upsert({
+        where: {
+          employeeId_attendanceDate: {
+            employeeId: emp.id,
+            attendanceDate: attDate,
+          },
+        },
+        update: {},
+        create: {
+          employeeId: emp.id,
+          attendanceDate: attDate,
+          checkIn: new Date(`${attDate.toISOString().slice(0, 10)}T09:00:00Z`),
+          checkOut: new Date(`${attDate.toISOString().slice(0, 10)}T18:00:00Z`),
+          workedHours,
+          overtimeHours,
+          status,
+        },
+      }).catch(() => null);
+    }
+  }
+
   console.log('✅ Full database seed finished successfully!');
 
 }
