@@ -58,7 +58,10 @@ export async function listStructures() {
   const [structures, counts] = await Promise.all([
     prisma.salaryStructure.findMany({
       orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
-      include: { _count: { select: { rules: true } } },
+      include: {
+        _count: { select: { rules: true } },
+        rules: { orderBy: [{ sequence: 'asc' }, { code: 'asc' }] },
+      },
     }),
     employeeCountsByStructure(),
   ]);
@@ -66,6 +69,7 @@ export async function listStructures() {
     ...toPublicStructure(structure),
     rule_count: structure._count.rules,
     employee_count: counts.get(structure.id) || 0,
+    rules: (structure.rules || []).map(toPublicRule),
   }));
 }
 

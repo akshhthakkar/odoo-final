@@ -40,6 +40,7 @@ const jobsData = [
   { name: 'Marketing Lead' },
   { name: 'Accountant' },
   { name: 'Engineering Intern' },
+  { name: 'Principal Consultant' },
 ];
 
 const employeesData = [
@@ -243,10 +244,31 @@ const employeesData = [
     contractType: 'FULL_TIME',
     contractRef: 'CNT-2023-010',
   },
+  {
+    code: 'EMP-011',
+    firstName: 'Kabir',
+    lastName: 'Verma',
+    email: 'kabir.verma@pay365.dev',
+    phone: '+91 98111 22334',
+    dateOfBirth: new Date('1988-04-12'),
+    gender: 'Male',
+    address: 'Indiranagar, Bengaluru, Karnataka, India',
+    hireDate: new Date('2024-02-01'),
+    status: 'ACTIVE',
+    deptCode: 'ENG',
+    jobTitle: 'Principal Consultant',
+    bankAccountName: 'Kabir Verma Consulting',
+    bankAccountNumber: '002105009876',
+    bankIfsc: 'ICIC0000021',
+    wage: 150000,
+    contractType: 'CONTRACT',
+    contractRef: 'CNT-2024-011',
+  },
 ];
 
 async function main() {
   console.log('Seeding demo users...');
+  const commonHash = await bcrypt.hash('Password@123', 12);
   for (const u of demoUsers) {
     const { empCode, ...userData } = u;
     await prisma.user.upsert({
@@ -254,10 +276,13 @@ async function main() {
       update: {
         fullName: userData.fullName,
         role: userData.role,
+        isActive: true,
+        passwordHash: commonHash,
       },
       create: {
         ...userData,
-        passwordHash: await bcrypt.hash('Password@123', 12),
+        isActive: true,
+        passwordHash: commonHash,
       },
     });
   }
@@ -306,82 +331,125 @@ async function main() {
     });
   }
 
-  console.log('Seeding standard salary structure...');
-  let structure = await prisma.salaryStructure.findUnique({
-    where: { code: 'STD_IN_CTC' },
-  });
-  if (!structure) {
-    structure = await prisma.salaryStructure.create({
-      data: {
-        name: 'Standard India CTC Structure',
-        code: 'STD_IN_CTC',
-        description: 'Standard 40/20/20/20 Indian salary breakdown model with statutory PF, PT, and TDS deductions',
-        isDefault: true,
-        isActive: true,
-        rules: {
-          create: [
-            {
-              name: 'Basic Salary',
-              code: 'BASIC',
-              category: 'BASIC',
-              sequence: 10,
-              computationType: 'PERCENTAGE',
-              percentage: 50.0,
-              baseCode: 'wage',
-              appearsOnPayslip: true,
-            },
-            {
-              name: 'House Rent Allowance (HRA)',
-              code: 'HRA',
-              category: 'ALLOWANCE',
-              sequence: 20,
-              computationType: 'PERCENTAGE',
-              percentage: 25.0,
-              baseCode: 'wage',
-              appearsOnPayslip: true,
-            },
-            {
-              name: 'Special Allowance',
-              code: 'SPECIAL',
-              category: 'ALLOWANCE',
-              sequence: 30,
-              computationType: 'PERCENTAGE',
-              percentage: 15.0,
-              baseCode: 'wage',
-              appearsOnPayslip: true,
-            },
-            {
-              name: 'Conveyance Allowance',
-              code: 'CONVEYANCE',
-              category: 'ALLOWANCE',
-              sequence: 40,
-              computationType: 'PERCENTAGE',
-              percentage: 10.0,
-              baseCode: 'wage',
-              appearsOnPayslip: true,
-            },
-            {
-              name: 'Provident Fund (Employee)',
-              code: 'PF_EE',
-              category: 'DEDUCTION',
-              sequence: 50,
-              computationType: 'PERCENTAGE',
-              percentage: 12.0,
-              baseCode: 'BASIC',
-              appearsOnPayslip: true,
-            },
-            {
-              name: 'Professional Tax',
-              code: 'PT',
-              category: 'DEDUCTION',
-              sequence: 60,
-              computationType: 'FIXED',
-              fixedAmount: 200,
-              appearsOnPayslip: true,
-            },
-          ],
-        },
+  console.log('Seeding comprehensive salary structures & rules catalog...');
+  const salaryStructuresData = [
+    {
+      name: 'Standard India CTC Structure',
+      code: 'STD_IN_CTC',
+      description: 'Standard Indian CTC salary breakdown model with statutory PF, PT, HRA, and tax deductions',
+      isDefault: true,
+      isActive: true,
+      rules: [
+        { name: 'Basic Salary', code: 'BASIC', category: 'BASIC', sequence: 10, computationType: 'PERCENTAGE', percentage: 50.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'House Rent Allowance (HRA)', code: 'HRA', category: 'ALLOWANCE', sequence: 20, computationType: 'PERCENTAGE', percentage: 25.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Special Allowance', code: 'SPECIAL', category: 'ALLOWANCE', sequence: 30, computationType: 'PERCENTAGE', percentage: 15.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Conveyance Allowance', code: 'CONVEYANCE', category: 'ALLOWANCE', sequence: 40, computationType: 'PERCENTAGE', percentage: 10.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Medical Reimbursement', code: 'MEDICAL', category: 'ALLOWANCE', sequence: 45, computationType: 'FIXED', fixedAmount: 1250, appearsOnPayslip: true },
+        { name: 'Leave Travel Allowance', code: 'LTA', category: 'ALLOWANCE', sequence: 48, computationType: 'PERCENTAGE', percentage: 5.0, baseCode: 'BASIC', appearsOnPayslip: true },
+        { name: 'Gross Earnings', code: 'GROSS', category: 'GROSS', sequence: 49, computationType: 'FORMULA', formula: 'BASIC + HRA + SPECIAL + CONVEYANCE + MEDICAL + LTA', appearsOnPayslip: true },
+        { name: 'Provident Fund (Employee)', code: 'PF_EE', category: 'DEDUCTION', sequence: 50, computationType: 'PERCENTAGE', percentage: 12.0, baseCode: 'BASIC', appearsOnPayslip: true },
+        { name: 'Professional Tax', code: 'PT', category: 'DEDUCTION', sequence: 60, computationType: 'FIXED', fixedAmount: 200, appearsOnPayslip: true },
+        { name: 'ESI Contribution', code: 'ESI_EE', category: 'DEDUCTION', sequence: 70, computationType: 'PERCENTAGE', percentage: 0.75, baseCode: 'GROSS', condition: 'GROSS <= 21000', appearsOnPayslip: true },
+        { name: 'Tax Deducted at Source (TDS)', code: 'TDS', category: 'DEDUCTION', sequence: 80, computationType: 'FORMULA', formula: 'GROSS > 50000 ? (GROSS - 50000) * 0.10 : 0', appearsOnPayslip: true },
+        { name: 'Net Salary', code: 'NET', category: 'NET', sequence: 100, computationType: 'FORMULA', formula: 'GROSS - PF_EE - PT - ESI_EE - TDS', appearsOnPayslip: true },
+      ],
+    },
+    {
+      name: 'Executive & Leadership CTC Structure',
+      code: 'EXEC_DIR_CTC',
+      description: 'Senior management & executive compensation package with car, telecom, and voluntary retirement provisions',
+      isDefault: false,
+      isActive: true,
+      rules: [
+        { name: 'Executive Basic Pay', code: 'BASIC', category: 'BASIC', sequence: 10, computationType: 'PERCENTAGE', percentage: 40.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Executive HRA', code: 'HRA', category: 'ALLOWANCE', sequence: 20, computationType: 'PERCENTAGE', percentage: 25.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Executive Allowance', code: 'EXEC_ALLOW', category: 'ALLOWANCE', sequence: 30, computationType: 'PERCENTAGE', percentage: 20.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Vehicle & Chauffeur Allowance', code: 'CAR_ALLOW', category: 'ALLOWANCE', sequence: 35, computationType: 'FIXED', fixedAmount: 5000, appearsOnPayslip: true },
+        { name: 'Communication & Internet Allowance', code: 'TELECOM', category: 'ALLOWANCE', sequence: 40, computationType: 'FIXED', fixedAmount: 2500, appearsOnPayslip: true },
+        { name: 'Executive Travel Allowance', code: 'LTA', category: 'ALLOWANCE', sequence: 45, computationType: 'PERCENTAGE', percentage: 10.0, baseCode: 'BASIC', appearsOnPayslip: true },
+        { name: 'Executive Gross Payout', code: 'GROSS', category: 'GROSS', sequence: 49, computationType: 'FORMULA', formula: 'BASIC + HRA + EXEC_ALLOW + CAR_ALLOW + TELECOM + LTA', appearsOnPayslip: true },
+        { name: 'Provident Fund (Employee)', code: 'PF_EE', category: 'DEDUCTION', sequence: 50, computationType: 'PERCENTAGE', percentage: 12.0, baseCode: 'BASIC', appearsOnPayslip: true },
+        { name: 'Voluntary Provident Fund (VPF)', code: 'VPF', category: 'DEDUCTION', sequence: 55, computationType: 'FIXED', fixedAmount: 5000, appearsOnPayslip: true },
+        { name: 'Professional Tax', code: 'PT', category: 'DEDUCTION', sequence: 60, computationType: 'FIXED', fixedAmount: 200, appearsOnPayslip: true },
+        { name: 'Income Tax TDS (Executive Slabs)', code: 'TDS', category: 'DEDUCTION', sequence: 70, computationType: 'FORMULA', formula: 'GROSS * 0.15', appearsOnPayslip: true },
+        { name: 'Net Executive Remittance', code: 'NET', category: 'NET', sequence: 100, computationType: 'FORMULA', formula: 'GROSS - PF_EE - VPF - PT - TDS', appearsOnPayslip: true },
+      ],
+    },
+    {
+      name: 'Sales & Variable Commission Structure',
+      code: 'SALES_COMM_CTC',
+      description: 'Performance-driven compensation structure for sales executives with client engagement allowances and monthly target commissions',
+      isDefault: false,
+      isActive: true,
+      rules: [
+        { name: 'Base Retainer', code: 'BASIC', category: 'BASIC', sequence: 10, computationType: 'PERCENTAGE', percentage: 40.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'House Rent Allowance', code: 'HRA', category: 'ALLOWANCE', sequence: 20, computationType: 'PERCENTAGE', percentage: 20.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Field & Travel Allowance', code: 'FIELD_ALLOW', category: 'ALLOWANCE', sequence: 30, computationType: 'PERCENTAGE', percentage: 20.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Target Commission Incentive', code: 'COMMISSION', category: 'ALLOWANCE', sequence: 40, computationType: 'PERCENTAGE', percentage: 20.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Total Target Gross', code: 'GROSS', category: 'GROSS', sequence: 49, computationType: 'FORMULA', formula: 'BASIC + HRA + FIELD_ALLOW + COMMISSION', appearsOnPayslip: true },
+        { name: 'Provident Fund (Employee)', code: 'PF_EE', category: 'DEDUCTION', sequence: 50, computationType: 'PERCENTAGE', percentage: 12.0, baseCode: 'BASIC', appearsOnPayslip: true },
+        { name: 'Professional Tax', code: 'PT', category: 'DEDUCTION', sequence: 60, computationType: 'FIXED', fixedAmount: 200, appearsOnPayslip: true },
+        { name: 'Net Sales Remittance', code: 'NET', category: 'NET', sequence: 100, computationType: 'FORMULA', formula: 'GROSS - PF_EE - PT', appearsOnPayslip: true },
+      ],
+    },
+    {
+      name: 'Professional Consulting / Contractor Retainer',
+      code: 'CONTRACTOR_FIXED',
+      description: 'Fixed invoice retainer model for external specialized consultants and freelancers subject to Section 194J TDS deduction',
+      isDefault: false,
+      isActive: true,
+      rules: [
+        { name: 'Consulting Professional Fee', code: 'CONSULTING_FEE', category: 'BASIC', sequence: 10, computationType: 'PERCENTAGE', percentage: 100.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Total Invoiced Gross', code: 'GROSS', category: 'GROSS', sequence: 20, computationType: 'FORMULA', formula: 'CONSULTING_FEE', appearsOnPayslip: true },
+        { name: 'TDS u/s 194J (Professional Services)', code: 'TDS_194J', category: 'DEDUCTION', sequence: 50, computationType: 'PERCENTAGE', percentage: 10.0, baseCode: 'GROSS', appearsOnPayslip: true },
+        { name: 'Net Professional Remittance', code: 'NET', category: 'NET', sequence: 100, computationType: 'FORMULA', formula: 'GROSS - TDS_194J', appearsOnPayslip: true },
+      ],
+    },
+    {
+      name: 'Graduate Trainee & Intern Stipend',
+      code: 'INTERN_STIPEND',
+      description: 'Educational grant stipend structure for apprentice engineers, design interns, and graduate trainees',
+      isDefault: false,
+      isActive: true,
+      rules: [
+        { name: 'Monthly Educational Stipend', code: 'STIPEND', category: 'BASIC', sequence: 10, computationType: 'PERCENTAGE', percentage: 100.0, baseCode: 'WAGE', appearsOnPayslip: true },
+        { name: 'Total Stipend Grant', code: 'GROSS', category: 'GROSS', sequence: 20, computationType: 'FORMULA', formula: 'STIPEND', appearsOnPayslip: true },
+        { name: 'Net Stipend Disbursement', code: 'NET', category: 'NET', sequence: 100, computationType: 'FORMULA', formula: 'GROSS', appearsOnPayslip: true },
+      ],
+    },
+  ];
+
+  let structure = null;
+  const structMap = {};
+  for (const sData of salaryStructuresData) {
+    const { rules, ...sMeta } = sData;
+    const struct = await prisma.salaryStructure.upsert({
+      where: { code: sMeta.code },
+      update: {
+        name: sMeta.name,
+        description: sMeta.description,
+        isDefault: sMeta.isDefault,
+        isActive: sMeta.isActive,
       },
+      create: sMeta,
+    });
+
+    structMap[sMeta.code] = struct.id;
+
+    if (sMeta.isDefault) {
+      structure = struct;
+    }
+
+    // Replace rules for this structure
+    await prisma.salaryRule.deleteMany({
+      where: { structureId: struct.id },
+    });
+
+    await prisma.salaryRule.createMany({
+      data: rules.map((r) => ({
+        ...r,
+        structureId: struct.id,
+      })),
     });
   }
 
@@ -428,6 +496,13 @@ async function main() {
     });
     empMap[e.code] = employee.id;
 
+    const targetStructId =
+      e.contractType === 'CONTRACT' || e.code === 'EMP-011' ? structMap['CONTRACTOR_FIXED'] :
+      e.code === 'EMP-006' ? structMap['EXEC_DIR_CTC'] :
+      e.deptCode === 'SALES' || e.code === 'EMP-010' || e.code === 'EMP-003' ? structMap['SALES_COMM_CTC'] :
+      e.contractType === 'INTERN' || e.code === 'EMP-009' ? structMap['INTERN_STIPEND'] :
+      structMap['STD_IN_CTC'] || structure.id;
+
     // Seed contract: idempotent by reference (no upsert-by-fake-id pattern).
     const existingContract = await prisma.contract.findFirst({
       where: { reference: e.contractRef },
@@ -444,8 +519,19 @@ async function main() {
           departmentId: deptMap[e.deptCode] || null,
           jobId: jobMap[e.jobTitle] || null,
           workingScheduleId: schedule.id,
-          salaryStructureId: structure.id,
+          salaryStructureId: targetStructId,
           status: 'ACTIVE',
+        },
+      });
+    } else {
+      await prisma.contract.update({
+        where: { id: existingContract.id },
+        data: {
+          salaryStructureId: targetStructId,
+          wage: e.wage,
+          contractType: e.contractType,
+          departmentId: deptMap[e.deptCode] || null,
+          jobId: jobMap[e.jobTitle] || null,
         },
       });
     }
@@ -566,7 +652,6 @@ async function main() {
     });
   }
 
-<<<<<<< HEAD
   // ─── 6. Seed Historical Payruns & Payslips across all months ───────────────
   console.log('Seeding historical payruns and payslips across 6 months (Mar - Aug 2026)...');
 
