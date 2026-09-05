@@ -163,16 +163,30 @@ $topbar-h: 56px;
   white-space: nowrap;
 
   &:hover {
-    background: $color-bg-app;
-    color: $color-text-primary;
+    background: #eef3ff;
+    color: $color-primary;
+
+    .sidebar__nav-icon {
+      color: $color-primary;
+    }
   }
 
   &--active {
     background: $color-primary;
     color: #ffffff;
+    font-weight: 600;
 
     .sidebar__nav-icon {
       color: #ffffff;
+    }
+
+    &:hover {
+      background: $color-primary !important;
+      color: #ffffff !important;
+
+      .sidebar__nav-icon {
+        color: #ffffff !important;
+      }
     }
   }
 }
