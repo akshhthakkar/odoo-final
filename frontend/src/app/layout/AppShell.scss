@@ -44,15 +44,13 @@ $topbar-h: 56px;
 }
 
 .sidebar__brand-logo {
-  width: 34px;
-  height: 34px;
-  background: $color-primary;
-  border-radius: $radius-md;
+  width: 32px;
+  height: 32px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: 7px;
 
   img {
     width: 100%;

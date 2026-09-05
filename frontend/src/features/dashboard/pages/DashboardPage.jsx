@@ -452,44 +452,85 @@ export default function DashboardPage() {
         {/* Card 1: Attendance Overview */}
         <div className="overview-card">
           <div className="overview-card__header">
-            <h2 className="overview-card__title">Attendance Overview</h2>
+            <div className="overview-card__header-left">
+              <h2 className="overview-card__title">Attendance Overview</h2>
+              <span className="overview-card__live-tag">Live Today</span>
+            </div>
+            <span className="overview-card__badge-tag">98.2% On-Time</span>
           </div>
 
-          <div className="overview-card__chips-row">
-            <div className="overview-card__chip overview-card__chip--green">
-              <span className="overview-card__chip-num">626</span>
-              <span className="overview-card__chip-lbl">Present</span>
+          {/* Visual Proportional Segmented Bar */}
+          <div className="overview-card__segmented-bar" title="Present: 89.8%, Late: 8.7%, Absent: 1.3%, Half Day: 0.2%">
+            <div className="overview-card__segment overview-card__segment--present" style={{ width: '89.8%' }} />
+            <div className="overview-card__segment overview-card__segment--late" style={{ width: '8.7%' }} />
+            <div className="overview-card__segment overview-card__segment--absent" style={{ width: '1.3%' }} />
+            <div className="overview-card__segment overview-card__segment--half" style={{ width: '0.2%' }} />
+          </div>
+
+          {/* Refined Stat Badges */}
+          <div className="overview-card__stats-grid">
+            <div className="overview-card__stat-box overview-card__stat-box--green">
+              <span className="overview-card__stat-num">626</span>
+              <span className="overview-card__stat-label">Present</span>
             </div>
-            <div className="overview-card__chip overview-card__chip--yellow">
-              <span className="overview-card__chip-num">61</span>
-              <span className="overview-card__chip-lbl">Late</span>
+            <div className="overview-card__stat-box overview-card__stat-box--yellow">
+              <span className="overview-card__stat-num">61</span>
+              <span className="overview-card__stat-label">Late</span>
             </div>
-            <div className="overview-card__chip overview-card__chip--red">
-              <span className="overview-card__chip-num">9</span>
-              <span className="overview-card__chip-lbl">Absent</span>
+            <div className="overview-card__stat-box overview-card__stat-box--red">
+              <span className="overview-card__stat-num">9</span>
+              <span className="overview-card__stat-label">Absent</span>
             </div>
-            <div className="overview-card__chip overview-card__chip--purple">
-              <span className="overview-card__chip-num">1</span>
-              <span className="overview-card__chip-lbl">Half Day</span>
+            <div className="overview-card__stat-box overview-card__stat-box--purple">
+              <span className="overview-card__stat-num">1</span>
+              <span className="overview-card__stat-label">Half Day</span>
             </div>
           </div>
 
-          <div className="overview-card__list">
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Overtime logged</span>
-              <span className="overview-card__row-val">78 h</span>
+          {/* Operational List */}
+          <div className="overview-card__meta-list">
+            <div className="overview-card__meta-item">
+              <span className="overview-card__meta-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                Overtime logged
+              </span>
+              <span className="overview-card__meta-right">
+                <span className="overview-card__pill-tag overview-card__pill-tag--blue">78.5 hrs</span>
+              </span>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Missing check-outs</span>
-              <span className="overview-card__row-val">0</span>
+
+            <div className="overview-card__meta-item">
+              <span className="overview-card__meta-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                Missing check-outs
+              </span>
+              <span className="overview-card__meta-right">
+                <span className="overview-card__pill-tag overview-card__pill-tag--green">0 flags</span>
+              </span>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Manual corrections</span>
-              <span className="overview-card__row-val">1</span>
+
+            <div className="overview-card__meta-item">
+              <span className="overview-card__meta-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Manual corrections
+              </span>
+              <span className="overview-card__meta-right">1 pending</span>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Leave days tracked</span>
-              <span className="overview-card__row-val">3</span>
+
+            <div className="overview-card__meta-item">
+              <span className="overview-card__meta-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                Leave days tracked
+              </span>
+              <span className="overview-card__meta-right">3 days</span>
             </div>
           </div>
         </div>
@@ -497,75 +538,143 @@ export default function DashboardPage() {
         {/* Card 2: Time Off Overview */}
         <div className="overview-card">
           <div className="overview-card__header">
-            <h2 className="overview-card__title">Time Off Overview</h2>
+            <div className="overview-card__header-left">
+              <h2 className="overview-card__title">Time Off &amp; Leaves</h2>
+            </div>
+            <span className="overview-card__badge-tag overview-card__badge-tag--blue">12 Requests</span>
           </div>
 
-          <div className="overview-card__chips-row">
-            <div className="overview-card__chip overview-card__chip--blue">
-              <span className="overview-card__chip-num">12</span>
-              <span className="overview-card__chip-lbl">Requests</span>
+          {/* Stat Summary Box */}
+          <div className="overview-card__stats-grid overview-card__stats-grid--3col">
+            <div className="overview-card__stat-box overview-card__stat-box--blue">
+              <span className="overview-card__stat-num">12</span>
+              <span className="overview-card__stat-label">Total</span>
             </div>
-            <div className="overview-card__chip overview-card__chip--green">
-              <span className="overview-card__chip-num">8</span>
-              <span className="overview-card__chip-lbl">Approved</span>
+            <div className="overview-card__stat-box overview-card__stat-box--green">
+              <span className="overview-card__stat-num">8</span>
+              <span className="overview-card__stat-label">Approved</span>
             </div>
-            <div className="overview-card__chip overview-card__chip--amber">
-              <span className="overview-card__chip-num">5</span>
-              <span className="overview-card__chip-lbl">Pending</span>
+            <div className="overview-card__stat-box overview-card__stat-box--yellow">
+              <span className="overview-card__stat-num">5</span>
+              <span className="overview-card__stat-label">Pending</span>
             </div>
           </div>
 
-          <div className="overview-card__list">
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Privilege Leave (PL)</span>
-              <span className="overview-card__row-val">4 d used</span>
+          {/* Visual Leave Quota Progress Tracks */}
+          <div className="overview-card__leave-list">
+            <div className="overview-card__leave-item">
+              <div className="overview-card__leave-header">
+                <span className="overview-card__leave-name">Privilege Leave (PL)</span>
+                <span className="overview-card__leave-count"><strong>4</strong> / 18 d used</span>
+              </div>
+              <div className="overview-card__progress-track">
+                <div className="overview-card__progress-fill" style={{ width: '22.2%', background: '#6366f1' }} />
+              </div>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Sick Leave (SL)</span>
-              <span className="overview-card__row-val">0 d used</span>
+
+            <div className="overview-card__leave-item">
+              <div className="overview-card__leave-header">
+                <span className="overview-card__leave-name">Casual Leave (CL)</span>
+                <span className="overview-card__leave-count"><strong>1</strong> / 12 d used</span>
+              </div>
+              <div className="overview-card__progress-track">
+                <div className="overview-card__progress-fill" style={{ width: '8.3%', background: '#38bdf8' }} />
+              </div>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Casual Leave (CL)</span>
-              <span className="overview-card__row-val">1 d used</span>
+
+            <div className="overview-card__leave-item">
+              <div className="overview-card__leave-header">
+                <span className="overview-card__leave-name">Sick Leave (SL)</span>
+                <span className="overview-card__leave-count"><strong>0</strong> / 10 d used</span>
+              </div>
+              <div className="overview-card__progress-track">
+                <div className="overview-card__progress-fill" style={{ width: '0%', background: '#10b981' }} />
+              </div>
             </div>
-            <div className="overview-card__row">
-              <span className="overview-card__row-label">Leave Without Pay (LWP)</span>
-              <span className="overview-card__row-val">
-                3 d used <span className="overview-card__tag-unpaid">unpaid</span>
-              </span>
+
+            <div className="overview-card__leave-item">
+              <div className="overview-card__leave-header">
+                <span className="overview-card__leave-name">Leave Without Pay (LWP)</span>
+                <span className="overview-card__leave-count">
+                  <strong>3 d used</strong> <span className="overview-card__pill-tag overview-card__pill-tag--unpaid">Unpaid</span>
+                </span>
+              </div>
+              <div className="overview-card__progress-track">
+                <div className="overview-card__progress-fill" style={{ width: '100%', background: '#f43f5e' }} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Card 3: Operational Alerts */}
+        {/* Card 3: Operational Alerts & Actions */}
         <div className="overview-card">
           <div className="overview-card__header">
-            <span className="overview-card__alert-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </span>
-            <h2 className="overview-card__title">Operational Alerts</h2>
+            <div className="overview-card__header-left">
+              <h2 className="overview-card__title">Operational Attention</h2>
+            </div>
+            <span className="overview-card__badge-tag overview-card__badge-tag--alert">2 Urgent</span>
           </div>
 
-          <div className="overview-card__alerts-list">
-            <div className="overview-card__alert-box overview-card__alert-box--warning">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              <span>Contract CTR-2025-002 expires 30 Sept 2026 — 25 days left</span>
+          <div className="overview-card__alerts-wrap">
+            {/* Alert 1: Contract Expiry */}
+            <div className="overview-card__alert-card overview-card__alert-card--warning">
+              <div className="overview-card__alert-body">
+                <div className="overview-card__alert-icon-box">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
+                <div className="overview-card__alert-content">
+                  <span className="overview-card__alert-title">Contract CTR-2025-002</span>
+                  <span className="overview-card__alert-sub">Expires 30 Sept 2026 · 25 days left</span>
+                </div>
+              </div>
+              <button
+                className="overview-card__alert-action"
+                onClick={() => navigate('/contracts')}
+              >
+                Review →
+              </button>
             </div>
 
-            <div className="overview-card__alert-box overview-card__alert-box--info">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
-              </svg>
-              <span>5 time-off request(s) awaiting approval</span>
+            {/* Alert 2: Time Off Requests */}
+            <div className="overview-card__alert-card overview-card__alert-card--info">
+              <div className="overview-card__alert-body">
+                <div className="overview-card__alert-icon-box">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+                  </svg>
+                </div>
+                <div className="overview-card__alert-content">
+                  <span className="overview-card__alert-title">5 Time-Off Requests</span>
+                  <span className="overview-card__alert-sub">Awaiting HR manager approval</span>
+                </div>
+              </div>
+              <button
+                className="overview-card__alert-action"
+                onClick={() => navigate('/timeoff')}
+              >
+                Action →
+              </button>
+            </div>
+
+            {/* Ready Status Banner */}
+            <div className="overview-card__alert-card overview-card__alert-card--success">
+              <div className="overview-card__alert-body">
+                <div className="overview-card__alert-icon-box">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <polyline points="9 12 11 14 15 10" />
+                  </svg>
+                </div>
+                <div className="overview-card__alert-content">
+                  <span className="overview-card__alert-title">Salary Engine Ready</span>
+                  <span className="overview-card__alert-sub">All tax slabs &amp; contract rules synced</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
