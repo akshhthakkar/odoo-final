@@ -1,10 +1,13 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import './HomePage.scss'
 
 const HomePage = () => {
+  const navigate = useNavigate()
+
   const handleGetStarted = () => {
-    // Handler for Get Started button
+    navigate('/login')
   }
 
   return (

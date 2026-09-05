@@ -1,0 +1,336 @@
+@use '../../../styles/variables' as *;
+
+// ─── Root shell ───────────────────────────────────────────────────────────────
+.login-root {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  font-family: $font-body;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ─── Shared panel ─────────────────────────────────────────────────────────────
+.login-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+// ─── Left panel — gradient brand ─────────────────────────────────────────────
+.login-panel--left {
+  background: linear-gradient(
+    135deg,
+    hsl(226, 98%, 18%) 0%,
+    hsl(224, 98%, 38%) 40%,
+    hsl(218, 95%, 58%) 75%,
+    hsl(210, 90%, 72%) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 48px;
+  color: #fff;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+}
+
+.login-panel__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-panel__brand-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+}
+
+.login-panel__brand-name {
+  font-family: $font-heading;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+
+.login-panel__tagline {
+  z-index: 1;
+  position: relative;
+}
+
+.login-panel__pre {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 14px;
+}
+
+.login-panel__headline {
+  font-family: $font-heading;
+  font-size: clamp(26px, 3.2vw, 40px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+// Decorative orbs
+.login-panel__orbs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.3;
+}
+
+.orb--1 {
+  width: 380px;
+  height: 380px;
+  background: hsl(210, 100%, 80%);
+  top: -100px;
+  right: -100px;
+}
+
+.orb--2 {
+  width: 280px;
+  height: 280px;
+  background: hsl(240, 80%, 60%);
+  bottom: 10px;
+  left: -70px;
+}
+
+.orb--3 {
+  width: 200px;
+  height: 200px;
+  background: hsl(200, 95%, 75%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+// ─── Right panel — form ───────────────────────────────────────────────────────
+.login-panel--right {
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+}
+
+.login-form-wrap {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-form__accent-logo {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  margin-bottom: 14px;
+  animation: login-spin 10s linear infinite;
+}
+
+@keyframes login-spin {
+  to { transform: rotate(360deg); }
+}
+
+.login-form__title {
+  font-family: $font-heading;
+  font-size: 30px;
+  font-weight: 700;
+  color: $color-text-primary;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+
+.login-form__subtitle {
+  font-size: 14px;
+  color: $color-text-secondary;
+  line-height: 1.55;
+  margin-bottom: 32px;
+}
+
+// ─── Form ─────────────────────────────────────────────────────────────────────
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ─── Field ────────────────────────────────────────────────────────────────────
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-field__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: $color-text-primary;
+}
+
+.login-field__input-wrap {
+  position: relative;
+}
+
+.login-field__input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-bg-app;
+  color: $color-text-primary;
+  font-family: $font-body;
+  font-size: 14px;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+  outline: none;
+
+  &::placeholder {
+    color: $color-text-muted;
+  }
+
+  &:focus {
+    border-color: $color-border-focus;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(35, 87, 254, 0.1);
+  }
+
+  .login-field__input-wrap & {
+    padding-right: 44px;
+  }
+}
+
+.login-field--error .login-field__input {
+  border-color: $color-danger;
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+  }
+}
+
+.login-field__eye {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: $color-text-muted;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-text-primary;
+  }
+}
+
+.login-field__error {
+  font-size: 12px;
+  color: $color-danger;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &::before {
+    content: '⚠';
+    font-size: 11px;
+  }
+}
+
+// ─── Server error ─────────────────────────────────────────────────────────────
+.login-form__server-error {
+  padding: 10px 14px;
+  background: $color-danger-bg;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: $radius-md;
+  color: $color-danger;
+  font-size: 13px;
+}
+
+// ─── Submit button ────────────────────────────────────────────────────────────
+.login-btn {
+  width: 100%;
+  padding: 13px;
+  background: $color-text-primary;
+  color: #fff;
+  border: none;
+  border-radius: $radius-md;
+  font-family: $font-body;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: background $transition-fast, transform $transition-fast, box-shadow $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 4px;
+
+  &:hover:not(:disabled) {
+    background: $color-primary;
+    box-shadow: $shadow-primary-btn;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+}
+
+.login-btn__spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: login-spin-btn 0.65s linear infinite;
+}
+
+@keyframes login-spin-btn {
+  to { transform: rotate(360deg); }
+}
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+.login-form__footer {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.login-form__link {
+  font-size: 13px;
+  color: $color-primary;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-primary-hover;
+    text-decoration: underline;
+  }
+}
+
