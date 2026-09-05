@@ -38,7 +38,7 @@ export async function getEmployee(req, res, next) {
 
 export async function createEmployee(req, res, next) {
   try {
-    const employee = await employeeService.createEmployee(req.body);
+    const employee = await employeeService.createEmployee(req.body, req.user.id);
     return res.status(201).json({
       success: true,
       data: employee,
@@ -50,7 +50,7 @@ export async function createEmployee(req, res, next) {
 
 export async function updateEmployee(req, res, next) {
   try {
-    const employee = await employeeService.updateEmployee(req.params.id, req.body);
+    const employee = await employeeService.updateEmployee(req.params.id, req.body, req.user.id);
     return res.status(200).json({
       success: true,
       data: employee,
@@ -62,7 +62,7 @@ export async function updateEmployee(req, res, next) {
 
 export async function updateEmployeeStatus(req, res, next) {
   try {
-    const employee = await employeeService.updateEmployeeStatus(req.params.id, req.body);
+    const employee = await employeeService.updateEmployeeStatus(req.params.id, req.body, req.user.id);
     return res.status(200).json({
       success: true,
       data: employee,

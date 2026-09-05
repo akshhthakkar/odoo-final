@@ -60,8 +60,9 @@ router.post(
 
 router.post(
   '/:id/dispatches',
-  requireRole(...COMPUTE_ROLES),
+  requireRole(...MANAGE_ROLES),
   requireUuidParam('id'),
+  validateBody(dispatchSchema),
   controller.dispatch
 );
 

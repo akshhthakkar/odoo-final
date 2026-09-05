@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../shared/errors.js';
+import { getBusinessAttendanceDate } from '../../shared/timezone.js';
+import { writeAudit } from '../../shared/audit.js';
 
 const prisma = new PrismaClient();
 
@@ -10,6 +12,14 @@ function computeWorkedHours(checkIn, checkOut) {
   const diffMs = end.getTime() - start.getTime();
   if (diffMs <= 0) return 0;
   return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
+}
+
+// Rejects impossible intervals instead of silently clamping to zero hours.
+function assertCheckoutAfterCheckin(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return;
+  if (new Date(checkOut).getTime() <= new Date(checkIn).getTime()) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'check_out must be after check_in');
+  }
 }
 
 const formatAttendance = (a) => ({
@@ -52,8 +62,8 @@ export async function listAttendance({
 
   if (start_date || end_date) {
     where.attendanceDate = {};
-    if (start_date) where.attendanceDate.gte = new Date(start_date);
-    if (end_date) where.attendanceDate.lte = new Date(end_date);
+    if (start_date) where.attendanceDate.gte = getBusinessAttendanceDate(start_date);
+    if (end_date) where.attendanceDate.lte = getBusinessAttendanceDate(end_date);
   }
 
   const pageNum = Math.max(1, Number(page) || 1);
@@ -110,7 +120,7 @@ export async function checkIn({ employee_id, check_in_time, source = 'SELF' }) {
   }
 
   const now = check_in_time ? new Date(check_in_time) : new Date();
-  const attendanceDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const attendanceDate = getBusinessAttendanceDate(now);
 
   const existing = await prisma.attendance.findUnique({
     where: {
@@ -125,27 +135,36 @@ export async function checkIn({ employee_id, check_in_time, source = 'SELF' }) {
     throw new AppError(409, 'DUPLICATE', 'Attendance already recorded for today');
   }
 
-  const record = await prisma.attendance.create({
-    data: {
-      employeeId: employee_id,
-      attendanceDate,
-      checkIn: now,
-      status: 'PRESENT',
-      source,
-    },
-    include: {
-      employee: {
-        select: { id: true, employeeCode: true, firstName: true, lastName: true },
+  let record;
+  try {
+    record = await prisma.attendance.create({
+      data: {
+        employeeId: employee_id,
+        attendanceDate,
+        checkIn: now,
+        status: 'PRESENT',
+        source,
       },
-    },
-  });
+      include: {
+        employee: {
+          select: { id: true, employeeCode: true, firstName: true, lastName: true },
+        },
+      },
+    });
+  } catch (err) {
+    // Lost the race against a concurrent check-in: report 409, not a raw 500.
+    if (err.code === 'P2002') {
+      throw new AppError(409, 'DUPLICATE', 'Attendance already recorded for today');
+    }
+    throw err;
+  }
 
   return formatAttendance(record);
 }
 
 export async function checkOut({ employee_id, check_out_time }) {
   const now = check_out_time ? new Date(check_out_time) : new Date();
-  const attendanceDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const attendanceDate = getBusinessAttendanceDate(now);
 
   const record = await prisma.attendance.findUnique({
     where: {
@@ -168,6 +187,8 @@ export async function checkOut({ employee_id, check_out_time }) {
   if (record.checkOut) {
     throw new AppError(409, 'STATE_ERROR', 'Employee has already checked out today');
   }
+
+  assertCheckoutAfterCheckin(record.checkIn, now);
 
   const workedHours = computeWorkedHours(record.checkIn, now);
 
@@ -194,7 +215,7 @@ export async function createManualAttendance(data) {
     throw new AppError(404, 'NOT_FOUND', 'Employee not found');
   }
 
-  const attendanceDate = new Date(data.attendance_date);
+  const attendanceDate = getBusinessAttendanceDate(data.attendance_date);
   const existing = await prisma.attendance.findUnique({
     where: {
       employeeId_attendanceDate: {
@@ -207,6 +228,8 @@ export async function createManualAttendance(data) {
   if (existing) {
     throw new AppError(409, 'DUPLICATE', 'Attendance already exists for this date');
   }
+
+  assertCheckoutAfterCheckin(data.check_in, data.check_out);
 
   const workedHours = computeWorkedHours(data.check_in, data.check_out);
 
@@ -228,6 +251,14 @@ export async function createManualAttendance(data) {
     },
   });
 
+  await writeAudit({
+    actorId: data.actorId,
+    action: 'ATTENDANCE_MANUAL_CREATED',
+    entity: 'attendance',
+    entityId: record.id,
+    payload: { employee_id: data.employee_id, attendance_date: data.attendance_date, status: record.status },
+  });
+
   return formatAttendance(record);
 }
 
@@ -244,6 +275,8 @@ export async function updateAttendance(id, data) {
         ? new Date(data.check_out)
         : null
       : existing.checkOut;
+
+  assertCheckoutAfterCheckin(checkIn, checkOut);
 
   const workedHours = computeWorkedHours(checkIn, checkOut);
 
@@ -264,6 +297,14 @@ export async function updateAttendance(id, data) {
         select: { id: true, employeeCode: true, firstName: true, lastName: true },
       },
     },
+  });
+
+  await writeAudit({
+    actorId: data.actorId,
+    action: 'ATTENDANCE_MANUAL_EDITED',
+    entity: 'attendance',
+    entityId: id,
+    payload: { employee_id: existing.employeeId, status: 'MANUAL_EDIT' },
   });
 
   return formatAttendance(updated);

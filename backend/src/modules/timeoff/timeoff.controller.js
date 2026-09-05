@@ -12,7 +12,7 @@ export async function listTypes(req, res, next) {
 
 export async function createType(req, res, next) {
   try {
-    const type = await timeoffService.createType(req.body);
+    const type = await timeoffService.createType(req.body, req.user.id);
     return res.status(201).json({ success: true, data: type });
   } catch (err) {
     next(err);
@@ -42,7 +42,7 @@ export async function listAllocations(req, res, next) {
 
 export async function createAllocation(req, res, next) {
   try {
-    const allocation = await timeoffService.createAllocation(req.body);
+    const allocation = await timeoffService.createAllocation(req.body, req.user.id);
     return res.status(201).json({ success: true, data: allocation });
   } catch (err) {
     next(err);
@@ -83,10 +83,10 @@ export async function createRequest(req, res, next) {
       throw new AppError(400, 'VALIDATION_ERROR', 'No employee associated with this account');
     }
 
-    const request = await timeoffService.createRequest({
-      ...req.body,
-      employee_id: employeeId,
-    });
+    const request = await timeoffService.createRequest(
+      { ...req.body, employee_id: employeeId },
+      req.user
+    );
 
     return res.status(201).json({ success: true, data: request });
   } catch (err) {
@@ -94,10 +94,12 @@ export async function createRequest(req, res, next) {
   }
 }
 
+// Shared handler for both the legacy PATCH routes and the contract's
+// POST /requests/:id/status-changes - one canonical service implementation.
 export async function approveRequest(req, res, next) {
   try {
-    const request = await timeoffService.approveRequest(req.params.id, req.user.id);
-    return res.status(200).json({ success: true, data: request });
+    const result = await timeoffService.approveRequest(req.params.id, req.user);
+    return res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }
@@ -105,12 +107,33 @@ export async function approveRequest(req, res, next) {
 
 export async function refuseRequest(req, res, next) {
   try {
-    const request = await timeoffService.refuseRequest(
+    const result = await timeoffService.refuseRequest(
       req.params.id,
-      req.user.id,
+      req.user,
       req.body.refusal_reason
     );
-    return res.status(200).json({ success: true, data: request });
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function statusChange(req, res, next) {
+  try {
+    const result =
+      req.body.action === 'APPROVE'
+        ? await timeoffService.approveRequest(req.params.id, req.user)
+        : await timeoffService.refuseRequest(req.params.id, req.user, null);
+    return res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function cancelRequest(req, res, next) {
+  try {
+    const result = await timeoffService.cancelRequest(req.params.id, req.user);
+    return res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }

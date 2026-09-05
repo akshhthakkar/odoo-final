@@ -38,7 +38,7 @@ export async function getContract(req, res, next) {
 
 export async function createContract(req, res, next) {
   try {
-    const contract = await contractsService.createContract(req.body);
+    const contract = await contractsService.createContract(req.body, req.user.id);
     return res.status(201).json({
       success: true,
       data: contract,
@@ -50,7 +50,7 @@ export async function createContract(req, res, next) {
 
 export async function updateContract(req, res, next) {
   try {
-    const contract = await contractsService.updateContract(req.params.id, req.body);
+    const contract = await contractsService.updateContract(req.params.id, req.body, req.user.id);
     return res.status(200).json({
       success: true,
       data: contract,
@@ -62,7 +62,7 @@ export async function updateContract(req, res, next) {
 
 export async function updateContractStatus(req, res, next) {
   try {
-    const contract = await contractsService.updateContractStatus(req.params.id, req.body);
+    const contract = await contractsService.updateContractStatus(req.params.id, req.body, req.user.id);
     return res.status(200).json({
       success: true,
       data: contract,

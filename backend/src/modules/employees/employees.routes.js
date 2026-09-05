@@ -7,6 +7,39 @@ import * as employees from './employees.controller.js';
 
 const EMPLOYEE_STATUS_ENUM = z.enum(['ACTIVE', 'ON_LEAVE', 'SUSPENDED', 'TERMINATED']);
 
+const dateStringSchema = z
+  .string()
+  .datetime({ offset: true })
+  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+const dateOfBirthSchema = dateStringSchema
+  .refine((val) => {
+    const d = new Date(val);
+    const now = new Date();
+    return !isNaN(d.getTime()) && d < now;
+  }, { message: 'Date of birth cannot be in the future' })
+  .refine((val) => {
+    const d = new Date(val);
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 120);
+    return d > minDate;
+  }, { message: 'Date of birth must represent a plausible past date' });
+
+const hireDateSchema = dateStringSchema.refine((val) => {
+  const d = new Date(val);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return !isNaN(d.getTime()) && d <= tomorrow;
+}, { message: 'Hire date cannot be in the future' });
+
+const ifscSchema = z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/i, {
+  message: 'Invalid IFSC code format (e.g., HDFC0001245)',
+});
+
+const bankAccountSchema = z.string().regex(/^[A-Za-z0-9]{8,34}$/, {
+  message: 'Bank account number must be 8 to 34 alphanumeric characters',
+});
+
 const listEmployeesQuerySchema = z.object({
   department_id: z.string().uuid().optional(),
   job_id: z.string().uuid().optional(),
@@ -23,17 +56,17 @@ const createEmployeeSchema = z.object({
   last_name: z.string().min(1).max(80),
   email: z.string().email().max(255),
   phone: z.string().max(20).nullable().optional(),
-  date_of_birth: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
-  gender: z.string().max(10).nullable().optional(),
+  date_of_birth: dateOfBirthSchema.nullable().optional(),
+  gender: z.string().max(20).nullable().optional(),
   address: z.string().nullable().optional(),
-  hire_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  hire_date: hireDateSchema,
   department_id: z.string().uuid().nullable().optional(),
   job_id: z.string().uuid().nullable().optional(),
   manager_id: z.string().uuid().nullable().optional(),
   working_schedule_id: z.string().uuid().nullable().optional(),
   bank_account_name: z.string().max(120).nullable().optional(),
-  bank_account_number: z.string().max(34).nullable().optional(),
-  bank_ifsc: z.string().max(20).nullable().optional(),
+  bank_account_number: bankAccountSchema.nullable().optional(),
+  bank_ifsc: ifscSchema.nullable().optional(),
 });
 
 const updateEmployeeSchema = z.object({
@@ -41,22 +74,22 @@ const updateEmployeeSchema = z.object({
   last_name: z.string().min(1).max(80).optional(),
   email: z.string().email().max(255).optional(),
   phone: z.string().max(20).nullable().optional(),
-  date_of_birth: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
-  gender: z.string().max(10).nullable().optional(),
+  date_of_birth: dateOfBirthSchema.nullable().optional(),
+  gender: z.string().max(20).nullable().optional(),
   address: z.string().nullable().optional(),
-  hire_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  hire_date: hireDateSchema.optional(),
   department_id: z.string().uuid().nullable().optional(),
   job_id: z.string().uuid().nullable().optional(),
   manager_id: z.string().uuid().nullable().optional(),
   working_schedule_id: z.string().uuid().nullable().optional(),
   bank_account_name: z.string().max(120).nullable().optional(),
-  bank_account_number: z.string().max(34).nullable().optional(),
-  bank_ifsc: z.string().max(20).nullable().optional(),
+  bank_account_number: bankAccountSchema.nullable().optional(),
+  bank_ifsc: ifscSchema.nullable().optional(),
 });
 
 const updateStatusSchema = z.object({
   status: EMPLOYEE_STATUS_ENUM,
-  termination_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  termination_date: dateStringSchema.optional(),
 });
 
 const router = Router();

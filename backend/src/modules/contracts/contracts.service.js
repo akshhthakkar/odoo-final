@@ -1,7 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../shared/prisma.js';
 import { AppError } from '../../shared/errors.js';
+import { writeAudit } from '../../shared/audit.js';
 
-const prisma = new PrismaClient();
+// A-14: reject impossible date ranges at the service level; the DB CHECK
+// constraint (chk_contracts_dates) remains the final backstop.
+function assertDateRange(startDate, endDate) {
+  if (endDate && new Date(endDate) < new Date(startDate)) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'end_date must be on or after start_date');
+  }
+}
 
 const formatContract = (c) => ({
   id: c.id,
@@ -156,14 +163,20 @@ export async function getContractById(id) {
   return formatContract(contract);
 }
 
-export async function createContract(data) {
+export async function createContract(data, actorId) {
   const employee = await prisma.employee.findUnique({ where: { id: data.employee_id } });
   if (!employee) {
     throw new AppError(404, 'NOT_FOUND', 'Employee not found');
   }
 
+  assertDateRange(data.start_date, data.end_date);
+
   const status = data.status || 'DRAFT';
   if (status === 'ACTIVE') {
+    // A contract that is already fully in the past cannot be "active".
+    if (data.end_date && new Date(data.end_date) < new Date()) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Cannot create an ACTIVE contract whose period already ended');
+    }
     await checkContractOverlap(data.employee_id, data.start_date, data.end_date);
   }
 
@@ -191,10 +204,37 @@ export async function createContract(data) {
     },
   });
 
+  await writeAudit(prisma, {
+    actorId,
+    action: 'CONTRACT_CREATED',
+    entity: 'contract',
+    entityId: contract.id,
+    payload: { employee_id: data.employee_id, reference: contract.reference, status },
+  });
+
   return formatContract(contract);
 }
 
-export async function updateContract(id, data) {
+const ALLOWED_CONTRACT_TRANSITIONS = {
+  DRAFT: ['ACTIVE', 'CANCELLED'],
+  ACTIVE: ['EXPIRED', 'CANCELLED'],
+  EXPIRED: [],
+  CANCELLED: [],
+};
+
+function assertAllowedContractTransition(currentStatus, targetStatus) {
+  if (!targetStatus || currentStatus === targetStatus) return;
+  const allowed = ALLOWED_CONTRACT_TRANSITIONS[currentStatus] || [];
+  if (!allowed.includes(targetStatus)) {
+    throw new AppError(
+      409,
+      'STATE_ERROR',
+      `Cannot transition contract status from ${currentStatus} to ${targetStatus}`
+    );
+  }
+}
+
+export async function updateContract(id, data, actorId) {
   const existing = await prisma.contract.findUnique({ where: { id } });
   if (!existing) {
     throw new AppError(404, 'NOT_FOUND', 'Contract not found');
@@ -203,6 +243,12 @@ export async function updateContract(id, data) {
   const newStartDate = data.start_date ? new Date(data.start_date) : existing.startDate;
   const newEndDate = data.end_date !== undefined ? (data.end_date ? new Date(data.end_date) : null) : existing.endDate;
   const targetStatus = data.status || existing.status;
+
+  assertDateRange(newStartDate, newEndDate);
+
+  if (data.status !== undefined && data.status !== existing.status) {
+    assertAllowedContractTransition(existing.status, data.status);
+  }
 
   if (targetStatus === 'ACTIVE') {
     await checkContractOverlap(existing.employeeId, newStartDate, newEndDate, id);
@@ -233,14 +279,24 @@ export async function updateContract(id, data) {
     },
   });
 
+  await writeAudit(prisma, {
+    actorId,
+    action: 'CONTRACT_UPDATED',
+    entity: 'contract',
+    entityId: id,
+    payload: { employee_id: existing.employeeId, fields: Object.keys(updateData) },
+  });
+
   return formatContract(updated);
 }
 
-export async function updateContractStatus(id, { status }) {
+export async function updateContractStatus(id, { status }, actorId) {
   const existing = await prisma.contract.findUnique({ where: { id } });
   if (!existing) {
     throw new AppError(404, 'NOT_FOUND', 'Contract not found');
   }
+
+  assertAllowedContractTransition(existing.status, status);
 
   if (status === 'ACTIVE') {
     await checkContractOverlap(existing.employeeId, existing.startDate, existing.endDate, id);
@@ -256,6 +312,14 @@ export async function updateContractStatus(id, { status }) {
       workingSchedule: { select: { id: true, name: true } },
       salaryStructure: { select: { id: true, name: true } },
     },
+  });
+
+  await writeAudit(prisma, {
+    actorId,
+    action: 'CONTRACT_STATUS_CHANGED',
+    entity: 'contract',
+    entityId: id,
+    payload: { employee_id: existing.employeeId, from: existing.status, to: status },
   });
 
   return formatContract(updated);

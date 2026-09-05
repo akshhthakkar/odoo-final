@@ -85,7 +85,7 @@ graph TD
     end
 
     subgraph SERVER["Node + Express (ES Modules)"]
-        AUTH["Auth · JWT · RBAC Middleware"]
+        AUTH["Auth · Session (PostgreSQL) · RBAC Middleware"]
         MODS["HR & Payroll Modules<br/>Employees · Contracts · Schedules · Attendance<br/>Time Off · Payroll Config · Payruns · Reports"]
         subgraph ENGINE["Payroll Calculation Engine — pure module"]
             EXEC["Sequenced Rule Executor"]
@@ -96,7 +96,7 @@ graph TD
 
     DB[("PostgreSQL 16<br/>20 tables · Prisma ORM")]
 
-    UI -->|"REST /api/v1 · JWT Bearer"| AUTH
+    UI -->|"REST /api/v1 · Cookie Session"| AUTH
     AUTH --> MODS
     MODS -->|"computeBatch() — in-process, zero I/O"| ENGINE
     MODS -->|"Prisma Client"| DB
@@ -358,7 +358,7 @@ pay365/
 │       │   ├── validator/       # rule-set validation
 │       │   └── types/           # zod compute schemas
 │       ├── modules/
-│       │   ├── auth/            # login, JWT, refresh
+│       │   ├── auth/            # login, logout, me, session auth
 │       │   ├── users/           # admin user management
 │       │   ├── employees/       # employees, departments, jobs
 │       │   ├── contracts/
@@ -429,9 +429,11 @@ npm run dev
 | Service | URL |
 | :--- | :--- |
 | Web app | `http://localhost:5173` |
-| API | `http://localhost:3001/api/v1` |
+| API Base | `http://localhost:4000/api/v1` |
+| API Docs (Swagger) | `http://localhost:4000/api-docs` |
+| Health Check | `http://localhost:4000/api/health` |
 
-**Demo logins** (seeded, password `Password123!`): `admin@pay365.com` (Admin) · `hr@pay365.com` (HR Manager) · `payroll@pay365.com` (HR Payroll Manager) · `employee@pay365.com` (Employee)
+**Demo logins** (seeded, password `Password@123`): `admin@pay365.dev` (Admin) · `hr.manager@pay365.dev` (HR Manager) · `payroll.manager@pay365.dev` (HR Payroll Manager) · `payroll.user@pay365.dev` (HR Payroll User) · `employee@pay365.dev` (Employee)
 
 ---
 
@@ -440,12 +442,12 @@ npm run dev
 | Variable | Location | Description |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | backend | PostgreSQL connection string |
-| `JWT_SECRET` | backend | Secret for signing access tokens |
-| `JWT_REFRESH_SECRET` | backend | Secret for refresh-token hashing |
-| `PORT` | backend | API port (default `3001`) |
-| `WEB_ORIGIN` | backend | CORS allow-list for the SPA |
+| `SESSION_SECRET` | backend | Secret string for signing session cookies (min 32 chars) |
+| `SESSION_MAX_AGE_DAYS` | backend | Session lifetime in days (default `7`) |
+| `PORT` | backend | API port (default `4000`) |
+| `WEB_ORIGIN` | backend | CORS allow-list for the SPA (default `http://localhost:5173`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | backend | Payslip email (Ethereal catch-all in dev) |
-| `VITE_API_URL` | frontend | Backend API base URL |
+| `VITE_API_URL` | frontend | Backend API base URL (`http://localhost:4000/api/v1`) |
 
 > All config is validated at startup — the API refuses to boot with missing required variables. `.env` files are git-ignored; `.env.example` files document every variable.
 
@@ -508,7 +510,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 ## Security
 
-- **Auth:** JWT access tokens (15 min) + hashed refresh tokens in httpOnly cookies with rotation and revocable sessions.
+- **Auth:** Stateful session authentication (`express-session` + PostgreSQL store) with `httpOnly`, `Secure` (in prod), `SameSite=lax` cookies, and session fixation protection on login (`req.session.regenerate()`).
 - **Passwords:** bcrypt (cost 12); never logged, never returned.
 - **Validation:** zod on every endpoint body/query/param; unknown fields stripped.
 - **Injection safety:** Prisma parameterized queries only; formula DSL rejects calls, property access, and prototype access at parse time.
@@ -522,6 +524,7 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 
 | Document | Contents |
 | :--- | :--- |
+| **Interactive API Docs (Swagger)** | [`/api-docs`](http://localhost:4000/api-docs) — Interactive OpenAPI 3.0 specification & endpoint explorer |
 | [`docs/Others/PeoplePay365 HR & Payroll.md`](docs/Others/PeoplePay365%20HR%20&%20Payroll.md) | Original problem specification |
 | [`docs/Implementation plan/00-MASTER-PLAN.md`](docs/Implementation%20plan/00-MASTER-PLAN.md) | Stack, phases, task board |
 | [`docs/Implementation plan/02-SYSTEM-ARCHITECTURE.md`](docs/Implementation%20plan/02-SYSTEM-ARCHITECTURE.md) | Architecture decisions & data flows |
@@ -544,9 +547,10 @@ Typography: **Bricolage Grotesque** (headings 400–800, body 200–800). Compon
 | **State & Forms** | Redux Toolkit, TanStack React Query, React Hook Form, Zod |
 | **Data Visualization** | Recharts |
 | **Backend** | Node.js, Express 5 (ES Modules) |
+| **API Documentation** | Swagger / OpenAPI 3.0 (`swagger-ui-express`) |
 | **Payroll Engine** | In-process pure module — sequenced executor, handwritten formula parser, decimal.js |
 | **Database & ORM** | PostgreSQL 16, Prisma |
-| **Auth** | JWT (access + refresh), bcrypt |
+| **Auth** | Stateful session auth (`express-session` + `connect-pg-simple`), bcryptjs |
 | **Documents & Email** | pdfkit, nodemailer |
 | **Testing** | Vitest, Supertest |
 | **Infrastructure** | Docker Compose |

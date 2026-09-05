@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../shared/errors.js';
+import { writeAudit } from '../../shared/audit.js';
 
 const prisma = new PrismaClient();
 
@@ -71,7 +72,7 @@ export async function listUsers({ role, is_active, search, page = 1, limit = 20 
   };
 }
 
-export async function createUser({ email, password, full_name, role, employee_id }) {
+export async function createUser({ email, password, full_name, role, employee_id }, actorId) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new AppError(409, 'DUPLICATE', 'Email already in use');
@@ -100,10 +101,19 @@ export async function createUser({ email, password, full_name, role, employee_id
     },
   });
 
+  // Never log credentials - role/email context only.
+  await writeAudit(prisma, {
+    actorId,
+    action: 'USER_CREATED',
+    entity: 'user',
+    entityId: user.id,
+    payload: { email: user.email, role: user.role, employee_id: employee_id || null },
+  });
+
   return toPublicUser(user);
 }
 
-export async function updateUser(id, { full_name, role, is_active, employee_id }) {
+export async function updateUser(id, { full_name, role, is_active, employee_id }, actorId) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
     throw new AppError(404, 'NOT_FOUND', 'User not found');
@@ -135,10 +145,22 @@ export async function updateUser(id, { full_name, role, is_active, employee_id }
     data,
   });
 
+  await writeAudit(prisma, {
+    actorId,
+    action: data.role !== undefined && data.role !== user.role ? 'USER_ROLE_CHANGED' : 'USER_UPDATED',
+    entity: 'user',
+    entityId: id,
+    payload: {
+      email: updated.email,
+      fields: Object.keys(data),
+      ...(data.role !== undefined && data.role !== user.role ? { from: user.role, to: data.role } : {}),
+    },
+  });
+
   return toPublicUser(updated);
 }
 
-export async function resetPassword(id, newPassword) {
+export async function resetPassword(id, newPassword, actorId) {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) {
     throw new AppError(404, 'NOT_FOUND', 'User not found');
@@ -148,6 +170,15 @@ export async function resetPassword(id, newPassword) {
   await prisma.user.update({
     where: { id },
     data: { passwordHash },
+  });
+
+  // Never log the new password.
+  await writeAudit(prisma, {
+    actorId,
+    action: 'USER_PASSWORD_RESET',
+    entity: 'user',
+    entityId: id,
+    payload: { email: user.email },
   });
 
   return { success: true };

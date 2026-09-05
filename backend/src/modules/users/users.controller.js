@@ -28,7 +28,7 @@ export async function listUsers(req, res, next) {
 
 export async function createUser(req, res, next) {
   try {
-    const user = await usersService.createUser(req.body);
+    const user = await usersService.createUser(req.body, req.user.id);
     return res.status(201).json({
       success: true,
       data: user,
@@ -40,7 +40,7 @@ export async function createUser(req, res, next) {
 
 export async function updateUser(req, res, next) {
   try {
-    const user = await usersService.updateUser(req.params.id, req.body);
+    const user = await usersService.updateUser(req.params.id, req.body, req.user.id);
     return res.status(200).json({
       success: true,
       data: user,
@@ -52,7 +52,7 @@ export async function updateUser(req, res, next) {
 
 export async function resetPassword(req, res, next) {
   try {
-    await usersService.resetPassword(req.params.id, req.body.new_password);
+    await usersService.resetPassword(req.params.id, req.body.new_password, req.user.id);
     return res.status(200).json({
       success: true,
       data: null,

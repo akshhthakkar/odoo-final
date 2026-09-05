@@ -18,34 +18,44 @@ const listContractsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
-const createContractSchema = z.object({
-  employee_id: z.string().uuid(),
-  reference: z.string().min(1).max(40),
-  start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
-  end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
-  wage: z.coerce.number().positive(),
-  currency: z.string().length(3).default('INR'),
-  contract_type: CONTRACT_TYPE_ENUM,
-  department_id: z.string().uuid().nullable().optional(),
-  job_id: z.string().uuid().nullable().optional(),
-  working_schedule_id: z.string().uuid().nullable().optional(),
-  salary_structure_id: z.string().uuid().nullable().optional(),
-  status: CONTRACT_STATUS_ENUM.default('DRAFT'),
-});
+const createContractSchema = z
+  .object({
+    employee_id: z.string().uuid(),
+    reference: z.string().min(1).max(40),
+    start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+    end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
+    wage: z.coerce.number().positive(),
+    currency: z.string().length(3).default('INR'),
+    contract_type: CONTRACT_TYPE_ENUM,
+    department_id: z.string().uuid().nullable().optional(),
+    job_id: z.string().uuid().nullable().optional(),
+    working_schedule_id: z.string().uuid().nullable().optional(),
+    salary_structure_id: z.string().uuid().nullable().optional(),
+    status: CONTRACT_STATUS_ENUM.default('DRAFT'),
+  })
+  .refine(
+    (d) => !d.end_date || new Date(d.end_date) >= new Date(d.start_date),
+    { message: 'end_date must be on or after start_date', path: ['end_date'] }
+  );
 
-const updateContractSchema = z.object({
-  reference: z.string().min(1).max(40).optional(),
-  start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
-  end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
-  wage: z.coerce.number().positive().optional(),
-  currency: z.string().length(3).optional(),
-  contract_type: CONTRACT_TYPE_ENUM.optional(),
-  department_id: z.string().uuid().nullable().optional(),
-  job_id: z.string().uuid().nullable().optional(),
-  working_schedule_id: z.string().uuid().nullable().optional(),
-  salary_structure_id: z.string().uuid().nullable().optional(),
-  status: CONTRACT_STATUS_ENUM.optional(),
-});
+const updateContractSchema = z
+  .object({
+    reference: z.string().min(1).max(40).optional(),
+    start_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+    end_date: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).nullable().optional(),
+    wage: z.coerce.number().positive().optional(),
+    currency: z.string().length(3).optional(),
+    contract_type: CONTRACT_TYPE_ENUM.optional(),
+    department_id: z.string().uuid().nullable().optional(),
+    job_id: z.string().uuid().nullable().optional(),
+    working_schedule_id: z.string().uuid().nullable().optional(),
+    salary_structure_id: z.string().uuid().nullable().optional(),
+    status: CONTRACT_STATUS_ENUM.optional(),
+  })
+  .refine(
+    (d) => !d.end_date || !d.start_date || new Date(d.end_date) >= new Date(d.start_date),
+    { message: 'end_date must be on or after start_date', path: ['end_date'] }
+  );
 
 const updateContractStatusSchema = z.object({
   status: CONTRACT_STATUS_ENUM,
