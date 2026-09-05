@@ -21,6 +21,8 @@ import {
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Pagination from '../../../components/ui/Pagination.jsx';
+import { usePagination } from '../../../hooks/usePagination.js';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './AdminPage.scss';
 
@@ -154,6 +156,12 @@ export default function AdminPage() {
       return matchesSearch && matchesRole;
     });
   }, [usersList, searchQuery, roleFilter]);
+
+  // Reusable Pagination
+  const pagination = usePagination(filteredUsers, {
+    initialPageSize: 8,
+    resetDeps: [searchQuery, roleFilter],
+  });
 
   // Handle Create User
   async function handleCreateUser(e) {
@@ -466,7 +474,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => {
+                {pagination.paginatedItems.map((user) => {
                   const roleClass = `adm-role-badge--${user.role.toLowerCase()}`;
                   const createdFmt = user.created_at
                     ? new Date(user.created_at).toLocaleDateString('en-GB', {
@@ -548,6 +556,18 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            itemLabel="users"
+          />
         </div>
       )}
 

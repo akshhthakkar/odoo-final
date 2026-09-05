@@ -4,6 +4,8 @@ import { Users, Plus, AlertCircle, X, Search, RefreshCw } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Pagination from '../../../components/ui/Pagination.jsx';
+import { usePagination } from '../../../hooks/usePagination.js';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './EmployeesPage.scss';
 
@@ -208,6 +210,12 @@ export default function EmployeesPage() {
       return matchesSearch && matchesDept && matchesStatus;
     });
   }, [employees, searchQuery, departmentFilter, statusFilter]);
+
+  // Reusable Pagination
+  const pagination = usePagination(filteredEmployees, {
+    initialPageSize: 8,
+    resetDeps: [searchQuery, departmentFilter, statusFilter],
+  });
 
   // Handle create employee API call
   async function handleCreateEmployee(e) {
@@ -437,7 +445,7 @@ export default function EmployeesPage() {
       ) : viewMode === 'kanban' || viewMode === 'cards' ? (
         <div className="emp-cards-grid-wrap">
           <div className="emp-cards-grid">
-            {filteredEmployees.map((emp) => (
+            {pagination.paginatedItems.map((emp) => (
               <div
                 key={emp.id}
                 className="emp-card"
@@ -477,6 +485,18 @@ export default function EmployeesPage() {
               </div>
             ))}
           </div>
+
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            itemLabel="employees"
+          />
         </div>
       ) : (
         /* ── List View Table ── */
@@ -495,7 +515,7 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployees.map((emp) => (
+                {pagination.paginatedItems.map((emp) => (
                   <tr
                     key={emp.id}
                     onClick={() => navigate(`/employees/${emp.id}`)}
@@ -542,6 +562,18 @@ export default function EmployeesPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            itemLabel="employees"
+          />
         </div>
       )}
 

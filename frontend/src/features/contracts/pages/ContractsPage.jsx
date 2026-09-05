@@ -18,6 +18,8 @@ import {
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Pagination from '../../../components/ui/Pagination.jsx';
+import { usePagination } from '../../../hooks/usePagination.js';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './ContractsPage.scss';
 
@@ -161,6 +163,12 @@ export default function ContractsPage() {
       return matchesSearch && matchesDept && matchesStatus;
     });
   }, [contracts, searchQuery, departmentFilter, statusFilter]);
+
+  // Reusable Pagination
+  const pagination = usePagination(filteredContracts, {
+    initialPageSize: 8,
+    resetDeps: [searchQuery, departmentFilter, statusFilter],
+  });
 
   // Handle Create Contract
   async function handleCreateContract(e) {
@@ -396,7 +404,7 @@ export default function ContractsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredContracts.map((cnt) => {
+                {pagination.paginatedItems.map((cnt) => {
                   const empName = cnt.employee ? `${cnt.employee.first_name} ${cnt.employee.last_name}` : 'Unknown Staff';
                   const empCode = cnt.employee?.employee_code || 'EMP';
                   const wageFormatted = `₹${Number(cnt.wage || 0).toLocaleString('en-IN')}`;
@@ -501,6 +509,18 @@ export default function ContractsPage() {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            onPageChange={pagination.setPage}
+            onPageSizeChange={pagination.setPageSize}
+            itemLabel="contracts"
+          />
         </div>
       )}
 
