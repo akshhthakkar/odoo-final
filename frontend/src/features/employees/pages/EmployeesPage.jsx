@@ -1,119 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Users } from 'lucide-react';
+import { INITIAL_EMPLOYEES } from '../data/employeesData.js';
 import './EmployeesPage.scss';
-
-// ─── Initial Employee Data ───────────────────────────────────────────────────
-const INITIAL_EMPLOYEES = [
-  {
-    id: 'emp-001',
-    code: 'EMP-001',
-    name: 'Arjun Nair',
-    jobTitle: 'Senior Engineer',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹92,000',
-    email: 'arjun.nair@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-002',
-    code: 'EMP-002',
-    name: 'Meera Krishnan',
-    jobTitle: 'Engineer',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹52,000',
-    email: 'meera.krishnan@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-003',
-    code: 'EMP-003',
-    name: 'Rahul Verma',
-    jobTitle: 'Sales Executive',
-    department: 'Sales',
-    status: 'ACTIVE',
-    wage: '₹45,000',
-    email: 'employee@pay365.dev',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-004',
-    code: 'EMP-004',
-    name: 'Sneha Patil',
-    jobTitle: 'Marketing Lead',
-    department: 'Marketing',
-    status: 'ACTIVE',
-    wage: '₹58,000',
-    email: 'sneha.patil@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-005',
-    code: 'EMP-005',
-    name: 'Karthik Menon',
-    jobTitle: 'Accountant',
-    department: 'Finance',
-    status: 'ACTIVE',
-    wage: '₹47,000',
-    email: 'karthik.menon@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-006',
-    code: 'EMP-006',
-    name: 'Vikram Rao',
-    jobTitle: 'Principal Architect',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹1,20,000',
-    email: 'vikram.rao@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-007',
-    code: 'EMP-007',
-    name: 'Ananya Deshmukh',
-    jobTitle: 'Product Designer',
-    department: 'Design',
-    status: 'ACTIVE',
-    wage: '₹62,000',
-    email: 'ananya.deshmukh@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-008',
-    code: 'EMP-008',
-    name: 'Rohan Gupta',
-    jobTitle: 'DevOps Specialist',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹75,000',
-    email: 'rohan.gupta@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-009',
-    code: 'EMP-009',
-    name: 'Aditya Joshi',
-    jobTitle: 'Engineering Intern',
-    department: 'Engineering',
-    status: 'PROBATION',
-    wage: '₹25,000',
-    email: 'aditya.joshi@peoplepay360.io',
-    contractType: 'Intern',
-  },
-  {
-    id: 'emp-010',
-    code: 'EMP-010',
-    name: 'Priya Sharma',
-    jobTitle: 'Sales Associate',
-    department: 'Sales',
-    status: 'ON_LEAVE',
-    wage: '₹38,000',
-    email: 'priya.sharma@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-];
 
 // Status columns configuration
 const STATUS_COLUMNS = [
@@ -130,6 +19,7 @@ function getInitials(name) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function EmployeesPage() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'PROBATION' | 'ON_LEAVE' | 'RESIGNED'
@@ -379,6 +269,11 @@ export default function EmployeesPage() {
                 <div
                   key={emp.id}
                   className="emp-card"
+                  onClick={() => navigate(`/employees/${emp.id}`)}
+                  title={`View profile of ${emp.name}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/employees/${emp.id}`); }}
                 >
                   <div className="emp-card__header">
                     <div className="emp-card__avatar">
@@ -410,7 +305,9 @@ export default function EmployeesPage() {
             </div>
           ) : (
             <div className="emp-cards-grid__empty">
-              <div className="emp-cards-grid__empty-icon">👥</div>
+              <div className="emp-cards-grid__empty-icon">
+                <Users size={36} color="#2357fe" />
+              </div>
               <h3>No employees found</h3>
               <p>No employees match the selected status or filters.</p>
               {statusFilter !== 'ALL' && (
@@ -442,7 +339,11 @@ export default function EmployeesPage() {
               </thead>
               <tbody>
                 {filteredEmployees.map((emp) => (
-                  <tr key={emp.id}>
+                  <tr
+                    key={emp.id}
+                    onClick={() => navigate(`/employees/${emp.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>
                       <div className="emp-list-card__user-cell">
                         <div className="emp-card__avatar">
@@ -469,7 +370,13 @@ export default function EmployeesPage() {
                     <td style={{ fontWeight: 700, color: '#0f172a' }}>{emp.wage}</td>
                     <td>{emp.email}</td>
                     <td>
-                      <button className="emp-list-card__action-link">
+                      <button
+                        className="emp-list-card__action-link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/employees/${emp.id}`);
+                        }}
+                      >
                         View Profile →
                       </button>
                     </td>
