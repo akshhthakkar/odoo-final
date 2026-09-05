@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import session from 'express-session';
 import pgSimple from 'connect-pg-simple';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env.js';
 import requestId from './middleware/request-id.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -15,6 +16,7 @@ import attendanceRoutes from './modules/attendance/attendance.routes.js';
 import timeoffRoutes from './modules/timeoff/timeoff.routes.js';
 import payrollConfigRoutes from './modules/payroll-config/payroll-config.routes.js';
 import payrollRunRoutes from './modules/payroll-run/payroll-run.routes.js';
+import payslipsRoutes from './modules/payroll-run/payslips.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 
 const app = express();
@@ -24,6 +26,7 @@ app.use(requestId);
 app.use(helmet());
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 
 app.use(
   session({
@@ -59,6 +62,7 @@ app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/time-off', timeoffRoutes);
 app.use('/api/v1/salary-structures', payrollConfigRoutes);
 app.use('/api/v1/payruns', payrollRunRoutes);
+app.use('/api/v1/payslips', payslipsRoutes);
 app.use('/api/v1/dashboard', reportsRoutes);
 
 app.use(notFound);
