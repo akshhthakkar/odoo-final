@@ -86,14 +86,30 @@ export async function listAttendance({
   end_date,
   status,
   source,
+  search,
   page = 1,
   limit = 20,
 } = {}) {
   const where = {};
 
-  if (employee_id) where.employeeId = employee_id;
-  if (status) where.status = status;
-  if (source) where.source = source;
+  if (employee_id && employee_id !== 'ALL' && employee_id !== 'all') {
+    where.employeeId = employee_id;
+  }
+  if (status && status !== 'ALL' && status !== 'all') {
+    where.status = status;
+  }
+  if (source && source !== 'ALL' && source !== 'all') {
+    where.source = source;
+  }
+
+  if (search && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { employee: { firstName: { contains: q, mode: 'insensitive' } } },
+      { employee: { lastName: { contains: q, mode: 'insensitive' } } },
+      { employee: { employeeCode: { contains: q, mode: 'insensitive' } } },
+    ];
+  }
 
   if (start_date || end_date) {
     where.attendanceDate = {};
@@ -105,20 +121,38 @@ export async function listAttendance({
   const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const [total, items] = await Promise.all([
+  const [total, items, statusGroups, totalAll] = await Promise.all([
     prisma.attendance.count({ where }),
     prisma.attendance.findMany({
       where,
       skip,
       take: limitNum,
-      orderBy: { attendanceDate: 'desc' },
+      orderBy: [{ attendanceDate: 'desc' }, { createdAt: 'desc' }],
       include: {
         employee: {
           select: { id: true, employeeCode: true, firstName: true, lastName: true },
         },
       },
     }),
+    prisma.attendance.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    }),
+    prisma.attendance.count(),
   ]);
+
+  const statusCounts = {
+    ALL: totalAll,
+    PRESENT: 0,
+    LATE: 0,
+    MISSING_CHECKOUT: 0,
+    MANUAL_EDIT: 0,
+  };
+  statusGroups.forEach((g) => {
+    if (g.status && statusCounts[g.status] !== undefined) {
+      statusCounts[g.status] = g._count.status;
+    }
+  });
 
   return {
     items: items.map(formatAttendance),
@@ -127,6 +161,10 @@ export async function listAttendance({
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum) || 1,
+    },
+    meta: {
+      statusCounts,
+      totalAll,
     },
   };
 }

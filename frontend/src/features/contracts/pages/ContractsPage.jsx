@@ -65,13 +65,61 @@ export default function ContractsPage() {
     status: 'ACTIVE',
   });
 
-  // Fetch Contracts and Metadata from backend
+  // Debounced search query for server-side search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Server-side counts and total
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({ ALL: 0, ACTIVE: 0, DRAFT: 0, EXPIRED: 0, CANCELLED: 0 });
+  const [serverMetrics, setServerMetrics] = useState({ total: 0, active: 0, draft: 0, expired: 0, totalMonthlyWage: 0 });
+
+  // Reusable Pagination Hook (Server-Side Mode)
+  const pagination = usePagination(totalCount, {
+    initialPageSize: 5,
+    resetDeps: [debouncedSearch, departmentFilter, statusFilter],
+  });
+
+  // Fetch Contracts from backend with pagination and filters
   async function fetchContracts() {
     setLoading(true);
     try {
-      const res = await api.get('/contracts', { params: { limit: 100 } });
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
+      if (departmentFilter && departmentFilter !== 'all') params.department_id = departmentFilter;
+
+      const res = await api.get('/contracts', { params });
       const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
+      const total = res?.data?.pagination?.total ?? items.length;
+      setTotalCount(total);
       setContracts(items);
+
+      if (res?.data?.meta) {
+        const sc = res.data.meta.statusCounts || {};
+        setStatusCounts({
+          ALL: res.data.meta.totalAll || 0,
+          ACTIVE: sc.ACTIVE || 0,
+          DRAFT: sc.DRAFT || 0,
+          EXPIRED: sc.EXPIRED || 0,
+          CANCELLED: sc.CANCELLED || 0,
+        });
+        setServerMetrics({
+          total: res.data.meta.totalAll || 0,
+          active: sc.ACTIVE || 0,
+          draft: sc.DRAFT || 0,
+          expired: sc.EXPIRED || 0,
+          totalMonthlyWage: res.data.meta.totalMonthlyWage || 0,
+        });
+      }
     } catch (err) {
       toast.error('Failed to load contracts');
     } finally {
@@ -82,7 +130,7 @@ export default function ContractsPage() {
   async function fetchMetadata() {
     try {
       const [empRes, deptRes, jobRes] = await Promise.all([
-        api.get('/employees?limit=100').catch(() => null),
+        api.get('/employees', { params: { limit: 100 } }).catch(() => null),
         api.get('/employees/departments').catch(() => null),
         api.get('/employees/jobs').catch(() => null),
       ]);
@@ -111,64 +159,13 @@ export default function ContractsPage() {
 
   useEffect(() => {
     fetchMetadata();
-    fetchContracts();
   }, []);
 
-  // Metrics Calculation
-  const metrics = useMemo(() => {
-    const total = contracts.length;
-    const active = contracts.filter((c) => c.status === 'ACTIVE').length;
-    const draft = contracts.filter((c) => c.status === 'DRAFT').length;
-    const expired = contracts.filter((c) => c.status === 'EXPIRED').length;
-    const totalMonthlyWage = contracts
-      .filter((c) => c.status === 'ACTIVE')
-      .reduce((sum, c) => sum + (Number(c.wage) || 0), 0);
+  useEffect(() => {
+    fetchContracts();
+  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, departmentFilter, statusFilter]);
 
-    return { total, active, draft, expired, totalMonthlyWage };
-  }, [contracts]);
-
-  // Status Filter Counts
-  const statusCounts = useMemo(() => {
-    const counts = { ALL: contracts.length, ACTIVE: 0, DRAFT: 0, EXPIRED: 0, CANCELLED: 0 };
-    contracts.forEach((c) => {
-      const st = c.status?.toUpperCase();
-      if (counts[st] !== undefined) counts[st] += 1;
-    });
-    return counts;
-  }, [contracts]);
-
-  // Filtered Contracts
-  const filteredContracts = useMemo(() => {
-    return contracts.filter((c) => {
-      const q = searchQuery.toLowerCase().trim();
-      const empName = c.employee ? `${c.employee.first_name} ${c.employee.last_name}`.toLowerCase() : '';
-      const empCode = c.employee?.employee_code?.toLowerCase() || '';
-      const ref = c.reference?.toLowerCase() || '';
-      const deptName = c.department?.name?.toLowerCase() || '';
-
-      const matchesSearch =
-        !q ||
-        empName.includes(q) ||
-        empCode.includes(q) ||
-        ref.includes(q) ||
-        deptName.includes(q);
-
-      const matchesDept =
-        departmentFilter === 'all' ||
-        deptName === departmentFilter.toLowerCase();
-
-      const matchesStatus =
-        statusFilter === 'ALL' || c.status?.toUpperCase() === statusFilter;
-
-      return matchesSearch && matchesDept && matchesStatus;
-    });
-  }, [contracts, searchQuery, departmentFilter, statusFilter]);
-
-  // Reusable Pagination
-  const pagination = usePagination(filteredContracts, {
-    initialPageSize: 8,
-    resetDeps: [searchQuery, departmentFilter, statusFilter],
-  });
+  const metrics = serverMetrics;
 
   // Handle Create Contract
   async function handleCreateContract(e) {
@@ -325,7 +322,7 @@ export default function ContractsPage() {
           >
             <option value="all">All Departments</option>
             {departments.map((d) => (
-              <option key={d.id} value={d.name}>
+              <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
@@ -371,7 +368,7 @@ export default function ContractsPage() {
             <Skeleton variant="row" count={6} />
           </div>
         </div>
-      ) : filteredContracts.length === 0 ? (
+      ) : contracts.length === 0 ? (
         <EmptyState
           icon={<FileText size={44} strokeWidth={1.5} />}
           title="No contracts found"
@@ -404,7 +401,7 @@ export default function ContractsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.paginatedItems.map((cnt) => {
+                {contracts.map((cnt) => {
                   const empName = cnt.employee ? `${cnt.employee.first_name} ${cnt.employee.last_name}` : 'Unknown Staff';
                   const empCode = cnt.employee?.employee_code || 'EMP';
                   const wageFormatted = `₹${Number(cnt.wage || 0).toLocaleString('en-IN')}`;

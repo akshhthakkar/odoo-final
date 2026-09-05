@@ -68,6 +68,31 @@ export default function EmployeesPage() {
     contractType: 'FULL_TIME',
   });
 
+  // Debounced search query for server-side search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Server-side counts and total
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState({
+    ALL: 0,
+    ACTIVE: 0,
+    ON_LEAVE: 0,
+    SUSPENDED: 0,
+    TERMINATED: 0,
+  });
+
+  // Reusable Pagination Hook (Server-Side Mode)
+  const pagination = usePagination(totalCount, {
+    initialPageSize: 5,
+    resetDeps: [debouncedSearch, departmentFilter, statusFilter],
+  });
+
   // Fetch departments & jobs
   async function fetchMetadata() {
     try {
@@ -82,15 +107,26 @@ export default function EmployeesPage() {
     }
   }
 
-  // Fetch employees list from backend
+  // Fetch employees page from backend
   async function fetchEmployees() {
     setLoading(true);
     try {
-      // Always fetch the full directory — status/department/search filters are
-      // applied client-side (see filteredEmployees) so the tab counts stay
-      // stable no matter which filter is selected.
-      const res = await api.get('/employees', { params: { limit: 100 } });
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (statusFilter && statusFilter !== 'ALL') params.status = statusFilter;
+      if (departmentFilter && departmentFilter !== 'all') params.department_id = departmentFilter;
+
+      const res = await api.get('/employees', { params });
       const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
+      const total = res?.data?.pagination?.total ?? items.length;
+      setTotalCount(total);
+
+      if (res?.data?.meta?.statusCounts) {
+        setStatusCounts(res.data.meta.statusCounts);
+      }
 
       // Map backend schema to UI format
       const mapped = items.map((emp) => ({
@@ -99,6 +135,7 @@ export default function EmployeesPage() {
         name: `${emp.first_name} ${emp.last_name}`,
         jobTitle: emp.job?.name || 'Staff Member',
         department: emp.department?.name || 'General',
+        departmentId: emp.department_id,
         status: emp.status,
         wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '—',
         annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '—',
@@ -124,11 +161,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     fetchEmployees();
-    // Refetch only on mount and after mutations (create employee calls it
-    // explicitly). Filtering is client-side, so filter changes must NOT
-    // trigger a refetch — otherwise the tab counts would shift.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, departmentFilter, statusFilter]);
 
   // Open modal with fresh auto-generated code and clean state
   function handleOpenModal() {
@@ -176,46 +209,6 @@ export default function EmployeesPage() {
     }));
     if (modalError) setModalError('');
   }
-
-  // Calculate status counts
-  const statusCounts = useMemo(() => {
-    const counts = { ALL: employees.length, ACTIVE: 0, ON_LEAVE: 0, SUSPENDED: 0, TERMINATED: 0 };
-    employees.forEach((emp) => {
-      const st = emp.status?.toUpperCase();
-      if (counts[st] !== undefined) {
-        counts[st] += 1;
-      }
-    });
-    return counts;
-  }, [employees]);
-
-  // Filtered list for search box
-  const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        emp.name.toLowerCase().includes(q) ||
-        emp.code.toLowerCase().includes(q) ||
-        emp.email.toLowerCase().includes(q) ||
-        emp.jobTitle.toLowerCase().includes(q);
-
-      const matchesDept =
-        departmentFilter === 'all' ||
-        emp.department.toLowerCase() === departmentFilter.toLowerCase();
-
-      const matchesStatus =
-        statusFilter === 'ALL' || emp.status?.toUpperCase() === statusFilter;
-
-      return matchesSearch && matchesDept && matchesStatus;
-    });
-  }, [employees, searchQuery, departmentFilter, statusFilter]);
-
-  // Reusable Pagination
-  const pagination = usePagination(filteredEmployees, {
-    initialPageSize: 8,
-    resetDeps: [searchQuery, departmentFilter, statusFilter],
-  });
 
   // Handle create employee API call
   async function handleCreateEmployee(e) {
@@ -390,7 +383,7 @@ export default function EmployeesPage() {
           >
             <option value="all">All departments</option>
             {departments.map((d) => (
-              <option key={d.id} value={d.name}>
+              <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
@@ -401,7 +394,7 @@ export default function EmployeesPage() {
         </div>
 
         <span className="emp-filter-bar__count">
-          Showing {filteredEmployees.length} of {employees.length} employees
+          Showing {pagination.startIndex}–{pagination.endIndex} of {pagination.totalItems} employees
           {statusFilter !== 'ALL' && (
             <button
               className="emp-filter-bar__clear-filter"
@@ -426,7 +419,7 @@ export default function EmployeesPage() {
             </div>
           </div>
         )
-      ) : filteredEmployees.length === 0 ? (
+      ) : employees.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No employees found"
@@ -445,7 +438,7 @@ export default function EmployeesPage() {
       ) : viewMode === 'kanban' || viewMode === 'cards' ? (
         <div className="emp-cards-grid-wrap">
           <div className="emp-cards-grid">
-            {pagination.paginatedItems.map((emp) => (
+            {employees.map((emp) => (
               <div
                 key={emp.id}
                 className="emp-card"
@@ -515,7 +508,7 @@ export default function EmployeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.paginatedItems.map((emp) => (
+                {employees.map((emp) => (
                   <tr
                     key={emp.id}
                     onClick={() => navigate(`/employees/${emp.id}`)}

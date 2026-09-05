@@ -87,16 +87,67 @@ export default function AdminPage() {
 
   const [resetPasswordVal, setResetPasswordVal] = useState('');
 
-  // Fetch Users & Employees
+  // Debounced search query for server-side search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Server-side counts and metrics
+  const [totalCount, setTotalCount] = useState(0);
+  const [serverMetrics, setServerMetrics] = useState({
+    total: 0,
+    admins: 0,
+    managers: 0,
+    activePercent: 100,
+    activeCount: 0,
+  });
+
+  // Reusable Pagination Hook (Server-Side Mode)
+  const pagination = usePagination(totalCount, {
+    initialPageSize: 5,
+    resetDeps: [debouncedSearch, roleFilter],
+  });
+
+  // Fetch Users & Employees from backend
   async function fetchUsers() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await api.get('/users', { params: { limit: 100 } });
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.pageSize,
+      };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (roleFilter && roleFilter !== 'ALL') params.role = roleFilter;
+
+      const res = await api.get('/users', { params });
       const items = Array.isArray(res?.data?.data)
         ? res.data.data
         : res?.data?.data?.items || [];
+      const total = res?.data?.pagination?.total ?? items.length;
+      setTotalCount(total);
       setUsersList(items);
+
+      if (res?.data?.meta) {
+        const rc = res.data.meta.roleCounts || {};
+        const totalAll = res.data.meta.totalAll || total;
+        const activeCount = res.data.meta.activeCount || 0;
+        const activePercent = totalAll > 0 ? Math.round((activeCount / totalAll) * 100) : 100;
+        const admins = rc.ADMIN || 0;
+        const managers = (rc.HR_PAYROLL_MANAGER || 0) + (rc.HR_MANAGER || 0);
+
+        setServerMetrics({
+          total: totalAll,
+          admins,
+          managers,
+          activePercent,
+          activeCount,
+        });
+      }
     } catch (err) {
       const msg =
         err.response?.data?.error?.message ||
@@ -113,7 +164,7 @@ export default function AdminPage() {
 
   async function fetchEmployees() {
     try {
-      const res = await api.get('/employees?limit=100').catch(() => null);
+      const res = await api.get('/employees', { params: { limit: 100 } }).catch(() => null);
       const items = Array.isArray(res?.data?.data)
         ? res.data.data
         : res?.data?.data?.items || [];
@@ -124,44 +175,14 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
-    fetchUsers();
     fetchEmployees();
   }, []);
 
-  // Metrics
-  const metrics = useMemo(() => {
-    const total = usersList.length;
-    const admins = usersList.filter((u) => u.role === 'ADMIN').length;
-    const managers = usersList.filter(
-      (u) => u.role === 'HR_PAYROLL_MANAGER' || u.role === 'HR_MANAGER'
-    ).length;
-    const activeCount = usersList.filter((u) => u.is_active).length;
-    const activePercent = total > 0 ? Math.round((activeCount / total) * 100) : 100;
+  useEffect(() => {
+    fetchUsers();
+  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, roleFilter]);
 
-    return { total, admins, managers, activePercent, activeCount };
-  }, [usersList]);
-
-  // Filtered Users
-  const filteredUsers = useMemo(() => {
-    return usersList.filter((u) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q)) ||
-        (u.employee_code && u.employee_code.toLowerCase().includes(q));
-
-      const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
-
-      return matchesSearch && matchesRole;
-    });
-  }, [usersList, searchQuery, roleFilter]);
-
-  // Reusable Pagination
-  const pagination = usePagination(filteredUsers, {
-    initialPageSize: 8,
-    resetDeps: [searchQuery, roleFilter],
-  });
+  const metrics = serverMetrics;
 
   // Handle Create User
   async function handleCreateUser(e) {
@@ -440,7 +461,7 @@ export default function AdminPage() {
             <Skeleton variant="row" count={5} />
           </div>
         </div>
-      ) : filteredUsers.length === 0 ? (
+      ) : usersList.length === 0 ? (
         <EmptyState
           icon={<Users size={44} strokeWidth={1.5} />}
           title="No users found"
@@ -474,7 +495,7 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.paginatedItems.map((user) => {
+                {usersList.map((user) => {
                   const roleClass = `adm-role-badge--${user.role.toLowerCase()}`;
                   const createdFmt = user.created_at
                     ? new Date(user.created_at).toLocaleDateString('en-GB', {

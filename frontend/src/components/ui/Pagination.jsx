@@ -6,17 +6,19 @@ export default function Pagination({
   currentPage = 1,
   totalPages = 1,
   totalItems = 0,
-  pageSize = 8,
+  pageSize = 5,
   startIndex = 1,
   endIndex = 0,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [8, 12, 24, 48],
+  pageSizeOptions = [5, 10, 20, 50],
   itemLabel = 'items',
   showPageSizeSelector = true,
   className = '',
 }) {
   if (totalItems <= 0) return null;
+
+  const validTotalPages = Math.max(1, totalPages || 1);
 
   // Generate page numbers with smart ellipsis (e.g. [1, '...', 4, 5, 6, '...', 12])
   const getPageNumbers = () => {
@@ -24,10 +26,10 @@ export default function Pagination({
     const range = [];
     const rangeWithDots = [];
 
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= validTotalPages; i++) {
       if (
         i === 1 ||
-        i === totalPages ||
+        i === validTotalPages ||
         (i >= currentPage - delta && i <= currentPage + delta)
       ) {
         range.push(i);
@@ -47,7 +49,7 @@ export default function Pagination({
       l = i;
     }
 
-    return rangeWithDots;
+    return rangeWithDots.length > 0 ? rangeWithDots : [1];
   };
 
   const pages = getPageNumbers();
@@ -82,86 +84,84 @@ export default function Pagination({
         )}
       </div>
 
-      {/* Right side: Navigation Controls */}
-      {totalPages > 1 && (
-        <div className="ui-pagination__nav">
-          {/* First Page */}
-          <button
-            type="button"
-            className="ui-pagination__btn ui-pagination__btn--icon"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage <= 1}
-            title="First Page"
-            aria-label="First page"
-          >
-            <ChevronsLeft size={16} />
-          </button>
+      {/* Right side: Navigation Controls (Always visible) */}
+      <div className="ui-pagination__nav">
+        {/* First Page */}
+        <button
+          type="button"
+          className="ui-pagination__btn ui-pagination__btn--icon"
+          onClick={() => onPageChange && onPageChange(1)}
+          disabled={currentPage <= 1 || validTotalPages <= 1}
+          title="First Page"
+          aria-label="First page"
+        >
+          <ChevronsLeft size={16} />
+        </button>
 
-          {/* Previous Page */}
-          <button
-            type="button"
-            className="ui-pagination__btn ui-pagination__btn--prev"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            title="Previous Page"
-            aria-label="Previous page"
-          >
-            <ChevronLeft size={16} />
-            <span className="ui-pagination__btn-text">Prev</span>
-          </button>
+        {/* Previous Page */}
+        <button
+          type="button"
+          className="ui-pagination__btn ui-pagination__btn--prev"
+          onClick={() => onPageChange && onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1 || validTotalPages <= 1}
+          title="Previous Page"
+          aria-label="Previous page"
+        >
+          <ChevronLeft size={16} />
+          <span className="ui-pagination__btn-text">Prev</span>
+        </button>
 
-          {/* Page Number Chips */}
-          <div className="ui-pagination__pages">
-            {pages.map((p, idx) => {
-              if (p === '...') {
-                return (
-                  <span key={`dots-${idx}`} className="ui-pagination__ellipsis">
-                    …
-                  </span>
-                );
-              }
-
-              const isCurrent = p === currentPage;
+        {/* Page Number Chips */}
+        <div className="ui-pagination__pages">
+          {pages.map((p, idx) => {
+            if (p === '...') {
               return (
-                <button
-                  key={`page-${p}`}
-                  type="button"
-                  className={`ui-pagination__page-chip ${isCurrent ? 'ui-pagination__page-chip--active' : ''}`}
-                  onClick={() => onPageChange(p)}
-                  aria-current={isCurrent ? 'page' : undefined}
-                >
-                  {p}
-                </button>
+                <span key={`dots-${idx}`} className="ui-pagination__ellipsis">
+                  …
+                </span>
               );
-            })}
-          </div>
+            }
 
-          {/* Next Page */}
-          <button
-            type="button"
-            className="ui-pagination__btn ui-pagination__btn--next"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            title="Next Page"
-            aria-label="Next page"
-          >
-            <span className="ui-pagination__btn-text">Next</span>
-            <ChevronRight size={16} />
-          </button>
-
-          {/* Last Page */}
-          <button
-            type="button"
-            className="ui-pagination__btn ui-pagination__btn--icon"
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage >= totalPages}
-            title="Last Page"
-            aria-label="Last page"
-          >
-            <ChevronsRight size={16} />
-          </button>
+            const isCurrent = p === currentPage;
+            return (
+              <button
+                key={`page-${p}`}
+                type="button"
+                className={`ui-pagination__page-chip ${isCurrent ? 'ui-pagination__page-chip--active' : ''}`}
+                onClick={() => onPageChange && onPageChange(p)}
+                aria-current={isCurrent ? 'page' : undefined}
+              >
+                {p}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* Next Page */}
+        <button
+          type="button"
+          className="ui-pagination__btn ui-pagination__btn--next"
+          onClick={() => onPageChange && onPageChange(currentPage + 1)}
+          disabled={currentPage >= validTotalPages || validTotalPages <= 1}
+          title="Next Page"
+          aria-label="Next page"
+        >
+          <span className="ui-pagination__btn-text">Next</span>
+          <ChevronRight size={16} />
+        </button>
+
+        {/* Last Page */}
+        <button
+          type="button"
+          className="ui-pagination__btn ui-pagination__btn--icon"
+          onClick={() => onPageChange && onPageChange(validTotalPages)}
+          disabled={currentPage >= validTotalPages || validTotalPages <= 1}
+          title="Last Page"
+          aria-label="Last page"
+        >
+          <ChevronsRight size={16} />
+        </button>
+      </div>
     </div>
   );
 }

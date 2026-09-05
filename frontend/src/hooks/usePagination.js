@@ -6,10 +6,10 @@ import { useState, useMemo, useEffect } from 'react';
  * @param {Array|number} itemsOrCount - Array of items to paginate or total count number
  * @param {Object} options
  * @param {number} [options.initialPage=1] - Starting page number
- * @param {number} [options.initialPageSize=8] - Default items per page
+ * @param {number} [options.initialPageSize=5] - Default items per page
  * @param {Array} [options.resetDeps=[]] - Dependencies that should reset page back to 1 (e.g. [searchQuery, filter])
  */
-export function usePagination(itemsOrCount, { initialPage = 1, initialPageSize = 8, resetDeps = [] } = {}) {
+export function usePagination(itemsOrCount, { initialPage = 1, initialPageSize = 5, resetDeps = [] } = {}) {
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
@@ -41,7 +41,7 @@ export function usePagination(itemsOrCount, { initialPage = 1, initialPageSize =
   };
 
   const handlePageSizeChange = (newSize) => {
-    const size = Number(newSize) || 8;
+    const size = Number(newSize) || 5;
     setPageSize(size);
     setCurrentPage(1);
   };

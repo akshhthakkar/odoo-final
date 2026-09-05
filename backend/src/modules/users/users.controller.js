@@ -20,6 +20,7 @@ export async function listUsers(req, res, next) {
       success: true,
       data: result.items,
       pagination: result.pagination,
+      meta: result.meta,
     });
   } catch (err) {
     next(err);

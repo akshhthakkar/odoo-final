@@ -25,13 +25,14 @@ import EmptyState from '../../../components/ui/EmptyState.jsx';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './TimeOffPage.scss';
 
-// Dynamic current week days (starting Monday)
-function getCurrentWeekDates() {
-  const curr = new Date();
-  // Find Monday of current week
-  const day = curr.getDay(); // 0 is Sunday
+// Dynamic week generator (Monday to Saturday) based on any baseDate
+function getWeekDates(baseDate) {
+  const curr = new Date(baseDate);
+  const day = curr.getDay(); // 0 is Sunday, 1 is Monday...
   const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
-  const monday = new Date(curr.setDate(diff));
+  const monday = new Date(curr);
+  monday.setDate(diff);
+  monday.setHours(0, 0, 0, 0);
 
   const days = [];
   const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -47,12 +48,11 @@ function getCurrentWeekDates() {
       dayName: dayNames[i],
       fullDate: `${yyyy}-${mm}-${dd}`,
       isWeekend: i === 5,
+      dateObj: d,
     });
   }
   return days;
 }
-
-const DAYS_HEADER = getCurrentWeekDates();
 
 const AVATAR_COLORS = ['#0ea5e9', '#10b981', '#059669', '#38bdf8', '#f59e0b', '#f43f5e', '#2563eb', '#ec4899', '#8b5cf6'];
 
@@ -106,6 +106,57 @@ export default function TimeOffPage() {
   const authUser = useSelector((state) => state.auth.user);
   const isEmployeeRole = authUser?.role === 'EMPLOYEE';
 
+  // Active Calendar Date & Week
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const daysHeader = useMemo(() => {
+    return getWeekDates(currentDate);
+  }, [currentDate]);
+
+  function handlePrevWeek() {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() - 7);
+      return d;
+    });
+  }
+
+  function handleNextWeek() {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + 7);
+      return d;
+    });
+  }
+
+  function handleToday() {
+    setCurrentDate(new Date());
+  }
+
+  function handleDatePick(e) {
+    if (e.target.value) {
+      setCurrentDate(new Date(`${e.target.value}T12:00:00`));
+    }
+  }
+
+  const dateRangeLabel = useMemo(() => {
+    if (!daysHeader.length) return '';
+    const first = daysHeader[0];
+    const last = daysHeader[5];
+    const firstMonth = first.dateObj.toLocaleDateString('en-GB', { month: 'short' });
+    const lastMonth = last.dateObj.toLocaleDateString('en-GB', { month: 'short' });
+    const firstYear = first.dateObj.getFullYear();
+    const lastYear = last.dateObj.getFullYear();
+
+    if (firstMonth === lastMonth && firstYear === lastYear) {
+      return `${first.dayNum} – ${last.dayNum} ${firstMonth} ${firstYear}`;
+    }
+    if (firstYear === lastYear) {
+      return `${first.dayNum} ${firstMonth} – ${last.dayNum} ${lastMonth} ${firstYear}`;
+    }
+    return `${first.dayNum} ${firstMonth} ${firstYear} – ${last.dayNum} ${lastMonth} ${lastYear}`;
+  }, [daysHeader]);
+
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -127,8 +178,8 @@ export default function TimeOffPage() {
   // Form State for New Request Modal
   const [formEmployeeId, setFormEmployeeId] = useState('');
   const [formLeaveTypeId, setFormLeaveTypeId] = useState('');
-  const [formFromDate, setFormFromDate] = useState(DAYS_HEADER[0]?.fullDate || new Date().toISOString().slice(0, 10));
-  const [formToDate, setFormToDate] = useState(DAYS_HEADER[0]?.fullDate || new Date().toISOString().slice(0, 10));
+  const [formFromDate, setFormFromDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formToDate, setFormToDate] = useState(new Date().toISOString().slice(0, 10));
   const [formReason, setFormReason] = useState('');
 
   // Fetch all time off data from backend
@@ -139,7 +190,7 @@ export default function TimeOffPage() {
         api.get('/time-off/types').catch(() => null),
         api.get('/time-off/requests').catch(() => null),
         api.get('/time-off/allocations').catch(() => null),
-        api.get('/employees').catch(() => null),
+        api.get('/employees', { params: { limit: 100 } }).catch(() => null),
       ]);
 
       if (typesRes?.data?.data) {
@@ -193,10 +244,6 @@ export default function TimeOffPage() {
             ? new Date(r.end_date).toISOString().slice(0, 10)
             : fromStr;
 
-          // Compute startDayIndex against DAYS_HEADER
-          let startIdx = DAYS_HEADER.findIndex((d) => d.fullDate === fromStr);
-          if (startIdx === -1) startIdx = 0;
-
           let theme = 'blue';
           const tLower = typeName.toLowerCase();
           if (tLower.includes('sick')) theme = 'green';
@@ -211,8 +258,6 @@ export default function TimeOffPage() {
             employeeName: empName,
             leaveType: typeName,
             leaveTypeId: r.type_id || r.leave_type_id,
-            startDayIndex: startIdx,
-            durationDays: Math.max(1, Math.min(durationDays, 6 - startIdx)),
             totalDays: durationDays,
             fromDate: fromStr,
             toDate: toStr,
@@ -402,15 +447,47 @@ export default function TimeOffPage() {
             <span>New Request</span>
           </button>
 
-          {/* Date Range Display */}
+          {/* Interactive Date Range & Week Navigation Controls */}
           <div className="to-header__nav-group">
-            <div className="to-header__date-range">
-              <span>
-                {DAYS_HEADER[0]?.dayNum} – {DAYS_HEADER[5]?.dayNum}{' '}
-                {new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
-              </span>
-              <CalendarRange size={13} className="to-header__range-icon" />
-            </div>
+            <button
+              type="button"
+              className="to-header__nav-btn--today"
+              onClick={handleToday}
+              title="Jump to Current Week"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className="to-header__nav-arrow"
+              onClick={handlePrevWeek}
+              title="Previous Week"
+              aria-label="Previous week"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <label className="to-header__date-range" title="Click to pick a specific date">
+              <span>{dateRangeLabel}</span>
+              <CalendarRange size={14} className="to-header__range-icon" />
+              <input
+                type="date"
+                value={daysHeader[0]?.fullDate || ''}
+                onChange={handleDatePick}
+                className="to-header__hidden-date-picker"
+                aria-label="Pick date"
+              />
+            </label>
+
+            <button
+              type="button"
+              className="to-header__nav-arrow"
+              onClick={handleNextWeek}
+              title="Next Week"
+              aria-label="Next week"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
       </div>
@@ -436,7 +513,7 @@ export default function TimeOffPage() {
               <div className="to-col to-col--employee">
                 <span>EMPLOYEES</span>
               </div>
-              {DAYS_HEADER.map((day, idx) => (
+              {daysHeader.map((day, idx) => (
                 <div
                   key={idx}
                   className={`to-col to-col--day ${day.isWeekend ? 'to-col--weekend' : ''}`}
@@ -450,7 +527,36 @@ export default function TimeOffPage() {
 
             {/* Employee Rows */}
             {employees.map((emp) => {
-              const empRequests = requests.filter((r) => r.employeeId === emp.id);
+              const weekStart = daysHeader[0]?.fullDate || '';
+              const weekEnd = daysHeader[5]?.fullDate || '';
+
+              const empRequests = requests
+                .filter((r) => r.employeeId === emp.id)
+                .filter((r) => {
+                  const from = r.fromDate;
+                  const to = r.toDate || r.fromDate;
+                  return from <= weekEnd && to >= weekStart;
+                })
+                .map((r) => {
+                  const from = r.fromDate;
+                  const to = r.toDate || r.fromDate;
+
+                  // Find start index (0 to 5)
+                  let startIdx = daysHeader.findIndex((d) => d.fullDate >= from);
+                  if (startIdx === -1 || from < weekStart) startIdx = 0;
+
+                  // Find end index (0 to 5)
+                  let endIdx = daysHeader.findIndex((d) => d.fullDate >= to);
+                  if (endIdx === -1 || to >= weekEnd) endIdx = 5;
+
+                  const spanCols = Math.max(1, endIdx - startIdx + 1);
+
+                  return {
+                    ...r,
+                    startDayIndex: startIdx,
+                    durationDays: spanCols,
+                  };
+                });
 
               return (
                 <div key={emp.id} className="to-grid-row to-grid-row--body">
@@ -468,7 +574,7 @@ export default function TimeOffPage() {
                   {/* Timeline Days & Leave Cards Container */}
                   <div className="to-row-timeline">
                     {/* 6 Day Interactive Background Cells */}
-                    {DAYS_HEADER.map((day, dayIdx) => (
+                    {daysHeader.map((day, dayIdx) => (
                       <div
                         key={dayIdx}
                         className={`to-day-cell ${day.isWeekend ? 'to-day-cell--weekend' : ''}`}

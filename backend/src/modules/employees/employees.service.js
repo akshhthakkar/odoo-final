@@ -93,17 +93,39 @@ export async function listEmployees({
 } = {}) {
   const where = {};
 
-  if (department_id) where.departmentId = department_id;
-  if (job_id) where.jobId = job_id;
-  if (status) where.status = status;
-  if (manager_id) where.managerId = manager_id;
+  if (department_id && department_id !== 'ALL' && department_id !== 'all') {
+    where.departmentId = department_id;
+  }
+  if (job_id && job_id !== 'ALL' && job_id !== 'all') {
+    where.jobId = job_id;
+  }
+  if (status && status !== 'ALL' && status !== 'all') {
+    where.status = status;
+  }
+  if (manager_id && manager_id !== 'ALL' && manager_id !== 'all') {
+    where.managerId = manager_id;
+  }
 
-  if (search) {
+  if (search && search.trim()) {
+    const q = search.trim();
+    const parts = q.split(/\s+/);
     where.OR = [
-      { employeeCode: { contains: search, mode: 'insensitive' } },
-      { firstName: { contains: search, mode: 'insensitive' } },
-      { lastName: { contains: search, mode: 'insensitive' } },
-      { email: { contains: search, mode: 'insensitive' } },
+      { employeeCode: { contains: q, mode: 'insensitive' } },
+      { firstName: { contains: q, mode: 'insensitive' } },
+      { lastName: { contains: q, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+      { department: { name: { contains: q, mode: 'insensitive' } } },
+      { job: { name: { contains: q, mode: 'insensitive' } } },
+      ...(parts.length > 1
+        ? [
+            {
+              AND: [
+                { firstName: { contains: parts[0], mode: 'insensitive' } },
+                { lastName: { contains: parts.slice(1).join(' '), mode: 'insensitive' } },
+              ],
+            },
+          ]
+        : []),
     ];
   }
 
@@ -111,7 +133,7 @@ export async function listEmployees({
   const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const [total, items] = await Promise.all([
+  const [total, items, statusGroups, totalAll] = await Promise.all([
     prisma.employee.count({ where }),
     prisma.employee.findMany({
       where,
@@ -124,7 +146,25 @@ export async function listEmployees({
         manager: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
       },
     }),
+    prisma.employee.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    }),
+    prisma.employee.count(),
   ]);
+
+  const statusCounts = {
+    ALL: totalAll,
+    ACTIVE: 0,
+    ON_LEAVE: 0,
+    SUSPENDED: 0,
+    TERMINATED: 0,
+  };
+  statusGroups.forEach((g) => {
+    if (g.status && statusCounts[g.status] !== undefined) {
+      statusCounts[g.status] = g._count.status;
+    }
+  });
 
   return {
     items: items.map(formatEmployee),
@@ -133,6 +173,10 @@ export async function listEmployees({
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum) || 1,
+    },
+    meta: {
+      statusCounts,
+      totalAll,
     },
   };
 }
