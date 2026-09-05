@@ -2,7 +2,6 @@
 
 **Date:** 2026-09-05 · **Module:** `backend/src/engine/` (TypeScript) inside the Node.js + Express backend
 **Pure function library. No database. No HTTP. No I/O of any kind. Same input → same output, always.**
-Previously (v1.0) a dedicated Python/FastAPI service — relocated in-process; the compute contract below is unchanged.
 
 ---
 
@@ -171,7 +170,7 @@ Input: `SalaryRule[]`. Output: `{ "valid": true }` or `{ "valid": false, "errors
 
 ## 7. Error Handling & Failure Modes
 
-Because the engine is an in-process pure module, network/timeout/availability failure modes from v1.0 (retries, circuit breaker, ENGINE_UNAVAILABLE, shared secret) no longer exist.
+Because the engine is an in-process pure module, network/timeout/availability failure modes (retries, circuit breaker, engine downtime, shared secrets) do not exist.
 
 | Failure | Engine behavior | Node (caller) behavior |
 |---|---|---|

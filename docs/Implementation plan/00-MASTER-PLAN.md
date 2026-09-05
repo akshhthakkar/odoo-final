@@ -2,7 +2,7 @@
 
 **Project:** Pay365 HR & Payroll
 **Date:** 2026-09-05
-**Status:** Approved — Architecture Baseline v1.1 (Payroll Calculation Engine moved from dedicated Python service to in-process TypeScript module inside the Node.js backend)
+**Status:** Approved — Architecture Baseline v1.1 (Payroll Calculation Engine as an in-process TypeScript module inside the Node.js backend)
 **Reference Spec:** `docs/Others/Pay365 HR & Payroll.md`
 
 ---

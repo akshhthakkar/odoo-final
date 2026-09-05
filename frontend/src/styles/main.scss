@@ -1,0 +1,104 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+@use 'base';
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__topbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  padding: $spacing-sm $spacing-lg;
+  background: $surface;
+  border-bottom: 1px solid $border;
+}
+
+.app-shell__brand {
+  font-weight: 700;
+  color: $primary;
+  font-size: 1.1rem;
+}
+
+.app-shell__nav {
+  display: flex;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.app-shell__link {
+  color: $text-muted;
+  text-decoration: none;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-sm;
+
+  &:hover,
+  &.active {
+    color: $text;
+    background: $surface-hover;
+  }
+}
+
+.app-shell__user {
+  margin-left: auto;
+  color: $text-muted;
+}
+
+.app-shell__content {
+  flex: 1;
+  padding: $spacing-lg;
+  @include container;
+}
+
+.login-page {
+  max-width: 360px;
+  margin: 15vh auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: $spacing-xl;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-md;
+  @include card;
+
+  h1 {
+    text-align: center;
+    color: $primary;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    color: $text-muted;
+  }
+
+  input {
+    padding: $spacing-sm;
+    border: 1px solid $border;
+    border-radius: $radius-sm;
+    background: $bg;
+    color: $text;
+  }
+
+  button {
+    padding: $spacing-sm;
+    background: $primary;
+    color: #fff;
+    border: none;
+    border-radius: $radius-sm;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+}
+
+.login-page__error {
+  color: $danger;
+}

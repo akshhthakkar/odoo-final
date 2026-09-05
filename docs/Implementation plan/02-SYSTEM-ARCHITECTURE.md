@@ -1,6 +1,6 @@
 # Pay365 — System Architecture
 
-**Date:** 2026-09-05 · **Status:** Approved baseline v1.1 — ADR-001 and ADR-005 revised: the Payroll Calculation Engine is now an in-process TypeScript module inside the Node backend (previously a dedicated Python/FastAPI service). (Full ADRs in `docs/adr/`)
+**Date:** 2026-09-05 · **Status:** Approved baseline v1.1 — ADR-001 and ADR-005 revised: the Payroll Calculation Engine is an in-process TypeScript module inside the Node backend. (Full ADRs in `docs/adr/`)
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| Dedicated calculation microservice (Python/FastAPI) — original v1.0 choice | Clear process separation; polyglot | Second runtime + network hop, circuit breaker/shared-secret ops overhead, harder atomicity and debugging for hackathon scale | Superseded (v1.1) |
+| Dedicated calculation microservice | Clear process separation | Second runtime + network hop, circuit breaker/shared-secret ops overhead, harder atomicity and debugging for hackathon scale | Rejected |
 | Calculation logic scattered across I/O services | Simplest | Money math tangled with persistence/HTTP code; hard to unit test in isolation | Rejected |
 | Full microservices per domain | Scalable | Massive ops overhead for hackathon; no need | Rejected |
 | **Modular monolith + in-process pure TS calc engine (chosen)** | Same separation of orchestration vs calculation via a module boundary; pure functions = trivially testable and deterministic; no network hop; single language/runtime; atomic transaction with persistence | All in one deployable (acceptable — engine is still a strictly pure, isolated module) | ✅ Chosen |
@@ -172,7 +172,7 @@ GET /api/v1/dashboard/metrics?period_start&period_end&department_id&employee_typ
 
 | ADR | Title | Status |
 |---|---|---|
-| ADR-001 | Modular monolith with in-process TypeScript calculation engine (v1.1 — supersedes the Python calculation service) | Accepted |
+| ADR-001 | Modular monolith with in-process TypeScript calculation engine | Accepted |
 | ADR-002 | React 19 SPA (CSR) over Next.js SSR | Accepted |
 | ADR-003 | PostgreSQL + Prisma ORM | Accepted |
 | ADR-004 | JWT access + httpOnly refresh cookie | Accepted |
