@@ -40,5 +40,7 @@ router.post(
 
 router.get('/', requireRole(...READ_ROLES), validateQuery(payslipFilterSchema), controller.list);
 router.get('/:id', requireRole(...READ_ROLES), requireUuidParam('id'), controller.get);
+router.get('/:id/pdf', requireRole(...READ_ROLES), requireUuidParam('id'), controller.pdf);
 
 export default router;
+

@@ -28,10 +28,9 @@ function toEngineRule(rule) {
   };
 }
 
-// STEP 1 (per employee): latest ACTIVE contract covering the payrun period.
-// The DB exclusion constraint guarantees at most one can exist.
-function findActiveContract(tx, employeeId, periodStart, periodEnd) {
-  return tx.contract.findFirst({
+// STEP 1 (per employee): active contracts covering the payrun period.
+function findActiveContracts(tx, employeeId, periodStart, periodEnd) {
+  return tx.contract.findMany({
     where: {
       employeeId,
       status: 'ACTIVE',
@@ -167,8 +166,8 @@ export async function computePayrun(payrunId, actorId) {
     const plans = [];
     for (const selection of selections) {
       const employee = selection.employee;
-      const contract = await findActiveContract(tx, employee.id, payrun.periodStart, payrun.periodEnd);
-      if (!contract) {
+      const contracts = await findActiveContracts(tx, employee.id, payrun.periodStart, payrun.periodEnd);
+      if (contracts.length === 0) {
         warnings.push(runWarning(
           payrunId,
           'NO_ACTIVE_CONTRACT',
@@ -177,6 +176,16 @@ export async function computePayrun(payrunId, actorId) {
         ));
         continue;
       }
+      if (contracts.length > 1) {
+        warnings.push(runWarning(
+          payrunId,
+          'AMBIGUOUS_CONTRACT',
+          'ERROR',
+          `${employee.firstName} ${employee.lastName}: multiple active contracts cover the period`
+        ));
+        continue;
+      }
+      const contract = contracts[0];
       const { workedDays, inputs } = await aggregatePeriodInputs(tx, contract, payrun.periodStart, payrun.periodEnd);
       plans.push({ employee, contract, workedDays, inputs });
     }
@@ -217,6 +226,29 @@ export async function computePayrun(payrunId, actorId) {
       totalGross += result.gross;
       totalDeductions += result.deductions;
       totalNet += result.net;
+
+      // Payslip-level warnings: missing bank details
+      if (!plan.employee.bankAccountName || !plan.employee.bankAccountNumber || !plan.employee.bankIfsc) {
+        warnings.push({
+          payrunId,
+          payslipId: payslip.id,
+          code: 'MISSING_BANK_DETAILS',
+          severity: 'WARNING',
+          message: `${employeeName}: missing bank account details`,
+        });
+      }
+
+      // Payslip-level warnings: zero worked days
+      if (plan.workedDays === 0) {
+        warnings.push({
+          payrunId,
+          payslipId: payslip.id,
+          code: 'ZERO_WORKED_DAYS',
+          severity: 'WARNING',
+          message: `${employeeName}: 0 worked days in period`,
+        });
+      }
+
       payslipResults.push({
         id: payslip.id,
         employee_id: plan.employee.id,

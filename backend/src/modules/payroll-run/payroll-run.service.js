@@ -33,20 +33,53 @@ function toPublicPayrun(payrun) {
 export async function listPayruns() {
   const payruns = await prisma.payrun.findMany({
     orderBy: { createdAt: 'desc' },
-    include: { _count: { select: { employees: true } } },
+    include: { _count: { select: { employees: true, payslips: true, warnings: true } } },
   });
-  return payruns.map(toPublicPayrun);
+  return payruns.map((payrun) => ({
+    ...toPublicPayrun(payrun),
+    payslips_count: payrun._count?.payslips ?? 0,
+    warnings_count: payrun._count?.warnings ?? 0,
+  }));
 }
 
 export async function getPayrun(payrunId) {
   const payrun = await prisma.payrun.findUnique({
     where: { id: payrunId },
-    include: { _count: { select: { employees: true } } },
+    include: {
+      _count: { select: { employees: true, payslips: true, warnings: true } },
+      structure: { select: { id: true, code: true, name: true } },
+      warnings: {
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          payslipId: true,
+          code: true,
+          severity: true,
+          message: true,
+          resolved: true,
+          createdAt: true,
+        },
+      },
+    },
   });
   if (!payrun) {
     throw new AppError(404, 'NOT_FOUND', 'Payrun not found');
   }
-  return toPublicPayrun(payrun);
+  return {
+    ...toPublicPayrun(payrun),
+    structure: payrun.structure,
+    payslips_count: payrun._count?.payslips ?? 0,
+    warnings_count: payrun._count?.warnings ?? 0,
+    warnings: payrun.warnings.map((w) => ({
+      id: w.id,
+      payslip_id: w.payslipId,
+      code: w.code,
+      severity: w.severity,
+      message: w.message,
+      resolved: w.resolved,
+      created_at: w.createdAt,
+    })),
+  };
 }
 
 // Wizard finalize: validate inputs, then create DRAFT payrun + selections atomically.
@@ -118,6 +151,33 @@ export async function statusChange(payrunId, action, actorId) {
   // COMPUTE orchestrates payslip generation inside the orchestrator's transaction.
   if (action === 'COMPUTE') {
     return computePayrun(payrunId, actorId);
+  }
+
+  // VALIDATE checks for any unresolved ERROR-severity warnings before allowing transition.
+  if (action === 'VALIDATE') {
+    const blockingWarnings = await prisma.payrollWarning.findMany({
+      where: {
+        payrunId,
+        severity: 'ERROR',
+        resolved: false,
+      },
+      select: {
+        id: true,
+        code: true,
+        severity: true,
+        message: true,
+        payslipId: true,
+      },
+    });
+
+    if (blockingWarnings.length > 0) {
+      throw new AppError(
+        422,
+        'UNPROCESSABLE',
+        'Cannot validate payrun with unresolved ERROR warnings',
+        blockingWarnings
+      );
+    }
   }
 
   // The other actions are a single conditional status update:

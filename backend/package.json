@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "predev": "node scripts/kill-port.js 4000",
-    "dev": "npx nodemon src/server.js",
+    "dev": "npx nodemon -L src/server.js",
     "prestart": "node scripts/kill-port.js 4000",
     "start": "node src/server.js",
     "kill:port": "node scripts/kill-port.js 4000",
@@ -29,6 +29,7 @@
     "express-rate-limit": "^7.4.0",
     "express-session": "^1.19.0",
     "helmet": "^8.0.0",
+    "pdfkit": "^0.16.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
