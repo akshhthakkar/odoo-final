@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, RefreshCw, AlertCircle } from 'lucide-react';
+import { Users, Plus, AlertCircle, X } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import { INITIAL_EMPLOYEES } from '../data/employeesData.js';
 import './EmployeesPage.scss';
@@ -16,6 +16,19 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+// Compute the next available employee code (e.g. EMP-011 if EMP-010 exists)
+function getNextEmployeeCode(list = []) {
+  let maxNum = 0;
+  list.forEach((emp) => {
+    const match = emp.code?.match(/EMP-(\d+)/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+  return `EMP-${String(maxNum + 1).padStart(3, '0')}`;
+}
+
 export default function EmployeesPage() {
   const navigate = useNavigate();
 
@@ -24,14 +37,16 @@ export default function EmployeesPage() {
   const [departments, setDepartments] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'PROBATION' | 'ON_LEAVE' | 'RESIGNED'
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   // New Employee Form State
   const [newEmp, setNewEmp] = useState({
@@ -65,7 +80,6 @@ export default function EmployeesPage() {
   // Fetch employees list from backend
   async function fetchEmployees() {
     setLoading(true);
-    setError(null);
     try {
       const params = { limit: 100 };
       if (statusFilter !== 'ALL') {
@@ -106,7 +120,6 @@ export default function EmployeesPage() {
         setEmployees(INITIAL_EMPLOYEES);
       }
     } catch (err) {
-      // Graceful fallback to initial mock data if session/network is not connected
       console.warn('Could not load backend employees, using fallback data:', err?.message);
     } finally {
       setLoading(false);
@@ -120,6 +133,54 @@ export default function EmployeesPage() {
   useEffect(() => {
     fetchEmployees();
   }, [statusFilter, departmentFilter]);
+
+  // Open modal with fresh auto-generated code and clean state
+  function handleOpenModal() {
+    setModalError('');
+    const nextCode = getNextEmployeeCode(employees);
+    setNewEmp({
+      firstName: '',
+      lastName: '',
+      code: nextCode,
+      email: '',
+      phone: '',
+      departmentId: departments[0]?.id || '',
+      jobId: jobs[0]?.id || '',
+      status: 'ACTIVE',
+      hireDate: new Date().toISOString().slice(0, 10),
+      wage: '50000',
+      contractType: 'FULL_TIME',
+    });
+    setIsModalOpen(true);
+  }
+
+  // Handle name change and smart email generation
+  function handleNameChange(firstName, lastName) {
+    const fn = firstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const ln = lastName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    let suggestedEmail = newEmp.email;
+
+    // If email is empty or auto-generated, update it
+    if (!newEmp.email || newEmp.email.includes('@peoplepay360.io')) {
+      if (fn && ln) {
+        let base = `${fn}.${ln}`;
+        // Check if an employee with this email already exists
+        const countExisting = employees.filter((e) => e.email.startsWith(base)).length;
+        if (countExisting > 0) {
+          base = `${base}${countExisting + 1}`;
+        }
+        suggestedEmail = `${base}@peoplepay360.io`;
+      }
+    }
+
+    setNewEmp((prev) => ({
+      ...prev,
+      firstName,
+      lastName,
+      email: suggestedEmail,
+    }));
+    if (modalError) setModalError('');
+  }
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
@@ -158,62 +219,43 @@ export default function EmployeesPage() {
   // Handle create employee API call
   async function handleCreateEmployee(e) {
     e.preventDefault();
-    if (!newEmp.firstName.trim() || !newEmp.lastName.trim() || !newEmp.email.trim()) return;
+    if (!newEmp.firstName.trim() || !newEmp.lastName.trim() || !newEmp.email.trim()) {
+      setModalError('First name, last name, and email are required.');
+      return;
+    }
 
     setSubmitting(true);
+    setModalError('');
+
     try {
       const payload = {
-        employee_code: newEmp.code || `EMP-00${employees.length + 1}`,
+        employee_code: newEmp.code.trim() || getNextEmployeeCode(employees),
         first_name: newEmp.firstName.trim(),
         last_name: newEmp.lastName.trim(),
-        email: newEmp.email.trim(),
-        phone: newEmp.phone || null,
+        email: newEmp.email.trim().toLowerCase(),
+        phone: newEmp.phone.trim() || null,
         hire_date: newEmp.hireDate || new Date().toISOString().slice(0, 10),
         department_id: newEmp.departmentId || (departments[0]?.id || null),
         job_id: newEmp.jobId || (jobs[0]?.id || null),
       };
 
-      const res = await api.post('/employees', payload).catch(() => null);
+      const res = await api.post('/employees', payload);
 
       if (res?.data?.data) {
-        // Created in backend successfully, refresh list
+        // Created successfully in database, refresh list and close modal
         await fetchEmployees();
+        setIsModalOpen(false);
       } else {
-        // Local fallback addition
-        const created = {
-          id: `emp-${Date.now()}`,
-          code: newEmp.code || `EMP-00${employees.length + 1}`,
-          name: `${newEmp.firstName.trim()} ${newEmp.lastName.trim()}`,
-          jobTitle: jobs.find((j) => j.id === newEmp.jobId)?.name || 'Team Member',
-          department: departments.find((d) => d.id === newEmp.departmentId)?.name || 'Engineering',
-          status: 'ACTIVE',
-          wage: newEmp.wage ? `₹${Number(newEmp.wage).toLocaleString('en-IN')}` : '₹50,000',
-          annualCtc: newEmp.wage ? `₹${(Number(newEmp.wage) * 12).toLocaleString('en-IN')}` : '₹6,00,000',
-          email: newEmp.email.trim(),
-          phone: newEmp.phone || '+91 98765 00000',
-          location: 'Bengaluru, India (HQ)',
-          hireDate: new Date(newEmp.hireDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          contractType: newEmp.contractType || 'Full-time',
-        };
-        setEmployees((prev) => [created, ...prev]);
+        setModalError('Unexpected response from server. Please try again.');
       }
-
-      setIsModalOpen(false);
-      setNewEmp({
-        firstName: '',
-        lastName: '',
-        code: '',
-        email: '',
-        phone: '',
-        departmentId: '',
-        jobId: '',
-        status: 'ACTIVE',
-        hireDate: new Date().toISOString().slice(0, 10),
-        wage: '50000',
-        contractType: 'FULL_TIME',
-      });
     } catch (err) {
-      console.error('Error creating employee:', err);
+      const serverMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        (err.response?.status === 409
+          ? 'An employee with this Employee Code or Email already exists. Please choose a unique email/code.'
+          : 'Failed to create employee. Please check the entered details.');
+      setModalError(serverMsg);
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +358,7 @@ export default function EmployeesPage() {
           {/* New Employee Action Button */}
           <button
             className="emp-header__add-btn"
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenModal}
           >
             <Plus size={16} strokeWidth={2.5} />
             <span>New Employee</span>
@@ -523,15 +565,19 @@ export default function EmployeesPage() {
                 onClick={() => setIsModalOpen(false)}
                 aria-label="Close modal"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleCreateEmployee}>
               <div className="emp-modal__body">
+                {modalError && (
+                  <div className="emp-modal__error-box">
+                    <AlertCircle size={16} />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
                     <label>First Name *</label>
@@ -540,7 +586,7 @@ export default function EmployeesPage() {
                       required
                       placeholder="e.g. Vikram"
                       value={newEmp.firstName}
-                      onChange={(e) => setNewEmp({ ...newEmp, firstName: e.target.value })}
+                      onChange={(e) => handleNameChange(e.target.value, newEmp.lastName)}
                       autoFocus
                     />
                   </div>
@@ -551,19 +597,23 @@ export default function EmployeesPage() {
                       required
                       placeholder="e.g. Rao"
                       value={newEmp.lastName}
-                      onChange={(e) => setNewEmp({ ...newEmp, lastName: e.target.value })}
+                      onChange={(e) => handleNameChange(newEmp.firstName, e.target.value)}
                     />
                   </div>
                 </div>
 
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
-                    <label>Employee Code</label>
+                    <label>Employee Code *</label>
                     <input
                       type="text"
-                      placeholder={`e.g. EMP-00${employees.length + 1}`}
+                      required
+                      placeholder="e.g. EMP-011"
                       value={newEmp.code}
-                      onChange={(e) => setNewEmp({ ...newEmp, code: e.target.value })}
+                      onChange={(e) => {
+                        setNewEmp({ ...newEmp, code: e.target.value });
+                        if (modalError) setModalError('');
+                      }}
                     />
                   </div>
                   <div className="emp-modal__field">
@@ -571,9 +621,12 @@ export default function EmployeesPage() {
                     <input
                       type="email"
                       required
-                      placeholder="e.g. vikram.rao@company.io"
+                      placeholder="e.g. vikram.rao@peoplepay360.io"
                       value={newEmp.email}
-                      onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })}
+                      onChange={(e) => {
+                        setNewEmp({ ...newEmp, email: e.target.value });
+                        if (modalError) setModalError('');
+                      }}
                     />
                   </div>
                 </div>
@@ -611,20 +664,20 @@ export default function EmployeesPage() {
 
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
+                    <label>Phone Number (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. +91 98765 43210"
+                      value={newEmp.phone}
+                      onChange={(e) => setNewEmp({ ...newEmp, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="emp-modal__field">
                     <label>Date of Joining</label>
                     <input
                       type="date"
                       value={newEmp.hireDate}
                       onChange={(e) => setNewEmp({ ...newEmp, hireDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="emp-modal__field">
-                    <label>Monthly Gross Wage (₹)</label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 65000"
-                      value={newEmp.wage}
-                      onChange={(e) => setNewEmp({ ...newEmp, wage: e.target.value })}
                     />
                   </div>
                 </div>

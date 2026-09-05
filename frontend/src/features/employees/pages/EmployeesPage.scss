@@ -653,6 +653,19 @@
     gap: 14px;
   }
 
+  &__error-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+
   &__field-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
