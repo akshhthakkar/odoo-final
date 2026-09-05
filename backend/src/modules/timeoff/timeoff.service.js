@@ -343,7 +343,7 @@ export async function approveRequest(id, approverUser) {
     //    (column-to-column guard via SQL; a plain read-then-increment is racy).
     let allocationSummary = null;
     if (request.type.requiresAllocation) {
-      const allocation = await tx.timeOffAllocation.findFirst({
+      const allocations = await tx.timeOffAllocation.findMany({
         where: {
           employeeId: request.employeeId,
           typeId: request.typeId,
@@ -357,13 +357,21 @@ export async function approveRequest(id, approverUser) {
         ],
       });
 
+      // Prefer the earliest allocation that actually has enough remaining
+      // balance (an exhausted earlier allocation must not block approval).
+      const allocation =
+        allocations.find(
+          (a) => Number(a.allocatedDays) - Number(a.takenDays) >= Number(request.days)
+        ) || null;
+
       if (!allocation) {
-        // No covering allocation means zero balance: refusing to approve here
-        // (rolling back the claim) is safer than silently skipping deduction.
+        // No covering allocation with remaining balance: refusing to approve
+        // here (rolling back the claim) is safer than silently skipping
+        // deduction.
         throw new AppError(
           409,
           'INSUFFICIENT_BALANCE',
-          'No approved allocation covers this request'
+          `Insufficient leave balance. Requested: ${Number(request.days)} days`
         );
       }
 
