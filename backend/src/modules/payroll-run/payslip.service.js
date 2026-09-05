@@ -117,3 +117,22 @@ export async function getMyPayslip(payslipId, employeeId) {
   }
   return toPublicPayslip(payslip, { withLines: true });
 }
+
+// PDF self-service ownership check: returns 403 on wrong owner per TASK-017 AC.
+export async function getOwnedPayslip(payslipId, employeeId) {
+  if (!employeeId) {
+    throw new AppError(404, 'NOT_FOUND', 'No employee linked to this account');
+  }
+  const payslip = await prisma.payslip.findUnique({
+    where: { id: payslipId },
+    include: detailInclude,
+  });
+  if (!payslip) {
+    throw new AppError(404, 'NOT_FOUND', 'Payslip not found');
+  }
+  if (payslip.employeeId !== employeeId) {
+    throw new AppError(403, 'FORBIDDEN', 'You can only access your own payslip');
+  }
+  return toPublicPayslip(payslip, { withLines: true });
+}
+
