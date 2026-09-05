@@ -162,6 +162,15 @@ const INITIAL_CONTRACTS = [
   },
 ];
 
+const INITIAL_EMPLOYEES = INITIAL_CONTRACTS.map((cnt) => ({
+  id: cnt.employee_id,
+  first_name: cnt.employee.first_name,
+  last_name: cnt.employee.last_name,
+  employee_code: cnt.employee.employee_code,
+  department_id: '',
+  job_id: '',
+}));
+
 function getInitials(firstName, lastName) {
   if (!firstName && !lastName) return 'CT';
   const f = firstName ? firstName[0] : '';
@@ -174,7 +183,7 @@ export default function ContractsPage() {
 
   // State
   const [contracts, setContracts] = useState(INITIAL_CONTRACTS);
-  const [employeesList, setEmployeesList] = useState([]);
+  const [employeesList, setEmployeesList] = useState(INITIAL_EMPLOYEES);
   const [departments, setDepartments] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -191,7 +200,7 @@ export default function ContractsPage() {
 
   // Form State
   const [newContract, setNewContract] = useState({
-    employee_id: '',
+    employee_id: INITIAL_EMPLOYEES[0]?.id || '',
     reference: `CNT-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(3, '0')}`,
     contract_type: 'FULL_TIME',
     wage: '50000',
@@ -236,16 +245,20 @@ export default function ContractsPage() {
         api.get('/employees/departments').catch(() => null),
         api.get('/employees/jobs').catch(() => null),
       ]);
-      if (empRes?.data?.data?.items) {
-        setEmployeesList(empRes.data.data.items);
-        if (empRes.data.data.items.length > 0 && !newContract.employee_id) {
-          setNewContract((prev) => ({
-            ...prev,
-            employee_id: empRes.data.data.items[0].id,
-            department_id: empRes.data.data.items[0].department_id || '',
-            job_id: empRes.data.data.items[0].job_id || '',
-          }));
-        }
+      const empItems = Array.isArray(empRes?.data?.data)
+        ? empRes.data.data
+        : Array.isArray(empRes?.data?.data?.items)
+        ? empRes.data.data.items
+        : null;
+
+      if (empItems && empItems.length > 0) {
+        setEmployeesList(empItems);
+        setNewContract((prev) => ({
+          ...prev,
+          employee_id: prev.employee_id || empItems[0].id,
+          department_id: empItems[0].department_id || prev.department_id,
+          job_id: empItems[0].job_id || prev.job_id,
+        }));
       }
       if (deptRes?.data?.data) setDepartments(deptRes.data.data);
       if (jobRes?.data?.data) setJobs(jobRes.data.data);
