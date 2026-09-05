@@ -1,0 +1,124 @@
+@use '../../../styles/variables' as *;
+
+.reports-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: $color-bg-app;
+  color: $color-text-primary;
+  font-family: $font-body;
+}
+
+.reports-page__header {
+  margin-bottom: 20px;
+
+  h1 {
+    margin: 0;
+    font-family: $font-heading;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: $color-text-primary;
+  }
+
+  p {
+    margin: 6px 0 0;
+    font-size: 13.5px;
+    color: $color-text-secondary;
+  }
+}
+
+.reports-page__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.rep-card {
+  padding: 20px 22px;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: 12px;
+}
+
+.rep-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+
+  h2 {
+    margin: 0;
+    font-family: $font-heading;
+    font-size: 16px;
+    font-weight: 700;
+    color: $color-text-primary;
+  }
+}
+
+.rep-card__csv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: $color-primary;
+  background: $color-primary-subtle;
+  border: 1px solid rgba(35, 87, 254, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(35, 87, 254, 0.12);
+  }
+}
+
+.rep-card__error {
+  color: $color-danger;
+  font-size: 13.5px;
+}
+
+.rep-card__loading,
+.rep-card__empty {
+  color: $color-text-muted;
+  font-size: 13.5px;
+  padding: 14px 0;
+}
+
+.rep-card__table-wrap {
+  overflow-x: auto;
+}
+
+.rep-card__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-muted;
+    border-bottom: 1px solid $color-border;
+  }
+
+  td {
+    padding: 10px;
+    border-bottom: 1px solid $color-border-subtle;
+    color: $color-text-secondary;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.rep-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: $color-text-primary;
+}

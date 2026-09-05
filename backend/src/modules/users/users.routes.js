@@ -15,7 +15,7 @@ const ROLE_ENUM = z.enum([
 
 const listUsersQuerySchema = z.object({
   role: ROLE_ENUM.optional(),
-  is_active: z.enum(['true', 'false']).optional(),
+  is_active: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),

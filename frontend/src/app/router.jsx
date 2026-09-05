@@ -13,6 +13,8 @@ import SchedulesPage from '../features/schedules/pages/SchedulesPage.jsx';
 import AttendancePage from '../features/attendance/pages/AttendancePage.jsx';
 import TimeOffPage from '../features/timeoff/pages/TimeOffPage.jsx';
 import PayrunsPage from '../features/payroll-run/pages/PayrunsPage.jsx';
+import PayslipDetailPage from '../features/payroll-run/pages/PayslipDetailPage.jsx';
+import ReportsPage from '../features/reports/pages/ReportsPage.jsx';
 import SalaryConfigPage from '../features/payroll-config/pages/SalaryConfigPage.jsx';
 import AdminPage from '../features/admin/pages/AdminPage.jsx';
 
@@ -47,6 +49,8 @@ export default function Router() {
           {/* Payroll / Payruns & Salary Config — Payroll Users/Managers, Admin */}
           <Route element={<RequireRole roles={PAYROLL_ROLES} />}>
             <Route path="/payruns" element={<PayrunsPage />} />
+            <Route path="/payruns/:id" element={<PayslipDetailPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/payroll" element={<Navigate to="/payruns" replace />} />
             <Route path="/salary-config" element={<SalaryConfigPage />} />
           </Route>

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+﻿import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../shared/errors.js';
 import { getBusinessAttendanceDate } from '../../shared/timezone.js';
 import { writeAudit } from '../../shared/audit.js';
@@ -14,6 +14,18 @@ function computeWorkedHours(checkIn, checkOut) {
   return Number((diffMs / (1000 * 60 * 60)).toFixed(2));
 }
 
+// Minutes since midnight in the business timezone (Asia/Kolkata).
+function istMinutes(date) {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const [h, m] = fmt.format(date).split(':').map(Number);
+  return h * 60 + m;
+}
+
 // Rejects impossible intervals instead of silently clamping to zero hours.
 function assertCheckoutAfterCheckin(checkIn, checkOut) {
   if (!checkIn || !checkOut) return;
@@ -22,28 +34,46 @@ function assertCheckoutAfterCheckin(checkIn, checkOut) {
   }
 }
 
-const formatAttendance = (a) => ({
-  id: a.id,
-  employee_id: a.employeeId,
-  employee: a.employee
-    ? {
-        id: a.employee.id,
-        employee_code: a.employee.employeeCode,
-        first_name: a.employee.firstName,
-        last_name: a.employee.lastName,
-      }
-    : null,
-  attendance_date: a.attendanceDate,
-  check_in: a.checkIn,
-  check_out: a.checkOut,
-  worked_hours: a.workedHours !== null ? Number(a.workedHours) : null,
-  overtime_hours: Number(a.overtimeHours || 0),
-  status: a.status,
-  source: a.source,
-  note: a.note,
-  created_at: a.createdAt,
-  updated_at: a.updatedAt,
-});
+// Break minutes for the employee's schedule on the given date's weekday.
+async function getBreakHours(employeeId, date) {
+  const emp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { workingSchedule: { select: { lines: { select: { dayOfWeek: true, breakMinutes: true } } } } },
+  });
+  const jsDay = new Date(date).getDay(); // 0 = Sun â€¦ 6 = Sat (matches day_of_week)
+  const line = emp?.workingSchedule?.lines?.find((l) => l.dayOfWeek === jsDay);
+  return (line?.breakMinutes ?? 0) / 60;
+}
+
+const formatAttendance = (a) => {
+  // Effective status: an open record (checked in, never checked out) from a
+  // PAST business date is reported as MISSING_CHECKOUT. The stored status is
+  // not mutated.
+  const isPastOpen =
+    a.checkIn && !a.checkOut && a.attendanceDate < getBusinessAttendanceDate(new Date());
+  return {
+    id: a.id,
+    employee_id: a.employeeId,
+    employee: a.employee
+      ? {
+          id: a.employee.id,
+          employee_code: a.employee.employeeCode,
+          first_name: a.employee.firstName,
+          last_name: a.employee.lastName,
+        }
+      : null,
+    attendance_date: a.attendanceDate,
+    check_in: a.checkIn,
+    check_out: a.checkOut,
+    worked_hours: a.workedHours !== null ? Number(a.workedHours) : null,
+    overtime_hours: Number(a.overtimeHours || 0),
+    status: isPastOpen ? 'MISSING_CHECKOUT' : a.status,
+    source: a.source,
+    note: a.note,
+    created_at: a.createdAt,
+    updated_at: a.updatedAt,
+  };
+};
 
 export async function listAttendance({
   employee_id,
@@ -114,7 +144,10 @@ export async function getAttendanceById(id) {
 }
 
 export async function checkIn({ employee_id, check_in_time, source = 'SELF' }) {
-  const employee = await prisma.employee.findUnique({ where: { id: employee_id } });
+  const employee = await prisma.employee.findUnique({
+    where: { id: employee_id },
+    include: { workingSchedule: { include: { lines: true } } },
+  });
   if (!employee) {
     throw new AppError(404, 'NOT_FOUND', 'Employee not found');
   }
@@ -135,6 +168,13 @@ export async function checkIn({ employee_id, check_in_time, source = 'SELF' }) {
     throw new AppError(409, 'DUPLICATE', 'Attendance already recorded for today');
   }
 
+  // Late inference: more than 15 minutes after the schedule's start time.
+  const jsDay = now.getDay(); // 0 = Sun â€¦ 6 = Sat (matches day_of_week)
+  const dayLine = employee.workingSchedule?.lines?.find((l) => l.dayOfWeek === jsDay);
+  const GRACE_MINUTES = 15;
+  const status =
+    dayLine && istMinutes(now) > dayLine.startMinutes + GRACE_MINUTES ? 'LATE' : 'PRESENT';
+
   let record;
   try {
     record = await prisma.attendance.create({
@@ -142,7 +182,7 @@ export async function checkIn({ employee_id, check_in_time, source = 'SELF' }) {
         employeeId: employee_id,
         attendanceDate,
         checkIn: now,
-        status: 'PRESENT',
+        status,
         source,
       },
       include: {
@@ -175,7 +215,7 @@ export async function checkOut({ employee_id, check_out_time }) {
     },
     include: {
       employee: {
-        include: { workingSchedule: true },
+        include: { workingSchedule: { include: { lines: true } } },
       },
     },
   });
@@ -190,13 +230,25 @@ export async function checkOut({ employee_id, check_out_time }) {
 
   assertCheckoutAfterCheckin(record.checkIn, now);
 
-  const workedHours = computeWorkedHours(record.checkIn, now);
+  const breakHours = await getBreakHours(employee_id, attendanceDate);
+  const rawHours = computeWorkedHours(record.checkIn, now);
+  const workedHours = rawHours === null ? null : Math.max(0, rawHours - breakHours);
+
+  // Overtime: hours worked beyond the schedule's planned hours for that day.
+  const jsDayOut = new Date(attendanceDate).getDay(); // 0 = Sun ... 6 = Sat
+  const dayLine = record.employee.workingSchedule?.lines?.find((l) => l.dayOfWeek === jsDayOut);
+  const scheduledHours = dayLine
+    ? Math.max(0, (dayLine.endMinutes - dayLine.startMinutes - dayLine.breakMinutes) / 60)
+    : 0;
+  const overtimeHours =
+    workedHours === null ? 0 : Math.max(0, workedHours - scheduledHours);
 
   const updated = await prisma.attendance.update({
     where: { id: record.id },
     data: {
       checkOut: now,
       workedHours,
+      overtimeHours,
       status: 'PRESENT',
     },
     include: {
@@ -231,7 +283,9 @@ export async function createManualAttendance(data) {
 
   assertCheckoutAfterCheckin(data.check_in, data.check_out);
 
-  const workedHours = computeWorkedHours(data.check_in, data.check_out);
+  const breakHours = await getBreakHours(data.employee_id, attendanceDate);
+  const rawHours = computeWorkedHours(data.check_in, data.check_out);
+  const workedHours = rawHours === null ? null : Math.max(0, rawHours - breakHours);
 
   const record = await prisma.attendance.create({
     data: {
@@ -251,7 +305,7 @@ export async function createManualAttendance(data) {
     },
   });
 
-  await writeAudit({
+  await writeAudit(prisma, {
     actorId: data.actorId,
     action: 'ATTENDANCE_MANUAL_CREATED',
     entity: 'attendance',
@@ -278,7 +332,9 @@ export async function updateAttendance(id, data) {
 
   assertCheckoutAfterCheckin(checkIn, checkOut);
 
-  const workedHours = computeWorkedHours(checkIn, checkOut);
+  const breakHours = await getBreakHours(existing.employeeId, existing.attendanceDate);
+  const rawHours = computeWorkedHours(checkIn, checkOut);
+  const workedHours = rawHours === null ? null : Math.max(0, rawHours - breakHours);
 
   const updateData = {
     checkIn,
@@ -299,7 +355,7 @@ export async function updateAttendance(id, data) {
     },
   });
 
-  await writeAudit({
+  await writeAudit(prisma, {
     actorId: data.actorId,
     action: 'ATTENDANCE_MANUAL_EDITED',
     entity: 'attendance',

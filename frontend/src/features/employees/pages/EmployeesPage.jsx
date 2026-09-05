@@ -98,14 +98,14 @@ export default function EmployeesPage() {
         jobTitle: emp.job?.name || 'Staff Member',
         department: emp.department?.name || 'General',
         status: emp.status,
-        wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '₹45,000',
-        annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '₹5,40,000',
+        wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '—',
+        annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '—',
         email: emp.email,
-        phone: emp.phone || '+91 98765 00000',
-        location: emp.address || 'Bengaluru, India (HQ)',
+        phone: emp.phone || '—',
+        location: emp.address || '—',
         hireDate: emp.hire_date
           ? new Date(emp.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '01 Jan 2023',
+          : '—',
         contractType: emp.contracts?.[0]?.contract_type?.replace('_', ' ') || 'Full-time',
       }));
       setEmployees(mapped);

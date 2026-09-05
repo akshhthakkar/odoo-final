@@ -327,7 +327,7 @@ async function main() {
               sequence: 10,
               computationType: 'PERCENTAGE',
               percentage: 50.0,
-              baseCode: 'wage',
+              baseCode: 'CONTRACT_WAGE',
               appearsOnPayslip: true,
             },
             {
@@ -337,7 +337,7 @@ async function main() {
               sequence: 20,
               computationType: 'PERCENTAGE',
               percentage: 25.0,
-              baseCode: 'wage',
+              baseCode: 'CONTRACT_WAGE',
               appearsOnPayslip: true,
             },
             {
@@ -347,7 +347,7 @@ async function main() {
               sequence: 30,
               computationType: 'PERCENTAGE',
               percentage: 15.0,
-              baseCode: 'wage',
+              baseCode: 'CONTRACT_WAGE',
               appearsOnPayslip: true,
             },
             {
@@ -357,7 +357,7 @@ async function main() {
               sequence: 40,
               computationType: 'PERCENTAGE',
               percentage: 10.0,
-              baseCode: 'wage',
+              baseCode: 'CONTRACT_WAGE',
               appearsOnPayslip: true,
             },
             {
@@ -382,6 +382,16 @@ async function main() {
           ],
         },
       },
+    });
+  } else {
+    // Seed fix propagation: repair base codes on an existing structure so
+    // re-seeding heals databases created before the SLOP-06 fix.
+    await prisma.salaryRule.updateMany({
+      where: {
+        structureId: structure.id,
+        code: { in: ['BASIC', 'HRA', 'SPECIAL', 'CONVEYANCE'] },
+      },
+      data: { baseCode: 'CONTRACT_WAGE' },
     });
   }
 
