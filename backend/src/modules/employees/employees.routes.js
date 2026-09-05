@@ -66,8 +66,17 @@ router.use(requireAuth);
 router.get('/departments', employees.listDepartments);
 router.get('/jobs', employees.listJobs);
 
-router.get('/', validateQuery(listEmployeesQuerySchema), employees.listEmployees);
-router.get('/:id', employees.getEmployee);
+router.get(
+  '/',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  validateQuery(listEmployeesQuerySchema),
+  employees.listEmployees
+);
+router.get(
+  '/:id',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  employees.getEmployee
+);
 
 router.post(
   '/',
