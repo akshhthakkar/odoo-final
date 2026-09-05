@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '../../../store/slices/authSlice.js';
+import { api } from '../../../lib/api.js';
 import { z } from 'zod';
 import logo2 from '../../../assets/logo2.svg';
 import logo from '../../../assets/logo.svg';
@@ -36,6 +39,7 @@ function EyeIcon({ open }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const [fields, setFields] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -68,13 +72,26 @@ export default function LoginPage() {
     setLoading(true);
     setServerError('');
 
-    // ── Frontend-only stub: no real API call ──
-    // Replace this block with actual API call when backend is ready:
-    // const { data } = await api.post('/auth/login', fields);
-    // dispatch(setCredentials(data.data));
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    navigate('/dashboard');
+    try {
+      const { data } = await api.post('/auth/login', {
+        email: fields.email,
+        password: fields.password,
+      });
+      dispatch(setCredentials(data.data));
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      const code = err.response?.data?.error?.code;
+      const msg = err.response?.data?.error?.message;
+      if (code === 'RATE_LIMITED') {
+        setServerError('Too many attempts. Please wait 15 minutes and try again.');
+      } else if (code === 'INVALID_CREDENTIALS') {
+        setServerError('Invalid email or password.');
+      } else {
+        setServerError(msg || 'Login failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
