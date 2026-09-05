@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from '../pages/HomePage.jsx';
+import LandingPage from '../features/landing/pages/LandingPage.jsx';
 import AppShell from './layout/AppShell.jsx';
 import RequireAuth from './guards/RequireAuth.jsx';
 import LoginPage from '../features/auth/pages/LoginPage.jsx';
@@ -17,7 +17,7 @@ import AdminPage from '../features/admin/pages/AdminPage.jsx';
 export default function Router() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
