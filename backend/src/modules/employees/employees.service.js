@@ -73,7 +73,10 @@ const formatEmployee = (emp) => ({
       }
     : null,
   bank_account_name: emp.bankAccountName,
-  bank_account_number: emp.bankAccountNumber,
+  // SEC-02: bank numbers are masked to the last 4 in all API responses.
+  bank_account_number: emp.bankAccountNumber
+    ? `XXXXXXX${emp.bankAccountNumber.slice(-4)}`
+    : null,
   bank_ifsc: emp.bankIfsc,
   created_at: emp.createdAt,
   updated_at: emp.updatedAt,

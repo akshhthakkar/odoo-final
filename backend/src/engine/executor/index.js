@@ -131,6 +131,35 @@ export function runRuleSequence({ rules, variables: rawVariables }) {
   };
 }
 
+const batchSchema = z.object({
+  period: z.object({ start: z.string(), end: z.string() }).optional(),
+  rules: z
+    .array(
+      z.object({
+        code: z.string(),
+        name: z.string(),
+        category: z.string(),
+        sequence: z.number().int(),
+        computation_type: z.string(),
+        fixed_amount: z.number().nullable().optional(),
+        percentage: z.number().nullable().optional(),
+        base_code: z.string().nullable().optional(),
+        formula: z.string().nullable().optional(),
+        condition: z.string().nullable().optional(),
+        appears_on_payslip: z.boolean().optional(),
+      })
+    )
+    .min(1),
+  employees: z
+    .array(
+      z.object({
+        ref: z.union([z.string(), z.number()]),
+        inputs: inputSchema,
+      })
+    )
+    .min(1),
+});
+
 export function computeBatch(request) {
   let parsed;
   try {
@@ -160,32 +189,3 @@ export function computeBatch(request) {
 
   return { results };
 }
-
-const batchSchema = z.object({
-  period: z.object({ start: z.string(), end: z.string() }).optional(),
-  rules: z
-    .array(
-      z.object({
-        code: z.string(),
-        name: z.string(),
-        category: z.string(),
-        sequence: z.number().int(),
-        computation_type: z.string(),
-        fixed_amount: z.number().nullable().optional(),
-        percentage: z.number().nullable().optional(),
-        base_code: z.string().nullable().optional(),
-        formula: z.string().nullable().optional(),
-        condition: z.string().nullable().optional(),
-        appears_on_payslip: z.boolean().optional(),
-      })
-    )
-    .min(1),
-  employees: z
-    .array(
-      z.object({
-        ref: z.union([z.string(), z.number()]),
-        inputs: inputSchema,
-      })
-    )
-    .min(1),
-});
