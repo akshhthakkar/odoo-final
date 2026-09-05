@@ -263,154 +263,136 @@ html {
   }
 }
 
-// Floating visual composition
-.lp-hero-visual {
+// =========================================================
+// Hero Visual — Valley Graph Bars & Looping Cards Stream
+// =========================================================
+
+.lp-hero-visual-wrapper {
   position: relative;
-  min-height: 560px;
-}
-
-.fv-card {
-  position: absolute;
-  padding: 18px 20px;
-  background: $color-bg-card;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 18px;
-  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.14), 0 8px 24px -8px rgba(35, 87, 254, 0.1);
-}
-
-.fv-card--payrun {
-  top: 0;
-  right: 4%;
-  width: 340px;
-  transform: rotate(7deg);
-  z-index: 3;
-}
-
-.fv-card--leave {
-  top: 195px;
-  left: 0;
-  width: 340px;
-  transform: rotate(-5deg);
-  z-index: 2;
-}
-
-.fv-card-title {
-  margin-bottom: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  color: $color-text-muted;
-}
-
-.fv-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 0;
-}
-
-.fv-avatar {
+  width: 100%;
+  height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-
-  &--a {
-    background: $color-primary-subtle;
-    color: $color-primary;
-  }
-
-  &--b {
-    background: $color-success-bg;
-    color: $color-success;
-  }
-
-  &--c {
-    background: $color-warning-bg;
-    color: $color-warning;
-  }
-
-  &--d {
-    background: $color-border-subtle;
-    color: $color-text-secondary;
-  }
+  perspective: 1200px;
 }
 
-.fv-person {
-  flex: 1;
-
-  .fv-name {
-    display: block;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: $color-text-primary;
-  }
-
-  .fv-role {
-    display: block;
-    margin-top: 1px;
-    font-size: 11.5px;
-    color: $color-text-muted;
-  }
-}
-
-.fv-pill {
-  padding: 4px 11px;
-  border-radius: $radius-pill;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-
-  &--blue {
-    background: $color-primary;
-    color: $color-bg-card;
-    box-shadow: 0 4px 10px -2px rgba(35, 87, 254, 0.4);
-  }
-
-  &--dark {
-    background: $color-text-primary;
-    color: $color-bg-card;
-  }
-}
-
-.fv-chart {
-  position: absolute;
-  bottom: 0;
-  left: 5%;
-  right: 0;
-  height: 300px;
-}
-
-.fv-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 14px;
+.lp-hero-visual-container {
+  position: relative;
   width: 100%;
-  height: 100%;
-}
-
-.fv-bar {
-  flex: 1;
-  border-radius: 10px 10px 0 0;
-  background: linear-gradient(
+  max-width: 480px;
+  height: 560px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
     180deg,
-    rgba(91, 134, 255, 0.95) 0%,
-    rgba(91, 134, 255, 0.35) 60%,
-    rgba(91, 134, 255, 0) 100%
+    transparent 0%,
+    rgba(0, 0, 0, 1) 12%,
+    rgba(0, 0, 0, 1) 85%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(0, 0, 0, 1) 12%,
+    rgba(0, 0, 0, 1) 85%,
+    transparent 100%
   );
 }
 
-.fv-chart-label {
+// ── Graph Lines / Vertical Bars (Solid & Non-Transparent U-Shape Valley) ──
+.lp-graph-bars {
   position: absolute;
-  top: 32%;
-  left: 36%;
-  font-family: $font-accent;
-  font-style: italic;
-  font-size: 24px;
-  color: rgba(15, 23, 42, 0.16);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 380px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  z-index: 5;
+  pointer-events: none;
+  padding: 0 12px;
+}
+
+.lp-graph-bar {
+  flex: 1;
+  max-width: 48px;
+  min-width: 26px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, #91b0ff 0%, #7d9fff 100%);
+  position: relative;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+}
+
+// ── Looping Cards Viewport & Track (Behind Graph Bars, Fast Scroll) ──
+.lp-cards-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lp-cards-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  padding: 20px 0;
+  animation: lpCardsScrollDown 8.5s linear infinite;
+  will-change: transform;
+
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes lpCardsScrollDown {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+.lp-stream-card {
+  width: 90%;
+  max-width: 380px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 
+    0 20px 40px -10px rgba(15, 23, 42, 0.12),
+    0 6px 16px -4px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(226, 232, 240, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: 
+      0 26px 50px -10px rgba(35, 87, 254, 0.18),
+      0 8px 24px -4px rgba(15, 23, 42, 0.08),
+      0 0 0 1px rgba(35, 87, 254, 0.3);
+  }
+
+  &__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
+  }
 }
 
 // Section indicator pill (bottom of hero)

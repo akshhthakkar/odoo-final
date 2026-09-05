@@ -50,12 +50,25 @@ export async function updateSchedule(req, res, next) {
   }
 }
 
-export async function replaceScheduleLines(req, res, next) {
+export async function assignEmployees(req, res, next) {
   try {
-    const schedule = await schedulesService.replaceScheduleLines(req.params.id, req.body.lines);
+    const { employee_ids } = req.body;
+    const schedule = await schedulesService.assignEmployeesToSchedule(req.params.id, employee_ids || []);
     return res.status(200).json({
       success: true,
       data: schedule,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteSchedule(req, res, next) {
+  try {
+    const result = await schedulesService.deleteSchedule(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: result,
     });
   } catch (err) {
     next(err);

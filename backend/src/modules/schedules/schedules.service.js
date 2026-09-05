@@ -3,7 +3,7 @@ import { AppError } from '../../shared/errors.js';
 
 const prisma = new PrismaClient();
 
-function calculateWeeklyHours(lines = []) {
+export function calculateWeeklyHours(lines = []) {
   let totalMinutes = 0;
   for (const line of lines) {
     const duration = line.end_minutes - line.start_minutes - (line.break_minutes || 0);
@@ -19,6 +19,16 @@ const formatSchedule = (s) => ({
   name: s.name,
   schedule_type: s.scheduleType,
   weekly_hours: Number(s.weeklyHours),
+  employees_count: s._count ? s._count.employees : (s.employees ? s.employees.length : 0),
+  employees: (s.employees || []).map((e) => ({
+    id: e.id,
+    first_name: e.firstName,
+    last_name: e.lastName,
+    name: `${e.firstName} ${e.lastName}`.trim(),
+    employee_code: e.employeeCode,
+    email: e.email,
+    department: e.department ? e.department.name : null,
+  })),
   lines: (s.lines || []).map((l) => ({
     id: l.id,
     day_of_week: l.dayOfWeek,
@@ -30,14 +40,14 @@ const formatSchedule = (s) => ({
   updated_at: s.updatedAt,
 });
 
-export async function listSchedules({ search, page = 1, limit = 20 } = {}) {
+export async function listSchedules({ search, page = 1, limit = 50 } = {}) {
   const where = {};
   if (search) {
     where.name = { contains: search, mode: 'insensitive' };
   }
 
   const pageNum = Math.max(1, Number(page) || 1);
-  const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+  const limitNum = Math.min(100, Math.max(1, Number(limit) || 50));
   const skip = (pageNum - 1) * limitNum;
 
   const [total, items] = await Promise.all([
@@ -46,9 +56,20 @@ export async function listSchedules({ search, page = 1, limit = 20 } = {}) {
       where,
       skip,
       take: limitNum,
-      orderBy: { name: 'asc' },
+      orderBy: { createdAt: 'asc' },
       include: {
         lines: { orderBy: { dayOfWeek: 'asc' } },
+        _count: { select: { employees: true } },
+        employees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            email: true,
+            department: { select: { name: true } },
+          },
+        },
       },
     }),
   ]);
@@ -69,6 +90,17 @@ export async function getScheduleById(id) {
     where: { id },
     include: {
       lines: { orderBy: { dayOfWeek: 'asc' } },
+      _count: { select: { employees: true } },
+      employees: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          email: true,
+          department: { select: { name: true } },
+        },
+      },
     },
   });
 
@@ -93,7 +125,7 @@ export async function createSchedule(data) {
   const schedule = await prisma.workingSchedule.create({
     data: {
       name: data.name,
-      scheduleType: data.schedule_type,
+      scheduleType: data.schedule_type || 'FULL_TIME',
       weeklyHours,
       lines: {
         create: lines.map((l) => ({
@@ -106,6 +138,16 @@ export async function createSchedule(data) {
     },
     include: {
       lines: { orderBy: { dayOfWeek: 'asc' } },
+      _count: { select: { employees: true } },
+      employees: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          email: true,
+        },
+      },
     },
   });
 
@@ -123,56 +165,100 @@ export async function updateSchedule(id, data) {
     if (existing) throw new AppError(409, 'DUPLICATE', 'Working schedule name already exists');
   }
 
-  const updateData = {};
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.schedule_type !== undefined) updateData.scheduleType = data.schedule_type;
+  return await prisma.$transaction(async (tx) => {
+    const updateData = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.schedule_type !== undefined) updateData.scheduleType = data.schedule_type;
 
-  const updated = await prisma.workingSchedule.update({
-    where: { id },
-    data: updateData,
-    include: {
-      lines: { orderBy: { dayOfWeek: 'asc' } },
-    },
+    if (data.lines) {
+      updateData.weeklyHours = calculateWeeklyHours(data.lines);
+      await tx.scheduleLine.deleteMany({ where: { scheduleId: id } });
+      if (data.lines.length > 0) {
+        await tx.scheduleLine.createMany({
+          data: data.lines.map((l) => ({
+            scheduleId: id,
+            dayOfWeek: l.day_of_week,
+            startMinutes: l.start_minutes,
+            endMinutes: l.end_minutes,
+            breakMinutes: l.break_minutes || 0,
+          })),
+        });
+      }
+    }
+
+    const updated = await tx.workingSchedule.update({
+      where: { id },
+      data: updateData,
+      include: {
+        lines: { orderBy: { dayOfWeek: 'asc' } },
+        _count: { select: { employees: true } },
+        employees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeCode: true,
+            email: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    return formatSchedule(updated);
   });
-
-  return formatSchedule(updated);
 }
 
-export async function replaceScheduleLines(id, lines) {
-  const schedule = await prisma.workingSchedule.findUnique({ where: { id } });
+export async function assignEmployeesToSchedule(scheduleId, employeeIds = []) {
+  const schedule = await prisma.workingSchedule.findUnique({ where: { id: scheduleId } });
   if (!schedule) {
     throw new AppError(404, 'NOT_FOUND', 'Working schedule not found');
   }
 
-  const weeklyHours = calculateWeeklyHours(lines);
-
-  // Atomic replacement using interactive transaction
-  const updated = await prisma.$transaction(async (tx) => {
-    // Delete existing lines
-    await tx.scheduleLine.deleteMany({ where: { scheduleId: id } });
-
-    // Insert new lines
-    if (lines.length > 0) {
-      await tx.scheduleLine.createMany({
-        data: lines.map((l) => ({
-          scheduleId: id,
-          dayOfWeek: l.day_of_week,
-          startMinutes: l.start_minutes,
-          endMinutes: l.end_minutes,
-          breakMinutes: l.break_minutes || 0,
-        })),
-      });
-    }
-
-    // Update weeklyHours total
-    return tx.workingSchedule.update({
-      where: { id },
-      data: { weeklyHours },
-      include: {
-        lines: { orderBy: { dayOfWeek: 'asc' } },
+  await prisma.$transaction(async (tx) => {
+    // 1. Remove schedule assignment for employees currently assigned to this schedule but not in employeeIds
+    await tx.employee.updateMany({
+      where: {
+        workingScheduleId: scheduleId,
+        id: { notIn: employeeIds },
+      },
+      data: {
+        workingScheduleId: null,
       },
     });
+
+    // 2. Assign selected employees to this schedule
+    if (employeeIds.length > 0) {
+      await tx.employee.updateMany({
+        where: {
+          id: { in: employeeIds },
+        },
+        data: {
+          workingScheduleId: scheduleId,
+        },
+      });
+    }
   });
 
-  return formatSchedule(updated);
+  return getScheduleById(scheduleId);
+}
+
+export async function deleteSchedule(id) {
+  const schedule = await prisma.workingSchedule.findUnique({
+    where: { id },
+    include: { _count: { select: { employees: true, contracts: true } } },
+  });
+
+  if (!schedule) {
+    throw new AppError(404, 'NOT_FOUND', 'Working schedule not found');
+  }
+
+  if (schedule._count.employees > 0 || schedule._count.contracts > 0) {
+    throw new AppError(409, 'RESOURCE_HAS_DEPENDENCIES', 'Cannot delete schedule with assigned employees or contracts. Reassign them first.');
+  }
+
+  await prisma.scheduleLine.deleteMany({ where: { scheduleId: id } });
+  await prisma.workingSchedule.delete({ where: { id } });
+
+  return { id, deleted: true };
 }
