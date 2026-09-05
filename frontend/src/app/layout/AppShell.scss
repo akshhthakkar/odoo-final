@@ -353,7 +353,7 @@ $topbar-h: 56px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #2357fe 0%, #1a46d8 100%);
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -381,7 +381,7 @@ $topbar-h: 56px;
 .dash-navbar__profile-role {
   font-size: 11px;
   font-weight: 500;
-  color: #6366f1;
+  color: $color-primary;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -466,7 +466,7 @@ $topbar-h: 56px;
 }
 
 .dash-navbar__dropdown-role-value {
-  color: #6366f1;
+  color: $color-primary;
   font-weight: 600;
 }
 

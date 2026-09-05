@@ -87,14 +87,14 @@
     width: 68px;
     height: 68px;
     border-radius: 50%;
-    background: #eef2ff;
-    color: #4f46e5;
+    background: $color-primary-subtle;
+    color: $color-primary;
     font-size: 22px;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 4px 12px rgba(35, 87, 254, 0.15);
     border: 3px solid #ffffff;
   }
 
@@ -187,7 +187,7 @@
     }
 
     a {
-      color: #4f46e5;
+      color: $color-primary;
       text-decoration: none;
 
       &:hover {
@@ -359,8 +359,8 @@
 
   &__badge-soft {
     display: inline-block;
-    background: #eef2ff;
-    color: #4f46e5;
+    background: $color-primary-subtle;
+    color: $color-primary;
     padding: 2px 8px;
     border-radius: 6px;
     font-size: 12px;
@@ -395,8 +395,8 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 
     &--highlight {
-      background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
-      border-color: #c7d2fe;
+      background: linear-gradient(135deg, #eef3ff 0%, #ffffff 100%);
+      border-color: #dbe7fe;
     }
   }
 

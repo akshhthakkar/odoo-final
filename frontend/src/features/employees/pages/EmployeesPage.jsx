@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Users } from 'lucide-react';
 import { INITIAL_EMPLOYEES } from '../data/employeesData.js';
 import './EmployeesPage.scss';
 
@@ -304,7 +305,9 @@ export default function EmployeesPage() {
             </div>
           ) : (
             <div className="emp-cards-grid__empty">
-              <div className="emp-cards-grid__empty-icon">👥</div>
+              <div className="emp-cards-grid__empty-icon">
+                <Users size={36} color="#2357fe" />
+              </div>
               <h3>No employees found</h3>
               <p>No employees match the selected status or filters.</p>
               {statusFilter !== 'ALL' && (

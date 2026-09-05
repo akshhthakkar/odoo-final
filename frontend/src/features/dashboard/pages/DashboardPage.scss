@@ -302,7 +302,7 @@
 
     &:hover {
       .bar-gross {
-        fill: #818cf8;
+        fill: #60a5fa;
       }
       .bar-net {
         fill: #1d4ed8;
@@ -311,7 +311,7 @@
   }
 
   .bar-gross {
-    fill: #c7d2fe;
+    fill: #bfdbfe;
     transition: fill $transition-fast;
     rx: 4;
   }
@@ -693,7 +693,7 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: #6366f1;
+    background: $color-primary;
   }
 }
 
@@ -804,7 +804,7 @@
     &--present { background: #10b981; }
     &--late { background: #f59e0b; }
     &--absent { background: #ef4444; }
-    &--half { background: #8b5cf6; }
+    &--half { background: #38bdf8; }
   }
 
   // Stat Boxes Grid (4 or 3 items)
@@ -839,7 +839,7 @@
     &--green .overview-card__stat-num { color: #059669; }
     &--yellow .overview-card__stat-num { color: #d97706; }
     &--red .overview-card__stat-num { color: #e11d48; }
-    &--purple .overview-card__stat-num { color: #7c3aed; }
+    &--purple .overview-card__stat-num { color: #0284c7; }
     &--blue .overview-card__stat-num { color: #2563eb; }
   }
 

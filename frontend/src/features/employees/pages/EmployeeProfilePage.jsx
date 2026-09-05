@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Building2,
+  FileText,
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  User,
+  Briefcase,
+  DollarSign,
+  Clock,
+} from 'lucide-react';
 import { INITIAL_EMPLOYEES, getEmployeeById } from '../data/employeesData.js';
 import './EmployeeProfilePage.scss';
 
@@ -450,7 +463,9 @@ export default function EmployeeProfilePage() {
 
                 {/* Bank Details Strip */}
                 <div className="emp-profile__bank-strip">
-                  <div className="emp-profile__bank-icon">🏦</div>
+                  <div className="emp-profile__bank-icon">
+                    <Building2 size={20} color="#2357fe" />
+                  </div>
                   <div className="emp-profile__bank-info">
                     <span className="emp-profile__bank-name">{bankDetails.bankName}</span>
                     <span className="emp-profile__bank-acc">A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}</span>
@@ -561,7 +576,9 @@ export default function EmployeeProfilePage() {
               {contracts.map((cnt) => (
                 <div key={cnt.id} className="emp-profile__contract-item">
                   <div className="emp-profile__contract-left">
-                    <div className="emp-profile__doc-icon">📄</div>
+                    <div className="emp-profile__doc-icon">
+                      <FileText size={20} color="#2357fe" />
+                    </div>
                     <div>
                       <h4 className="emp-profile__doc-title">{cnt.title}</h4>
                       <p className="emp-profile__doc-meta">
