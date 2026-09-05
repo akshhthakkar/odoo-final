@@ -1,0 +1,193 @@
+// =========================================================
+// Pay365 Glassmorphic Shrinking Navbar
+// Palette: #2357FE (Electric Royal Blue), #FFFFFF (Pure White)
+// =========================================================
+
+@use '../../styles/variables' as *;
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 20px 5%;
+  transition: padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .navbar-container {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 28px;
+    border-radius: 50px;
+    transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+
+    // Light Glassmorphism Effect for Pay365 Design System
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(35, 87, 254, 0.06);
+  }
+
+  // Shrunk State — Width shrinks dynamically on scroll
+  &.navbar--shrunk {
+    padding-top: 12px;
+
+    .navbar-container {
+      max-width: 860px;
+      padding: 8px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 12px 35px -5px rgba(15, 23, 42, 0.12), 0 6px 20px rgba(35, 87, 254, 0.1);
+    }
+  }
+
+  // Brand Logo & Text
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    cursor: pointer;
+
+    .brand-icon-wrapper {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: #EEF3FF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease, background 0.3s ease;
+
+      .brand-logo-img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+    }
+
+    .brand-name {
+      font-family: $font-heading;
+      font-size: 20px;
+      font-weight: 700;
+      color: #0F172A;
+      letter-spacing: -0.02em;
+    }
+
+    &:hover {
+      .brand-icon-wrapper {
+        transform: scale(1.05);
+        background: #E0E7FF;
+      }
+    }
+  }
+
+  // Navigation Links & Actions
+  .navbar-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+
+    .nav-link {
+      font-size: 15px;
+      font-weight: 500;
+      color: #475569;
+      text-decoration: none;
+      transition: color 0.3s ease;
+      position: relative;
+      padding: 4px 0;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: #2357FE;
+        border-radius: 2px;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      &:hover {
+        color: #2357FE;
+
+        &::after {
+          width: 100%;
+        }
+      }
+    }
+
+    // Get Started Button
+    .nav-btn-get-started {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFFFFF;
+      background: linear-gradient(135deg, #2357FE 0%, #1D4ED8 100%);
+      border: none;
+      border-radius: 9999px;
+      cursor: pointer;
+      box-shadow: 0 6px 18px -3px rgba(35, 87, 254, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+      svg {
+        transition: transform 0.3s ease;
+      }
+
+      &:hover {
+        background: linear-gradient(135deg, #1A46D8 0%, #173FBC 100%);
+        box-shadow: 0 10px 24px -4px rgba(35, 87, 254, 0.55);
+        transform: translateY(-2px);
+
+        svg {
+          transform: translateX(3px);
+        }
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+
+  // Mobile & Tablet Responsive
+  @media (max-width: 900px) {
+    padding: 14px 4%;
+
+    .navbar-container {
+      padding: 10px 18px;
+    }
+
+    &.navbar--shrunk .navbar-container {
+      max-width: 100%;
+    }
+
+    .navbar-links {
+      gap: 16px;
+
+      .nav-link {
+        font-size: 14px;
+      }
+
+      .nav-btn-get-started {
+        padding: 8px 16px;
+        font-size: 13px;
+      }
+    }
+  }
+
+  @media (max-width: 680px) {
+    .navbar-links {
+      .nav-link {
+        display: none; // Hide section links on tiny screens, keeping Get Started button
+      }
+    }
+  }
+}

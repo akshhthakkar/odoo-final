@@ -56,6 +56,14 @@ Conventions: all tables get `id (uuid, pk, default gen_random_uuid())`, `created
 | is_active | boolean | NOT NULL default true | deactivation instead of delete |
 | employee_id | uuid | NULLABLE FK → employees | link for Employee self-service |
 
+### refresh_tokens
+| Field | Type | Constraints | Notes |
+|---|---|---|---|
+| user_id | uuid | NOT NULL FK → users (CASCADE) | session owner |
+| token_hash | varchar(64) | NOT NULL, UNIQUE | sha256 hex of refresh token |
+| expires_at | timestamptz | NOT NULL | 7-day TTL |
+| revoked_at | timestamptz | NULLABLE | set on logout / rotation |
+
 ### departments
 | Field | Type | Constraints |
 |---|---|---|
@@ -98,14 +106,14 @@ Conventions: all tables get `id (uuid, pk, default gen_random_uuid())`, `created
 | weekly_hours | numeric(5,2) | NOT NULL | **computed** from lines by service; kept denormalized for list performance |
 
 ### schedule_lines
-| Field | Type | Constraints |
-|---|---|---|
-| schedule_id | uuid | NOT NULL FK → working_schedules (CASCADE delete) |
-| day_of_week | smallint | NOT NULL, CHECK 0–6 (Mon=0) |
-| start_time | time | NOT NULL |
-| end_time | time | NOT NULL |
-| break_minutes | int | NOT NULL default 0, CHECK ≥ 0 |
-| — | — | UNIQUE (schedule_id, day_of_week); service computes hours = end − start − break |
+| Field | Type | Constraints | Notes |
+|---|---|---|---|
+| schedule_id | uuid | NOT NULL FK → working_schedules (CASCADE delete) | |
+| day_of_week | smallint | NOT NULL, CHECK 0–6 (Mon=0) | |
+| start_minutes | int | NOT NULL, CHECK 0–1440 | minutes since midnight (e.g. 540 = 09:00) |
+| end_minutes | int | NOT NULL, CHECK 0–1440 | minutes since midnight (e.g. 1080 = 18:00) |
+| break_minutes | int | NOT NULL default 0, CHECK ≥ 0 | |
+| — | — | **UNIQUE (schedule_id, day_of_week)** | Deterministic integer duration math `(end - start - break) / 60` |
 
 ### contracts
 | Field | Type | Constraints | Notes |

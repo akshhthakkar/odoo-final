@@ -15,31 +15,527 @@ enum Role {
   ADMIN
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  fullName     String   @map("full_name")
-  role         Role     @default(EMPLOYEE)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
 
-  refreshTokens RefreshToken[]
+enum ContractType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum ScheduleType {
+  FULL_TIME
+  PART_TIME
+  FLEXIBLE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  MISSING_CHECKOUT
+  MANUAL_EDIT
+}
+
+enum AttendanceSource {
+  SELF
+  HR
+}
+
+enum TimeOffUnit {
+  DAYS
+  HOURS
+}
+
+enum TimeOffStatus {
+  TO_APPROVE
+  APPROVED
+  REFUSED
+  CANCELLED
+}
+
+enum AllocationStatus {
+  DRAFT
+  TO_APPROVE
+  APPROVED
+  REFUSED
+}
+
+enum RuleCategory {
+  BASIC
+  ALLOWANCE
+  GROSS
+  DEDUCTION
+  EMPLOYER_CONTRIB
+  NET
+}
+
+enum ComputationType {
+  FIXED
+  PERCENTAGE
+  FORMULA
+}
+
+enum PayrunStatus {
+  DRAFT
+  COMPUTED
+  VALIDATED
+  PAID
+  CANCELLED
+}
+
+enum PayslipStatus {
+  DRAFT
+  COMPUTED
+  VALIDATED
+  PAID
+}
+
+enum WarningCode {
+  NO_ACTIVE_CONTRACT
+  AMBIGUOUS_CONTRACT
+  DUPLICATE_PAYSLIP
+  MISSING_BANK_DETAILS
+  NO_SCHEDULE
+  ZERO_WORKED_DAYS
+  RULE_ERROR
+}
+
+enum WarningSeverity {
+  WARNING
+  ERROR
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(100)
+  fullName     String   @map("full_name") @db.VarChar(120)
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  employeeId   String?  @unique @map("employee_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee                Employee?        @relation("UserEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  approvedTimeOffRequests TimeOffRequest[] @relation("TimeOffApprover")
+  createdPayruns          Payrun[]         @relation("PayrunCreator")
+  auditLogs               AuditLog[]       @relation("AuditActor")
+  refreshTokens           RefreshToken[]
 
   @@map("users")
 }
 
 model RefreshToken {
-  id        String    @id @default(uuid())
-  userId    String    @map("user_id")
-  tokenHash String    @unique @map("token_hash")
-  expiresAt DateTime  @map("expires_at")
-  revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Department {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String   @unique @db.VarChar(120)
+  code              String   @unique @db.VarChar(20)
+  parentId          String?  @map("parent_id") @db.Uuid
+  managerEmployeeId String?  @map("manager_employee_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent          Department?  @relation("DepartmentTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children        Department[] @relation("DepartmentTree")
+  managerEmployee Employee?    @relation("DepartmentManager", fields: [managerEmployeeId], references: [id], onDelete: SetNull)
+  employees       Employee[]   @relation("DepartmentStaff")
+  contracts       Contract[]   @relation("ContractDepartment")
+
+  @@map("departments")
+}
+
+model Job {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employees Employee[] @relation("EmployeeJob")
+  contracts Contract[] @relation("ContractJob")
+
+  @@map("jobs")
+}
+
+model Employee {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeCode      String         @unique @map("employee_code") @db.VarChar(20)
+  firstName         String         @map("first_name") @db.VarChar(80)
+  lastName          String         @map("last_name") @db.VarChar(80)
+  email             String         @unique @db.VarChar(255)
+  phone             String?        @db.VarChar(20)
+  dateOfBirth       DateTime?      @map("date_of_birth") @db.Date
+  gender            String?        @db.VarChar(10)
+  address           String?
+  hireDate          DateTime       @map("hire_date") @db.Date
+  terminationDate   DateTime?      @map("termination_date") @db.Date
+  status            EmployeeStatus @default(ACTIVE)
+  departmentId      String?        @map("department_id") @db.Uuid
+  jobId             String?        @map("job_id") @db.Uuid
+  managerId         String?        @map("manager_id") @db.Uuid
+  workingScheduleId String?        @map("working_schedule_id") @db.Uuid
+  bankAccountName   String?        @map("bank_account_name") @db.VarChar(120)
+  bankAccountNumber String?        @map("bank_account_number") @db.VarChar(34)
+  bankIfsc          String?        @map("bank_ifsc") @db.VarChar(20)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User?               @relation("UserEmployee")
+  department         Department?         @relation("DepartmentStaff", fields: [departmentId], references: [id], onDelete: SetNull)
+  job                Job?                @relation("EmployeeJob", fields: [jobId], references: [id], onDelete: SetNull)
+  manager            Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  directReports      Employee[]          @relation("EmployeeManager")
+  managedDepartments Department[]        @relation("DepartmentManager")
+  workingSchedule    WorkingSchedule?    @relation("EmployeeSchedule", fields: [workingScheduleId], references: [id], onDelete: SetNull)
+  contracts          Contract[]          @relation("EmployeeContracts")
+  attendance         Attendance[]        @relation("EmployeeAttendance")
+  timeOffAllocations TimeOffAllocation[] @relation("EmployeeAllocations")
+  timeOffRequests    TimeOffRequest[]    @relation("EmployeeTimeOffRequests")
+  payrunSelections   PayrunEmployee[]    @relation("PayrunEmployeeSelections")
+  payslips           Payslip[]           @relation("EmployeePayslips")
+
+  @@index([departmentId])
+  @@index([status])
+  @@index([managerId])
+  @@map("employees")
+}
+
+model WorkingSchedule {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String       @unique @db.VarChar(120)
+  scheduleType ScheduleType @map("schedule_type")
+  weeklyHours  Decimal      @map("weekly_hours") @db.Decimal(5, 2)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lines     ScheduleLine[] @relation("ScheduleLines")
+  employees Employee[]     @relation("EmployeeSchedule")
+  contracts Contract[]     @relation("ContractSchedule")
+
+  @@map("working_schedules")
+}
+
+model ScheduleLine {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scheduleId   String   @map("schedule_id") @db.Uuid
+  dayOfWeek    Int      @map("day_of_week") @db.SmallInt
+  startMinutes Int      @map("start_minutes")
+  endMinutes   Int      @map("end_minutes")
+  breakMinutes Int      @default(0) @map("break_minutes")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  schedule WorkingSchedule @relation("ScheduleLines", fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, dayOfWeek])
+  @@map("schedule_lines")
+}
+
+model Contract {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId        String         @map("employee_id") @db.Uuid
+  reference         String         @db.VarChar(40)
+  startDate         DateTime       @map("start_date") @db.Date
+  endDate           DateTime?      @map("end_date") @db.Date
+  wage              Decimal        @db.Decimal(14, 2)
+  currency          String         @default("INR") @db.VarChar(3)
+  contractType      ContractType   @map("contract_type")
+  departmentId      String?        @map("department_id") @db.Uuid
+  jobId             String?        @map("job_id") @db.Uuid
+  workingScheduleId String?        @map("working_schedule_id") @db.Uuid
+  salaryStructureId String?        @map("salary_structure_id") @db.Uuid
+  status            ContractStatus
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee        Employee         @relation("EmployeeContracts", fields: [employeeId], references: [id], onDelete: Restrict)
+  department      Department?      @relation("ContractDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  job             Job?             @relation("ContractJob", fields: [jobId], references: [id], onDelete: SetNull)
+  workingSchedule WorkingSchedule? @relation("ContractSchedule", fields: [workingScheduleId], references: [id], onDelete: SetNull)
+  salaryStructure SalaryStructure? @relation("ContractSalaryStructure", fields: [salaryStructureId], references: [id], onDelete: SetNull)
+  payslips        Payslip[]        @relation("PayslipContract")
+
+  @@index([employeeId, status, startDate])
+  @@map("contracts")
+}
+
+model Attendance {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId     String           @map("employee_id") @db.Uuid
+  attendanceDate DateTime         @map("attendance_date") @db.Date
+  checkIn        DateTime         @map("check_in") @db.Timestamptz(6)
+  checkOut       DateTime?        @map("check_out") @db.Timestamptz(6)
+  workedHours    Decimal?         @map("worked_hours") @db.Decimal(5, 2)
+  overtimeHours  Decimal          @default(0) @map("overtime_hours") @db.Decimal(5, 2)
+  status         AttendanceStatus
+  source         AttendanceSource
+  note           String?
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee Employee @relation("EmployeeAttendance", fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, attendanceDate])
+  @@index([attendanceDate])
+  @@map("attendance")
+}
+
+model TimeOffType {
+  id                 String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String      @unique @db.VarChar(120)
+  code               String      @unique @db.VarChar(20)
+  unit               TimeOffUnit
+  requiresAllocation Boolean     @default(true) @map("requires_allocation")
+  allowsRequest      Boolean     @default(true) @map("allows_request")
+  color              String?     @db.VarChar(9)
+  isActive           Boolean     @default(true) @map("is_active")
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  allocations TimeOffAllocation[] @relation("TypeAllocations")
+  requests    TimeOffRequest[]    @relation("TypeRequests")
+
+  @@map("time_off_types")
+}
+
+model TimeOffAllocation {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId    String           @map("employee_id") @db.Uuid
+  typeId        String           @map("type_id") @db.Uuid
+  validFrom     DateTime         @map("valid_from") @db.Date
+  validTo       DateTime         @map("valid_to") @db.Date
+  allocatedDays Decimal          @map("allocated_days") @db.Decimal(6, 2)
+  takenDays     Decimal          @default(0) @map("taken_days") @db.Decimal(6, 2)
+  status        AllocationStatus
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee Employee    @relation("EmployeeAllocations", fields: [employeeId], references: [id], onDelete: Restrict)
+  type     TimeOffType @relation("TypeAllocations", fields: [typeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, typeId, status])
+  @@map("time_off_allocations")
+}
+
+model TimeOffRequest {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  employeeId    String        @map("employee_id") @db.Uuid
+  typeId        String        @map("type_id") @db.Uuid
+  dateFrom      DateTime      @map("date_from") @db.Date
+  dateTo        DateTime      @map("date_to") @db.Date
+  days          Decimal       @db.Decimal(6, 2)
+  status        TimeOffStatus @default(TO_APPROVE)
+  reason        String?
+  approverId    String?       @map("approver_id") @db.Uuid
+  decidedAt     DateTime?     @map("decided_at") @db.Timestamptz(6)
+  refusalReason String?       @map("refusal_reason")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee Employee    @relation("EmployeeTimeOffRequests", fields: [employeeId], references: [id], onDelete: Restrict)
+  type     TimeOffType @relation("TypeRequests", fields: [typeId], references: [id], onDelete: Restrict)
+  approver User?       @relation("TimeOffApprover", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status])
+  @@index([typeId])
+  @@index([dateFrom, dateTo])
+  @@map("time_off_requests")
+}
+
+model SalaryStructure {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique @db.VarChar(120)
+  code        String   @unique @db.VarChar(20)
+  description String?
+  isDefault   Boolean  @default(false) @map("is_default")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rules     SalaryRule[] @relation("StructureRules")
+  contracts Contract[]   @relation("ContractSalaryStructure")
+  payruns   Payrun[]     @relation("PayrunStructure")
+  payslips  Payslip[]    @relation("PayslipStructure")
+
+  @@map("salary_structures")
+}
+
+model SalaryRule {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  structureId      String          @map("structure_id") @db.Uuid
+  name             String          @db.VarChar(120)
+  code             String          @db.VarChar(20)
+  category         RuleCategory
+  sequence         Int
+  computationType  ComputationType @map("computation_type")
+  fixedAmount      Decimal?        @map("fixed_amount") @db.Decimal(14, 2)
+  percentage       Decimal?        @db.Decimal(9, 4)
+  baseCode         String?         @map("base_code") @db.VarChar(20)
+  formula          String?
+  condition        String?
+  appearsOnPayslip Boolean         @default(true) @map("appears_on_payslip")
+  isActive         Boolean         @default(true) @map("is_active")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  structure    SalaryStructure @relation("StructureRules", fields: [structureId], references: [id], onDelete: Cascade)
+  payslipLines PayslipLine[]   @relation("RulePayslipLines")
+
+  @@unique([structureId, code])
+  @@index([structureId, sequence])
+  @@map("salary_rules")
+}
+
+model Payrun {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String       @db.VarChar(140)
+  structureId     String       @map("structure_id") @db.Uuid
+  periodStart     DateTime     @map("period_start") @db.Date
+  periodEnd       DateTime     @map("period_end") @db.Date
+  status          PayrunStatus @default(DRAFT)
+  totalGross      Decimal?     @map("total_gross") @db.Decimal(14, 2)
+  totalDeductions Decimal?     @map("total_deductions") @db.Decimal(14, 2)
+  totalNet        Decimal?     @map("total_net") @db.Decimal(14, 2)
+  computedAt      DateTime?    @map("computed_at") @db.Timestamptz(6)
+  validatedAt     DateTime?    @map("validated_at") @db.Timestamptz(6)
+  paidAt          DateTime?    @map("paid_at") @db.Timestamptz(6)
+  createdBy       String       @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  structure     SalaryStructure  @relation("PayrunStructure", fields: [structureId], references: [id], onDelete: Restrict)
+  createdByUser User             @relation("PayrunCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  employees     PayrunEmployee[] @relation("PayrunSelections")
+  payslips      Payslip[]        @relation("PayrunPayslips")
+  warnings      PayrollWarning[] @relation("PayrunWarnings")
+
+  @@index([status])
+  @@map("payruns")
+}
+
+model PayrunEmployee {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payrunId   String   @map("payrun_id") @db.Uuid
+  employeeId String   @map("employee_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payrun   Payrun   @relation("PayrunSelections", fields: [payrunId], references: [id], onDelete: Cascade)
+  employee Employee @relation("PayrunEmployeeSelections", fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([payrunId, employeeId])
+  @@map("payrun_employees")
+}
+
+model Payslip {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payrunId    String        @map("payrun_id") @db.Uuid
+  employeeId  String        @map("employee_id") @db.Uuid
+  contractId  String        @map("contract_id") @db.Uuid
+  structureId String        @map("structure_id") @db.Uuid
+  periodStart DateTime      @map("period_start") @db.Date
+  periodEnd   DateTime      @map("period_end") @db.Date
+  workedDays  Decimal       @default(0) @map("worked_days") @db.Decimal(6, 2)
+  gross       Decimal       @db.Decimal(14, 2)
+  deductions  Decimal       @db.Decimal(14, 2)
+  net         Decimal       @db.Decimal(14, 2)
+  currency    String        @db.VarChar(3)
+  status      PayslipStatus
+  emailSentAt DateTime?     @map("email_sent_at") @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payrun    Payrun           @relation("PayrunPayslips", fields: [payrunId], references: [id], onDelete: Restrict)
+  employee  Employee         @relation("EmployeePayslips", fields: [employeeId], references: [id], onDelete: Restrict)
+  contract  Contract         @relation("PayslipContract", fields: [contractId], references: [id], onDelete: Restrict)
+  structure SalaryStructure  @relation("PayslipStructure", fields: [structureId], references: [id], onDelete: Restrict)
+  lines     PayslipLine[]    @relation("PayslipLines")
+  warnings  PayrollWarning[] @relation("PayslipWarnings")
+
+  @@unique([payrunId, employeeId])
+  @@index([payrunId])
+  @@index([employeeId, periodStart, periodEnd])
+  @@map("payslips")
+}
+
+model PayslipLine {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payslipId       String          @map("payslip_id") @db.Uuid
+  ruleId          String?         @map("rule_id") @db.Uuid
+  code            String          @db.VarChar(20)
+  name            String          @db.VarChar(120)
+  category        RuleCategory
+  sequence        Int
+  amount          Decimal         @db.Decimal(14, 2)
+  rate            Decimal?        @db.Decimal(9, 4)
+  baseAmount      Decimal?        @map("base_amount") @db.Decimal(14, 2)
+  computationType ComputationType @map("computation_type")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payslip Payslip     @relation("PayslipLines", fields: [payslipId], references: [id], onDelete: Cascade)
+  rule    SalaryRule? @relation("RulePayslipLines", fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([payslipId, sequence])
+  @@map("payslip_lines")
+}
+
+model PayrollWarning {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payrunId  String          @map("payrun_id") @db.Uuid
+  payslipId String?         @map("payslip_id") @db.Uuid
+  code      WarningCode
+  severity  WarningSeverity
+  message   String
+  resolved  Boolean         @default(false)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payrun  Payrun   @relation("PayrunWarnings", fields: [payrunId], references: [id], onDelete: Cascade)
+  payslip Payslip? @relation("PayslipWarnings", fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payrunId, resolved])
+  @@map("payroll_warnings")
+}
+
+model AuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String   @db.VarChar(60)
+  entity    String   @db.VarChar(40)
+  entityId  String?  @map("entity_id") @db.Uuid
+  payload   Json?    @db.JsonB
+  ip        String?  @db.Inet
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+  @@map("audit_logs")
 }
