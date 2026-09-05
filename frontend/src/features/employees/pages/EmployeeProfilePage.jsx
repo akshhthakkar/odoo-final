@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Building2,
@@ -12,8 +12,10 @@ import {
   Briefcase,
   DollarSign,
   Clock,
+  Loader2,
 } from 'lucide-react';
-import { INITIAL_EMPLOYEES, getEmployeeById } from '../data/employeesData.js';
+import { api } from '../../../lib/api.js';
+import { INITIAL_EMPLOYEES, getEmployeeById as getMockEmployeeById } from '../data/employeesData.js';
 import './EmployeeProfilePage.scss';
 
 function getInitials(name) {
@@ -30,9 +32,100 @@ export default function EmployeeProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Find employee or fallback
-  const employee = getEmployeeById(id) || INITIAL_EMPLOYEES[0];
+  // Initial fallback
+  const mockFallback = getMockEmployeeById(id) || INITIAL_EMPLOYEES[0];
+  const [employee, setEmployee] = useState(mockFallback);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'job' | 'salary' | 'attendance' | 'contracts'
+
+  // Fetch real employee details from backend if available
+  useEffect(() => {
+    async function loadEmployee() {
+      // If it looks like a valid UUID or ID, try fetching from backend
+      if (id && id.length > 5) {
+        setLoading(true);
+        try {
+          const res = await api.get(`/employees/${id}`).catch(() => null);
+          if (res?.data?.data) {
+            const data = res.data.data;
+            const wageNum = data.active_contract?.wage || 50000;
+            const wageFormatted = `₹${Number(wageNum).toLocaleString('en-IN')}`;
+            const annualFormatted = `₹${(Number(wageNum) * 12).toLocaleString('en-IN')}`;
+
+            setEmployee({
+              id: data.id,
+              code: data.employee_code,
+              name: `${data.first_name} ${data.last_name}`,
+              jobTitle: data.job?.name || 'Staff Member',
+              department: data.department?.name || 'General',
+              status: data.status,
+              wage: wageFormatted,
+              annualCtc: annualFormatted,
+              email: data.email,
+              phone: data.phone || '+91 98765 00000',
+              location: data.address || 'Bengaluru, India (HQ)',
+              hireDate: data.hire_date ? new Date(data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
+              contractType: data.active_contract?.contract_type ? data.active_contract.contract_type.replace('_', ' ') : 'Full-time',
+              manager: data.manager ? `${data.manager.first_name} ${data.manager.last_name}` : 'Executive Manager',
+              workingSchedule: data.working_schedule?.name || 'Standard 40h (Mon-Fri 09:00 - 18:00)',
+              gender: data.gender || 'Not specified',
+              dob: data.date_of_birth ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '14 Aug 1994',
+              maritalStatus: 'Single',
+              emergencyContact: 'Family Contact — +91 98765 00112',
+              pan: 'ABCDE1234F',
+              aadhaar: 'XXXX-XXXX-4589',
+              uan: '100982347891',
+              bankDetails: {
+                bankName: data.bank_account_name ? `${data.bank_account_name}'s Bank` : 'HDFC Bank Ltd',
+                accountNumber: data.bank_account_number || '50100458921102',
+                ifsc: data.bank_ifsc || 'HDFC0001245',
+                accountType: 'Salary Account',
+                branch: 'Koramangala, Bengaluru',
+              },
+              salaryBreakdown: {
+                basic: `₹${(wageNum * 0.5).toLocaleString('en-IN')}`,
+                hra: `₹${(wageNum * 0.25).toLocaleString('en-IN')}`,
+                special: `₹${(wageNum * 0.15).toLocaleString('en-IN')}`,
+                conveyance: `₹${(wageNum * 0.1).toLocaleString('en-IN')}`,
+                gross: wageFormatted,
+                pfEmployee: `₹${Math.round(wageNum * 0.5 * 0.12).toLocaleString('en-IN')}`,
+                professionalTax: '₹200',
+                tds: `₹${Math.round(wageNum * 0.05).toLocaleString('en-IN')}`,
+                totalDeductions: `₹${Math.round(wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05).toLocaleString('en-IN')}`,
+                netPay: `₹${Math.round(wageNum - (wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05)).toLocaleString('en-IN')}`,
+              },
+              leaveBalances: mockFallback.leaveBalances || {
+                paidLeave: { used: 4, total: 18 },
+                sickLeave: { used: 2, total: 10 },
+                casualLeave: { used: 1, total: 6 },
+              },
+              recentAttendance: mockFallback.recentAttendance || [
+                { date: '04 Sep 2026', checkIn: '09:02 AM', checkOut: '06:14 PM', hours: '9h 12m', status: 'PRESENT' },
+                { date: '03 Sep 2026', checkIn: '08:58 AM', checkOut: '06:05 PM', hours: '9h 07m', status: 'PRESENT' },
+              ],
+              contracts: data.active_contract
+                ? [
+                    {
+                      id: data.active_contract.id,
+                      title: `${data.job?.name || 'Staff'} Employment Agreement (${data.active_contract.reference})`,
+                      status: data.active_contract.status,
+                      startDate: new Date(data.active_contract.start_date || data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                      endDate: data.active_contract.end_date ? new Date(data.active_contract.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent',
+                      wage: wageFormatted,
+                    },
+                  ]
+                : mockFallback.contracts,
+            });
+          }
+        } catch {
+          // fallback to mock
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+    loadEmployee();
+  }, [id]);
 
   const {
     name,
@@ -71,17 +164,16 @@ export default function EmployeeProfilePage() {
           className="emp-profile__back-btn"
           onClick={() => navigate('/employees')}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
+          <ArrowLeft size={16} strokeWidth={2.5} />
           <span>Back to Employees</span>
         </button>
 
         <div className="emp-profile__breadcrumbs">
           <span>Employees</span>
           <span>/</span>
-          <span className="emp-profile__breadcrumb-active">{name} ({code})</span>
+          <span className="emp-profile__breadcrumb-active">
+            {name} ({code})
+          </span>
         </div>
       </div>
 
@@ -89,17 +181,19 @@ export default function EmployeeProfilePage() {
       <div className="emp-profile__hero-card">
         <div className="emp-profile__hero-left">
           <div className="emp-profile__avatar-wrap">
-            <div className="emp-profile__avatar">
-              {getInitials(name)}
-            </div>
-            <span className={`emp-profile__status-dot-badge emp-profile__status-dot-badge--${status.toLowerCase()}`} />
+            <div className="emp-profile__avatar">{getInitials(name)}</div>
+            <span
+              className={`emp-profile__status-dot-badge emp-profile__status-dot-badge--${status.toLowerCase()}`}
+            />
           </div>
 
           <div className="emp-profile__hero-info">
             <div className="emp-profile__name-row">
               <h1 className="emp-profile__name">{name}</h1>
               <span className="emp-profile__code-pill">{code}</span>
-              <span className={`emp-profile__status-pill emp-profile__status-pill--${status.toLowerCase()}`}>
+              <span
+                className={`emp-profile__status-pill emp-profile__status-pill--${status.toLowerCase()}`}
+              >
                 ● {status.replace('_', ' ')}
               </span>
             </div>
@@ -111,35 +205,22 @@ export default function EmployeeProfilePage() {
             {/* Quick Contact & Info Badges */}
             <div className="emp-profile__quick-badges">
               <div className="emp-profile__quick-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
+                <Mail size={14} />
                 <a href={`mailto:${email}`}>{email}</a>
               </div>
 
               <div className="emp-profile__quick-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                </svg>
+                <Phone size={14} />
                 <span>{phone}</span>
               </div>
 
               <div className="emp-profile__quick-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
+                <MapPin size={14} />
                 <span>{location}</span>
               </div>
 
               <div className="emp-profile__quick-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                  <line x1="16" y1="2" x2="16" y2="6" />
-                  <line x1="8" y1="2" x2="8" y2="6" />
-                  <line x1="3" y1="10" x2="21" y2="10" />
-                </svg>
+                <Calendar size={14} />
                 <span>Joined {hireDate}</span>
               </div>
             </div>
@@ -154,7 +235,9 @@ export default function EmployeeProfilePage() {
           </div>
           <div className="emp-profile__hero-stat">
             <span className="emp-profile__hero-stat-label">Annual CTC</span>
-            <span className="emp-profile__hero-stat-val emp-profile__hero-stat-val--accent">{annualCtc}</span>
+            <span className="emp-profile__hero-stat-val emp-profile__hero-stat-val--accent">
+              {annualCtc}
+            </span>
           </div>
         </div>
       </div>
@@ -165,10 +248,7 @@ export default function EmployeeProfilePage() {
           className={`emp-profile__tab-btn ${activeTab === 'overview' ? 'emp-profile__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
+          <User size={15} />
           <span>Personal &amp; Overview</span>
         </button>
 
@@ -176,10 +256,7 @@ export default function EmployeeProfilePage() {
           className={`emp-profile__tab-btn ${activeTab === 'job' ? 'emp-profile__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('job')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
+          <Briefcase size={15} />
           <span>Job &amp; Organization</span>
         </button>
 
@@ -187,10 +264,7 @@ export default function EmployeeProfilePage() {
           className={`emp-profile__tab-btn ${activeTab === 'salary' ? 'emp-profile__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('salary')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="1" x2="12" y2="23" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
+          <DollarSign size={15} />
           <span>Salary &amp; CTC Structure</span>
         </button>
 
@@ -198,10 +272,7 @@ export default function EmployeeProfilePage() {
           className={`emp-profile__tab-btn ${activeTab === 'attendance' ? 'emp-profile__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('attendance')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
+          <Clock size={15} />
           <span>Attendance &amp; Leaves</span>
         </button>
 
@@ -209,20 +280,13 @@ export default function EmployeeProfilePage() {
           className={`emp-profile__tab-btn ${activeTab === 'contracts' ? 'emp-profile__tab-btn--active' : ''}`}
           onClick={() => setActiveTab('contracts')}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
+          <FileText size={15} />
           <span>Contracts &amp; Documents</span>
         </button>
       </div>
 
       {/* ── 4. Tab Contents ── */}
       <div className="emp-profile__tab-panel">
-
         {/* Tab 1: Overview & Personal Details */}
         {activeTab === 'overview' && (
           <div className="emp-profile__grid-2col">
@@ -267,7 +331,7 @@ export default function EmployeeProfilePage() {
               <div className="emp-profile__data-grid">
                 <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
                   <label>Residential Address</label>
-                  <p>42/B, Green Glen Layout, Bellandur, {location}</p>
+                  <p>{location}</p>
                 </div>
                 <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
                   <label>Emergency Contact</label>
@@ -289,7 +353,10 @@ export default function EmployeeProfilePage() {
               <div className="emp-profile__card-header">
                 <h3 className="emp-profile__card-title">Statutory &amp; Identity Numbers</h3>
               </div>
-              <div className="emp-profile__data-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+              <div
+                className="emp-profile__data-grid"
+                style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+              >
                 <div className="emp-profile__data-item">
                   <label>Permanent Account Number (PAN)</label>
                   <p className="emp-profile__mono-val">{pan}</p>
@@ -317,7 +384,9 @@ export default function EmployeeProfilePage() {
               <div className="emp-profile__data-grid">
                 <div className="emp-profile__data-item">
                   <label>Job Title / Designation</label>
-                  <p><strong>{jobTitle}</strong></p>
+                  <p>
+                    <strong>{jobTitle}</strong>
+                  </p>
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Department</label>
@@ -329,7 +398,9 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Employment Type</label>
-                  <p><span className="emp-profile__badge-soft">{contractType}</span></p>
+                  <p>
+                    <span className="emp-profile__badge-soft">{contractType}</span>
+                  </p>
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Work Location</label>
@@ -357,7 +428,11 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Probation Status</label>
-                  <p>{status === 'PROBATION' ? 'Under Probation (6 Months)' : 'Completed / Confirmed'}</p>
+                  <p>
+                    {status === 'PROBATION'
+                      ? 'Under Probation (6 Months)'
+                      : 'Completed / Confirmed'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -375,11 +450,15 @@ export default function EmployeeProfilePage() {
               </div>
               <div className="emp-profile__sal-box">
                 <span className="emp-profile__sal-box-label">Total Monthly Deductions</span>
-                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--deduct">{salaryBreakdown.totalDeductions}</span>
+                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--deduct">
+                  {salaryBreakdown.totalDeductions}
+                </span>
               </div>
               <div className="emp-profile__sal-box emp-profile__sal-box--highlight">
                 <span className="emp-profile__sal-box-label">Net Take-Home Pay</span>
-                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--net">{salaryBreakdown.netPay}</span>
+                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--net">
+                  {salaryBreakdown.netPay}
+                </span>
               </div>
               <div className="emp-profile__sal-box">
                 <span className="emp-profile__sal-box-label">Annual CTC</span>
@@ -403,25 +482,43 @@ export default function EmployeeProfilePage() {
                   <tbody>
                     <tr>
                       <td>Basic Salary (50%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{salaryBreakdown.basic}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {salaryBreakdown.basic}
+                      </td>
                     </tr>
                     <tr>
                       <td>House Rent Allowance (HRA 25%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{salaryBreakdown.hra}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {salaryBreakdown.hra}
+                      </td>
                     </tr>
                     <tr>
                       <td>Special Allowance (15%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{salaryBreakdown.special}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {salaryBreakdown.special}
+                      </td>
                     </tr>
                     <tr>
                       <td>Conveyance / Performance Allowance (10%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{salaryBreakdown.conveyance}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                        {salaryBreakdown.conveyance}
+                      </td>
                     </tr>
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td><strong>Total Gross Earnings</strong></td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{salaryBreakdown.gross}</td>
+                      <td>
+                        <strong>Total Gross Earnings</strong>
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'right',
+                          fontWeight: 700,
+                          color: '#0f172a',
+                        }}
+                      >
+                        {salaryBreakdown.gross}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
@@ -442,21 +539,31 @@ export default function EmployeeProfilePage() {
                   <tbody>
                     <tr>
                       <td>Provident Fund (Employee 12%)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>{salaryBreakdown.pfEmployee}</td>
+                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                        {salaryBreakdown.pfEmployee}
+                      </td>
                     </tr>
                     <tr>
                       <td>Professional Tax (PT)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>{salaryBreakdown.professionalTax}</td>
+                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                        {salaryBreakdown.professionalTax}
+                      </td>
                     </tr>
                     <tr>
                       <td>Income Tax / TDS (Estimated)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>{salaryBreakdown.tds}</td>
+                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                        {salaryBreakdown.tds}
+                      </td>
                     </tr>
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td><strong>Total Deductions</strong></td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>{salaryBreakdown.totalDeductions}</td>
+                      <td>
+                        <strong>Total Deductions</strong>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>
+                        {salaryBreakdown.totalDeductions}
+                      </td>
                     </tr>
                   </tfoot>
                 </table>
@@ -467,8 +574,12 @@ export default function EmployeeProfilePage() {
                     <Building2 size={20} color="#2357fe" />
                   </div>
                   <div className="emp-profile__bank-info">
-                    <span className="emp-profile__bank-name">{bankDetails.bankName}</span>
-                    <span className="emp-profile__bank-acc">A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}</span>
+                    <span className="emp-profile__bank-name">
+                      {bankDetails.bankName}
+                    </span>
+                    <span className="emp-profile__bank-acc">
+                      A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}
+                    </span>
                   </div>
                   <span className="emp-profile__bank-type">{bankDetails.accountType}</span>
                 </div>
@@ -488,15 +599,22 @@ export default function EmployeeProfilePage() {
               <div className="emp-profile__leave-list">
                 <div className="emp-profile__leave-item">
                   <div className="emp-profile__leave-header">
-                    <span className="emp-profile__leave-name">Paid Time Off (PTO / Privilege)</span>
+                    <span className="emp-profile__leave-name">
+                      Paid Time Off (PTO / Privilege)
+                    </span>
                     <span className="emp-profile__leave-nums">
-                      <strong>{leaveBalances.paidLeave.total - leaveBalances.paidLeave.used}</strong> / {leaveBalances.paidLeave.total} days remaining
+                      <strong>
+                        {leaveBalances.paidLeave.total - leaveBalances.paidLeave.used}
+                      </strong>{' '}
+                      / {leaveBalances.paidLeave.total} days remaining
                     </span>
                   </div>
                   <div className="emp-profile__progress-bar">
                     <div
                       className="emp-profile__progress-fill"
-                      style={{ width: `${(leaveBalances.paidLeave.used / leaveBalances.paidLeave.total) * 100}%` }}
+                      style={{
+                        width: `${(leaveBalances.paidLeave.used / leaveBalances.paidLeave.total) * 100}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -505,13 +623,18 @@ export default function EmployeeProfilePage() {
                   <div className="emp-profile__leave-header">
                     <span className="emp-profile__leave-name">Sick / Medical Leave</span>
                     <span className="emp-profile__leave-nums">
-                      <strong>{leaveBalances.sickLeave.total - leaveBalances.sickLeave.used}</strong> / {leaveBalances.sickLeave.total} days remaining
+                      <strong>
+                        {leaveBalances.sickLeave.total - leaveBalances.sickLeave.used}
+                      </strong>{' '}
+                      / {leaveBalances.sickLeave.total} days remaining
                     </span>
                   </div>
                   <div className="emp-profile__progress-bar">
                     <div
                       className="emp-profile__progress-fill emp-profile__progress-fill--orange"
-                      style={{ width: `${(leaveBalances.sickLeave.used / leaveBalances.sickLeave.total) * 100}%` }}
+                      style={{
+                        width: `${(leaveBalances.sickLeave.used / leaveBalances.sickLeave.total) * 100}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -520,13 +643,18 @@ export default function EmployeeProfilePage() {
                   <div className="emp-profile__leave-header">
                     <span className="emp-profile__leave-name">Casual Leave</span>
                     <span className="emp-profile__leave-nums">
-                      <strong>{leaveBalances.casualLeave.total - leaveBalances.casualLeave.used}</strong> / {leaveBalances.casualLeave.total} days remaining
+                      <strong>
+                        {leaveBalances.casualLeave.total - leaveBalances.casualLeave.used}
+                      </strong>{' '}
+                      / {leaveBalances.casualLeave.total} days remaining
                     </span>
                   </div>
                   <div className="emp-profile__progress-bar">
                     <div
                       className="emp-profile__progress-fill emp-profile__progress-fill--blue"
-                      style={{ width: `${(leaveBalances.casualLeave.used / leaveBalances.casualLeave.total) * 100}%` }}
+                      style={{
+                        width: `${(leaveBalances.casualLeave.used / leaveBalances.casualLeave.total) * 100}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -550,11 +678,17 @@ export default function EmployeeProfilePage() {
                 <tbody>
                   {recentAttendance.map((log, idx) => (
                     <tr key={idx}>
-                      <td><strong>{log.date}</strong></td>
-                      <td>{log.checkIn} — {log.checkOut}</td>
+                      <td>
+                        <strong>{log.date}</strong>
+                      </td>
+                      <td>
+                        {log.checkIn} — {log.checkOut}
+                      </td>
                       <td>{log.hours}</td>
                       <td>
-                        <span className={`emp-card__status-badge emp-card__status-badge--${log.status === 'PRESENT' ? 'active' : 'probation'}`}>
+                        <span
+                          className={`emp-card__status-badge emp-card__status-badge--${log.status === 'PRESENT' ? 'active' : 'probation'}`}
+                        >
                           ● {log.status}
                         </span>
                       </td>
@@ -573,28 +707,35 @@ export default function EmployeeProfilePage() {
               <h3 className="emp-profile__card-title">Active Contracts &amp; HR Agreements</h3>
             </div>
             <div className="emp-profile__contracts-list">
-              {contracts.map((cnt) => (
-                <div key={cnt.id} className="emp-profile__contract-item">
-                  <div className="emp-profile__contract-left">
-                    <div className="emp-profile__doc-icon">
-                      <FileText size={20} color="#2357fe" />
+              {contracts && contracts.length > 0 ? (
+                contracts.map((cnt) => (
+                  <div key={cnt.id} className="emp-profile__contract-item">
+                    <div className="emp-profile__contract-left">
+                      <div className="emp-profile__doc-icon">
+                        <FileText size={20} color="#2357fe" />
+                      </div>
+                      <div>
+                        <h4 className="emp-profile__doc-title">{cnt.title}</h4>
+                        <p className="emp-profile__doc-meta">
+                          Valid from {cnt.startDate} &bull; Wage: {cnt.wage}/mo &bull; Status:{' '}
+                          <span className="emp-profile__badge-soft">{cnt.status}</span>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="emp-profile__doc-title">{cnt.title}</h4>
-                      <p className="emp-profile__doc-meta">
-                        Valid from {cnt.startDate} &bull; Wage: {cnt.wage}/mo &bull; Status: <span className="emp-profile__badge-soft">{cnt.status}</span>
-                      </p>
-                    </div>
+                    <button
+                      className="emp-profile__doc-action-btn"
+                      onClick={() => navigate('/contracts')}
+                    >
+                      View in Contracts →
+                    </button>
                   </div>
-                  <button className="emp-profile__doc-action-btn">
-                    View Agreement
-                  </button>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p style={{ color: '#64748b', padding: '16px' }}>No active contracts found.</p>
+              )}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

@@ -32,6 +32,11 @@ export const validateQuery =
         )
       );
     }
-    req.query = parsed.data;
+    req.validatedQuery = parsed.data;
+    if (req.query && typeof req.query === 'object') {
+      Object.keys(req.query).forEach((key) => delete req.query[key]);
+      Object.assign(req.query, parsed.data);
+    }
     return next();
   };
+
