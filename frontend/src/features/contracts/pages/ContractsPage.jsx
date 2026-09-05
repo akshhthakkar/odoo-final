@@ -67,17 +67,7 @@ export default function ContractsPage() {
   async function fetchContracts() {
     setLoading(true);
     try {
-      const params = { limit: 100 };
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (departmentFilter !== 'all') {
-        const foundDept = departments.find(
-          (d) => d.name.toLowerCase() === departmentFilter.toLowerCase()
-        );
-        if (foundDept) params.department_id = foundDept.id;
-      }
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-
-      const res = await api.get('/contracts', { params });
+      const res = await api.get('/contracts', { params: { limit: 200 } });
       const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items || [];
       setContracts(items);
     } catch (err) {
@@ -119,11 +109,8 @@ export default function ContractsPage() {
 
   useEffect(() => {
     fetchMetadata();
-  }, []);
-
-  useEffect(() => {
     fetchContracts();
-  }, [statusFilter, departmentFilter]);
+  }, []);
 
   // Metrics Calculation
   const metrics = useMemo(() => {
