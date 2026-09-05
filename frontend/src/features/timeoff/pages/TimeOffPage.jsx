@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Calendar,
   CalendarDays,
@@ -65,8 +66,45 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+function getLeaveIcon(typeName) {
+  const t = (typeName || '').toLowerCase();
+  if (t.includes('sick')) return <HeartPulse size={13} />;
+  if (t.includes('casual')) return <Coffee size={13} />;
+  if (t.includes('privilege') || t.includes('annual')) return <Palmtree size={13} />;
+  return <CalendarDays size={13} />;
+}
+
+function renderStatusBadge(status) {
+  switch (status) {
+    case 'APPROVED':
+      return (
+        <span className="to-status-pill to-status-pill--approved">
+          <CheckCircle2 size={10} />
+          <span>Approved</span>
+        </span>
+      );
+    case 'REFUSED':
+      return (
+        <span className="to-status-pill to-status-pill--refused">
+          <XCircle size={10} />
+          <span>Refused</span>
+        </span>
+      );
+    case 'TO_APPROVE':
+    default:
+      return (
+        <span className="to-status-pill to-status-pill--pending">
+          <Clock size={10} />
+          <span>Pending</span>
+        </span>
+      );
+  }
+}
+
 export default function TimeOffPage() {
   const toast = useToast();
+  const authUser = useSelector((state) => state.auth.user);
+  const isEmployeeRole = authUser?.role === 'EMPLOYEE';
 
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
@@ -79,6 +117,13 @@ export default function TimeOffPage() {
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
 
+  // Refusal Modal State
+  const [refusalModalOpen, setRefusalModalOpen] = useState(false);
+  const [refusalTargetId, setRefusalTargetId] = useState(null);
+  const [refusalReason, setRefusalReason] = useState('');
+  const [refusalSubmitting, setRefusalSubmitting] = useState(false);
+  const [refusalError, setRefusalError] = useState('');
+
   // Form State for New Request Modal
   const [formEmployeeId, setFormEmployeeId] = useState('');
   const [formLeaveTypeId, setFormLeaveTypeId] = useState('');
@@ -87,14 +132,14 @@ export default function TimeOffPage() {
   const [formReason, setFormReason] = useState('');
 
   // Fetch all time off data from backend
-  async function fetchTimeOffData() {
+  const fetchTimeOffData = useCallback(async () => {
     setLoading(true);
     try {
       const [typesRes, reqsRes, allocsRes, empsRes] = await Promise.all([
         api.get('/time-off/types').catch(() => null),
         api.get('/time-off/requests').catch(() => null),
         api.get('/time-off/allocations').catch(() => null),
-        api.get('/employees?limit=100').catch(() => null),
+        api.get('/employees').catch(() => null),
       ]);
 
       if (typesRes?.data?.data) {
@@ -110,13 +155,17 @@ export default function TimeOffPage() {
         const formatted = empList.map((e, idx) => ({
           id: e.id,
           code: e.employee_code,
-          name: `${e.first_name} ${e.last_name}`,
-          initials: getInitials(`${e.first_name} ${e.last_name}`),
+          name: `${e.first_name || ''} ${e.last_name || ''}`,
+          initials: getInitials(`${e.first_name || ''} ${e.last_name || ''}`),
           color: AVATAR_COLORS[idx % AVATAR_COLORS.length],
         }));
         setEmployees(formatted);
         if (formatted.length > 0 && !formEmployeeId) {
-          setFormEmployeeId(formatted[0].id);
+          // If logged in user is employee, default to own employee ID
+          const currentEmp = authUser?.employee_id
+            ? formatted.find((e) => e.id === authUser.employee_id)
+            : formatted[0];
+          setFormEmployeeId(currentEmp ? currentEmp.id : formatted[0].id);
         }
       }
 
@@ -129,10 +178,20 @@ export default function TimeOffPage() {
         const reqList = Array.isArray(reqsRes.data.data) ? reqsRes.data.data : reqsRes.data.data.items || [];
         // Map backend requests to calendar timeline events
         const mapped = reqList.map((r) => {
-          const empName = r.employee ? `${r.employee.first_name} ${r.employee.last_name}` : 'Staff Member';
-          const typeName = r.leave_type?.name || 'Leave';
-          const fromStr = r.start_date ? new Date(r.start_date).toISOString().slice(0, 10) : '';
-          const toStr = r.end_date ? new Date(r.end_date).toISOString().slice(0, 10) : fromStr;
+          const empName = r.employee
+            ? `${r.employee.first_name || ''} ${r.employee.last_name || ''}`.trim() || 'Staff Member'
+            : 'Staff Member';
+          const typeName = r.type?.name || r.leave_type?.name || 'Leave';
+          const fromStr = r.date_from
+            ? new Date(r.date_from).toISOString().slice(0, 10)
+            : r.start_date
+            ? new Date(r.start_date).toISOString().slice(0, 10)
+            : '';
+          const toStr = r.date_to
+            ? new Date(r.date_to).toISOString().slice(0, 10)
+            : r.end_date
+            ? new Date(r.end_date).toISOString().slice(0, 10)
+            : fromStr;
 
           // Compute startDayIndex against DAYS_HEADER
           let startIdx = DAYS_HEADER.findIndex((d) => d.fullDate === fromStr);
@@ -144,21 +203,23 @@ export default function TimeOffPage() {
           else if (tLower.includes('casual')) theme = 'amber';
           else if (tLower.includes('without') || tLower.includes('unpaid')) theme = 'red';
 
-          const durationDays = Number(r.number_of_days) || 1;
+          const durationDays = Number(r.days || r.number_of_days) || 1;
 
           return {
             id: r.id,
             employeeId: r.employee_id,
             employeeName: empName,
             leaveType: typeName,
-            leaveTypeId: r.leave_type_id,
+            leaveTypeId: r.type_id || r.leave_type_id,
             startDayIndex: startIdx,
             durationDays: Math.max(1, Math.min(durationDays, 6 - startIdx)),
+            totalDays: durationDays,
             fromDate: fromStr,
             toDate: toStr,
             dateLabel: `${durationDays}d · ${r.status}`,
             status: r.status,
             reason: r.reason || 'Time Off Request',
+            refusalReason: r.refusal_reason || '',
             theme,
           };
         });
@@ -169,14 +230,17 @@ export default function TimeOffPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast, authUser?.employee_id, formEmployeeId, formLeaveTypeId]);
 
   useEffect(() => {
     fetchTimeOffData();
-  }, []);
+  }, [fetchTimeOffData]);
 
   // Handle clicking on an empty timeline cell
-  function handleCellClick(empId, fullDate, dayIdx) {
+  function handleCellClick(empId, fullDate) {
+    if (isEmployeeRole && authUser?.employee_id && empId !== authUser.employee_id) {
+      return; // Cannot click other employees' cells
+    }
     setFormEmployeeId(empId);
     setFormFromDate(fullDate);
     setFormToDate(fullDate);
@@ -184,8 +248,8 @@ export default function TimeOffPage() {
     setIsModalOpen(true);
   }
 
-  // Calculate requested days
-  function getRequestedDays() {
+  // Calculate requested days estimate for UI preview
+  function getRequestedDaysEstimate() {
     if (!formFromDate || !formToDate) return 1;
     const start = new Date(formFromDate);
     const end = new Date(formToDate);
@@ -193,10 +257,10 @@ export default function TimeOffPage() {
     return isNaN(diff) ? 1 : diff;
   }
 
-  // Handle submit new request via API
+  // Handle submit new request via API (F-04)
   async function handleSubmitRequest(e) {
     e.preventDefault();
-    if (!formEmployeeId || !formLeaveTypeId || !formFromDate || !formToDate) {
+    if (!formLeaveTypeId || !formFromDate || !formToDate) {
       setModalError('Please complete all required fields.');
       return;
     }
@@ -205,20 +269,19 @@ export default function TimeOffPage() {
     setModalError('');
 
     try {
-      const days = getRequestedDays();
       const payload = {
-        employee_id: formEmployeeId,
-        leave_type_id: formLeaveTypeId,
-        start_date: formFromDate,
-        end_date: formToDate,
-        number_of_days: days,
+        employee_id: formEmployeeId || undefined,
+        type_id: formLeaveTypeId,
+        date_from: formFromDate,
+        date_to: formToDate,
         reason: formReason.trim() || 'Personal Time Off Request',
       };
 
       const res = await api.post('/time-off/requests', payload);
 
       if (res?.data?.data) {
-        toast.success(`Time off request (${days} days) submitted successfully!`);
+        const serverDays = res.data.data.days || getRequestedDaysEstimate();
+        toast.success(`Time off request (${serverDays} day(s)) submitted successfully!`);
         await fetchTimeOffData();
         setIsModalOpen(false);
         setFormReason('');
@@ -229,7 +292,7 @@ export default function TimeOffPage() {
       const msg =
         err.response?.data?.error?.message ||
         err.response?.data?.message ||
-        'Failed to submit request. Please verify leave balance.';
+        'Failed to submit request. Please verify dates and leave balance.';
       setModalError(msg);
       toast.error(msg);
     } finally {
@@ -237,23 +300,59 @@ export default function TimeOffPage() {
     }
   }
 
-  // Quick approval/rejection from "See all requests" via API
-  async function handleStatusChange(reqId, action) {
+  // Approval / Refusal via canonical contract POST /time-off/requests/:id/status-changes (F-05)
+  async function handleApprove(reqId) {
     try {
-      if (action === 'APPROVED') {
-        await api.post(`/time-off/requests/${reqId}/approve`);
+      const res = await api.post(`/time-off/requests/${reqId}/status-changes`, {
+        action: 'APPROVE',
+      });
+      if (res?.data?.data) {
         toast.success('Time off request approved and balance deducted!');
-      } else if (action === 'REFUSED') {
-        await api.post(`/time-off/requests/${reqId}/refuse`);
-        toast.info('Time off request refused.');
+        await fetchTimeOffData();
       }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to approve request';
+      toast.error(msg);
+    }
+  }
+
+  function handleOpenRefusalModal(reqId) {
+    setRefusalTargetId(reqId);
+    setRefusalReason('');
+    setRefusalError('');
+    setRefusalModalOpen(true);
+  }
+
+  async function handleSubmitRefusal(e) {
+    e.preventDefault();
+    if (!refusalReason.trim()) {
+      setRefusalError('A refusal reason is mandatory.');
+      return;
+    }
+
+    setRefusalSubmitting(true);
+    setRefusalError('');
+
+    try {
+      await api.post(`/time-off/requests/${refusalTargetId}/status-changes`, {
+        action: 'REFUSE',
+        refusal_reason: refusalReason.trim(),
+      });
+      toast.info('Time off request refused.');
+      setRefusalModalOpen(false);
       await fetchTimeOffData();
     } catch (err) {
       const msg =
         err.response?.data?.error?.message ||
         err.response?.data?.message ||
-        `Failed to update request`;
+        'Failed to refuse request';
+      setRefusalError(msg);
       toast.error(msg);
+    } finally {
+      setRefusalSubmitting(false);
     }
   }
 
@@ -303,18 +402,15 @@ export default function TimeOffPage() {
             <span>New Request</span>
           </button>
 
-          {/* Date Range Selector */}
+          {/* Date Range Display */}
           <div className="to-header__nav-group">
-            <button className="to-header__nav-arrow" aria-label="Previous week">
-              <ChevronLeft size={16} />
-            </button>
             <div className="to-header__date-range">
-              <span>{DAYS_HEADER[0]?.dayNum} – {DAYS_HEADER[5]?.dayNum} {new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>
+              <span>
+                {DAYS_HEADER[0]?.dayNum} – {DAYS_HEADER[5]?.dayNum}{' '}
+                {new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+              </span>
               <CalendarRange size={13} className="to-header__range-icon" />
             </div>
-            <button className="to-header__nav-arrow" aria-label="Next week">
-              <ChevronRight size={16} />
-            </button>
           </div>
         </div>
       </div>
@@ -376,7 +472,7 @@ export default function TimeOffPage() {
                       <div
                         key={dayIdx}
                         className={`to-day-cell ${day.isWeekend ? 'to-day-cell--weekend' : ''}`}
-                        onClick={() => handleCellClick(emp.id, day.fullDate, dayIdx)}
+                        onClick={() => handleCellClick(emp.id, day.fullDate)}
                         title={`Click to request time off for ${emp.name} on ${day.dayNum} ${day.dayName}`}
                       >
                         <span className="to-cell-hover-hint">
@@ -393,46 +489,26 @@ export default function TimeOffPage() {
                       return (
                         <div
                           key={req.id}
-                          className={`to-leave-pill to-leave-pill--${req.theme} ${req.status === 'REFUSED' ? 'to-leave-pill--refused' : ''}`}
+                          className={`to-leave-pill to-leave-pill--${req.theme} ${
+                            req.status === 'REFUSED' ? 'to-leave-pill--refused' : ''
+                          }`}
                           style={{
                             gridRow: 1,
                             gridColumn: `${startCol} / span ${spanCols}`,
                           }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAllRequestsOpen(true);
-                          }}
+                          onClick={() => setIsAllRequestsOpen(true)}
+                          title={`${req.leaveType}: ${req.fromDate} to ${req.toDate} (${req.status}) - ${req.reason}`}
                         >
                           <div className={`to-leave-pill__icon-box to-leave-pill__icon-box--${req.theme}`}>
-                            {req.leaveType.includes('Privilege') && <Palmtree size={15} color="#ffffff" />}
-                            {req.leaveType.includes('Sick') && <HeartPulse size={15} color="#ffffff" />}
-                            {req.leaveType.includes('Casual') && <Coffee size={15} color="#ffffff" />}
-                            {!req.leaveType.includes('Privilege') && !req.leaveType.includes('Sick') && !req.leaveType.includes('Casual') && (
-                              <CalendarX2 size={15} color="#ffffff" />
-                            )}
+                            {getLeaveIcon(req.leaveType)}
                           </div>
-
                           <div className="to-leave-pill__info">
                             <span className="to-leave-pill__title">{req.leaveType}</span>
-                            <span className="to-leave-pill__subtitle">{req.dateLabel}</span>
+                            <div className="to-leave-pill__meta">
+                              <span className="to-leave-pill__days">{req.totalDays}d</span>
+                              {renderStatusBadge(req.status)}
+                            </div>
                           </div>
-
-                          {req.status === 'PENDING' && (
-                            <span className="to-leave-pill__pending-clock" title="Pending Approval">
-                              <Clock size={13} />
-                            </span>
-                          )}
-
-                          <button
-                            className="to-leave-pill__menu-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsAllRequestsOpen(true);
-                            }}
-                            aria-label="Options"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
                         </div>
                       );
                     })}
@@ -444,7 +520,7 @@ export default function TimeOffPage() {
         </div>
       )}
 
-      {/* ── 3. New Time Off Request Modal ── */}
+      {/* ── 3. New Request Modal ── */}
       {isModalOpen && (
         <div className="to-modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="to-modal" onClick={(e) => e.stopPropagation()}>
@@ -462,30 +538,45 @@ export default function TimeOffPage() {
             <form onSubmit={handleSubmitRequest}>
               <div className="to-modal__body">
                 {modalError && (
-                  <div style={{ padding: '10px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#dc2626', fontSize: '13px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div
+                    style={{
+                      padding: '10px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px',
+                      color: '#dc2626',
+                      fontSize: '13px',
+                      marginBottom: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
                     <AlertCircle size={16} />
                     <span>{modalError}</span>
                   </div>
                 )}
 
                 {/* Employee Selector */}
-                <div className="to-modal__field">
-                  <label>Employee *</label>
-                  <div className="to-modal__select-wrap">
-                    <select
-                      value={formEmployeeId}
-                      onChange={(e) => setFormEmployeeId(e.target.value)}
-                      required
-                    >
-                      {employees.map((emp) => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.code})
-                        </option>
-                      ))}
-                    </select>
-                    <span className="to-modal__select-arrow">⌵</span>
+                {!isEmployeeRole && (
+                  <div className="to-modal__field">
+                    <label>Employee *</label>
+                    <div className="to-modal__select-wrap">
+                      <select
+                        value={formEmployeeId}
+                        onChange={(e) => setFormEmployeeId(e.target.value)}
+                        required
+                      >
+                        {employees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.code})
+                          </option>
+                        ))}
+                      </select>
+                      <span className="to-modal__select-arrow">⌵</span>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Leave Type Selector */}
                 <div className="to-modal__field">
@@ -546,10 +637,10 @@ export default function TimeOffPage() {
                   />
                 </div>
 
-                {/* Live Duration Calculation Box */}
+                {/* Live Duration Preview */}
                 <div className="to-modal__alert-box">
                   <span>
-                    <strong>{getRequestedDays()} day(s)</strong> requested
+                    <strong>{getRequestedDaysEstimate()} day(s)</strong> requested (server will compute final working days)
                   </span>
                 </div>
               </div>
@@ -581,7 +672,7 @@ export default function TimeOffPage() {
         <div className="to-modal-overlay" onClick={() => setIsAllRequestsOpen(false)}>
           <div className="to-modal to-modal--wide" onClick={(e) => e.stopPropagation()}>
             <div className="to-modal__header">
-              <h2 className="to-modal__title">All Time Off Requests</h2>
+              <h2 className="to-modal__title">All Time Off Requests ({requests.length})</h2>
               <button
                 className="to-modal__close-btn"
                 onClick={() => setIsAllRequestsOpen(false)}
@@ -606,43 +697,62 @@ export default function TimeOffPage() {
                       <th>Duration</th>
                       <th>Reason</th>
                       <th>Status</th>
-                      <th>Actions</th>
+                      {!isEmployeeRole && <th>Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((r) => (
-                      <tr key={r.id}>
-                        <td><strong>{r.employeeName}</strong></td>
-                        <td>{r.leaveType}</td>
-                        <td>{r.fromDate} → {r.toDate} ({r.dateLabel})</td>
-                        <td style={{ color: '#64748b' }}>{r.reason}</td>
-                        <td>
-                          <span className={`to-status-tag to-status-tag--${r.status.toLowerCase()}`}>
-                            {r.status}
-                          </span>
-                        </td>
-                        <td>
-                          {r.status === 'PENDING' ? (
-                            <div className="to-table-actions">
-                              <button
-                                className="to-action-btn to-action-btn--approve"
-                                onClick={() => handleStatusChange(r.id, 'APPROVED')}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="to-action-btn to-action-btn--refuse"
-                                onClick={() => handleStatusChange(r.id, 'REFUSED')}
-                              >
-                                Refuse
-                              </button>
-                            </div>
-                          ) : (
-                            <span style={{ color: '#94a3b8', fontSize: '12px' }}>Locked</span>
+                    {requests.map((r) => {
+                      const isPending = r.status === 'TO_APPROVE';
+
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <strong>{r.employeeName}</strong>
+                          </td>
+                          <td>{r.leaveType}</td>
+                          <td>
+                            {r.fromDate} → {r.toDate} ({r.totalDays}d)
+                          </td>
+                          <td style={{ color: '#64748b' }}>
+                            {r.reason}
+                            {r.refusalReason && (
+                              <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '2px' }}>
+                                Reason: {r.refusalReason}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span
+                              className={`to-status-tag to-status-tag--${r.status.toLowerCase()}`}
+                            >
+                              {r.status === 'TO_APPROVE' ? 'Pending Approval' : r.status}
+                            </span>
+                          </td>
+                          {!isEmployeeRole && (
+                            <td>
+                              {isPending ? (
+                                <div className="to-table-actions">
+                                  <button
+                                    className="to-action-btn to-action-btn--approve"
+                                    onClick={() => handleApprove(r.id)}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    className="to-action-btn to-action-btn--refuse"
+                                    onClick={() => handleOpenRefusalModal(r.id)}
+                                  >
+                                    Refuse
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ color: '#94a3b8', fontSize: '12px' }}>Locked</span>
+                              )}
+                            </td>
                           )}
-                        </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -653,9 +763,82 @@ export default function TimeOffPage() {
                 className="to-modal__submit-btn"
                 onClick={() => setIsAllRequestsOpen(false)}
               >
-                Done
+                Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Refusal Reason Modal (F-05) ── */}
+      {refusalModalOpen && (
+        <div className="to-modal-overlay" onClick={() => setRefusalModalOpen(false)}>
+          <div className="to-modal" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="to-modal__header">
+              <h2 className="to-modal__title">Refuse Time Off Request</h2>
+              <button
+                className="to-modal__close-btn"
+                onClick={() => setRefusalModalOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitRefusal}>
+              <div className="to-modal__body">
+                {refusalError && (
+                  <div
+                    style={{
+                      padding: '10px',
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      borderRadius: '6px',
+                      color: '#dc2626',
+                      fontSize: '13px',
+                      marginBottom: '14px',
+                    }}
+                  >
+                    {refusalError}
+                  </div>
+                )}
+
+                <div className="to-modal__field">
+                  <label>Refusal Reason (Required) *</label>
+                  <textarea
+                    rows="3"
+                    required
+                    placeholder="Provide a clear reason for refusing this leave request..."
+                    value={refusalReason}
+                    onChange={(e) => setRefusalReason(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.6rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.875rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="to-modal__footer">
+                <button
+                  type="button"
+                  className="to-modal__cancel-btn"
+                  onClick={() => setRefusalModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="to-action-btn to-action-btn--refuse"
+                  style={{ padding: '0.5rem 1rem', borderRadius: '8px' }}
+                  disabled={refusalSubmitting || !refusalReason.trim()}
+                >
+                  {refusalSubmitting ? 'Refusing...' : 'Confirm Refusal'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

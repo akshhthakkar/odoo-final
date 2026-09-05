@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   ChevronLeft,
@@ -11,236 +11,183 @@ import {
   X,
   Clock,
   Sparkles,
-  Send
+  Send,
+  Download,
+  Users,
+  RefreshCw,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
+import Skeleton from '../../../components/ui/Skeleton.jsx';
+import EmptyState from '../../../components/ui/EmptyState.jsx';
+import { useToast } from '../../../components/ui/ToastContext.jsx';
 import './PayrunsPage.scss';
 
-// Fallback seed data matching Screenshot 1 & 2
-const FALLBACK_PAYRUNS = [
-  {
-    id: 'pr-aug-2026',
-    name: 'Payroll — August 2026',
-    structureName: 'Regular Salary Structure',
-    month: 8,
-    year: 2026,
-    status: 'PAID',
-    startDate: '2026-08-01',
-    endDate: '2026-08-31',
-    paymentDate: '2026-08-31',
-    createdByName: 'Vikram Rao',
-    payslipCount: 9,
-    grossTotal: 671200,
-    netTotal: 651500,
-    warningsCount: 0,
-    emailSentAt: '2026-08-31T18:30:00Z',
-    payslips: [
-      {
-        id: 'ps-1',
-        employeeName: 'Aarav Sharma',
-        contractRef: 'CTR-2026-001',
-        workedDays: '22/22 days',
-        gross: '₹98,000',
-        deductions: '-₹4,300',
-        net: '₹93,700',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-2',
-        employeeName: 'Pooja Nair',
-        contractRef: 'CTR-2026-002',
-        workedDays: '22/22 days',
-        gross: '₹84,000',
-        deductions: '-₹3,800',
-        net: '₹80,200',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-3',
-        employeeName: 'Rohan Verma',
-        contractRef: 'CTR-2026-003',
-        workedDays: '21/22 days',
-        gross: '₹75,000',
-        deductions: '-₹3,100',
-        net: '₹71,900',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-4',
-        employeeName: 'Sneha Patel',
-        contractRef: 'CTR-2026-004',
-        workedDays: '22/22 days',
-        gross: '₹72,000',
-        deductions: '-₹2,900',
-        net: '₹69,100',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-5',
-        employeeName: 'Kavita Reddy',
-        contractRef: 'CTR-2026-005',
-        workedDays: '20/22 days',
-        gross: '₹68,000',
-        deductions: '-₹2,600',
-        net: '₹65,400',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-6',
-        employeeName: 'Vikram Joshi',
-        contractRef: 'CTR-2026-006',
-        workedDays: '22/22 days',
-        gross: '₹64,000',
-        deductions: '-₹2,400',
-        net: '₹61,600',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-7',
-        employeeName: 'Neha Iyer',
-        contractRef: 'CTR-2026-007',
-        workedDays: '22/22 days',
-        gross: '₹58,000',
-        deductions: '-₹2,100',
-        net: '₹55,900',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-8',
-        employeeName: 'Ananya Roy',
-        contractRef: 'CTR-2026-008',
-        workedDays: '22/22 days',
-        gross: '₹52,000',
-        deductions: '-₹1,900',
-        net: '₹50,100',
-        status: 'PAID'
-      },
-      {
-        id: 'ps-9',
-        employeeName: 'Aditya Gupta',
-        contractRef: 'CTR-2026-009',
-        workedDays: '22/22 days',
-        gross: '₹48,000',
-        deductions: '-₹1,600',
-        net: '₹46,400',
-        status: 'PAID'
-      }
-    ]
-  },
-  {
-    id: 'pr-jul-2026',
-    name: 'Payroll — July 2026',
-    structureName: 'Regular Salary Structure',
-    month: 7,
-    year: 2026,
-    status: 'PAID',
-    startDate: '2026-07-01',
-    endDate: '2026-07-31',
-    paymentDate: '2026-07-31',
-    createdByName: 'Vikram Rao',
-    payslipCount: 9,
-    grossTotal: 671200,
-    netTotal: 651500,
-    warningsCount: 0,
-    emailSentAt: '2026-07-31T18:30:00Z',
-    payslips: []
-  },
-  {
-    id: 'pr-jun-2026',
-    name: 'Payroll — June 2026',
-    structureName: 'Regular Salary Structure',
-    month: 6,
-    year: 2026,
-    status: 'PAID',
-    startDate: '2026-06-01',
-    endDate: '2026-06-30',
-    paymentDate: '2026-06-30',
-    createdByName: 'Vikram Rao',
-    payslipCount: 9,
-    grossTotal: 671200,
-    netTotal: 651500,
-    warningsCount: 0,
-    emailSentAt: '2026-06-30T18:30:00Z',
-    payslips: []
-  }
-];
+function formatINR(amount) {
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
+  const val = Number(amount);
+  return `₹${val.toLocaleString('en-IN')}`;
+}
 
 function formatLakhs(amount) {
-  if (amount === undefined || amount === null) return '₹0';
+  if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
   const val = Number(amount);
   if (val >= 100000) {
-    const inLakhs = (val / 100000).toFixed(1);
-    return `₹${inLakhs.endsWith('.0') ? inLakhs.slice(0, -2) : inLakhs}L`;
+    const inLakhs = (val / 100000).toFixed(2);
+    return `₹${inLakhs.endsWith('.00') ? inLakhs.slice(0, -3) : inLakhs}L`;
   }
   return `₹${val.toLocaleString('en-IN')}`;
 }
 
 export default function PayrunsPage() {
-  const [payruns, setPayruns] = useState(FALLBACK_PAYRUNS);
+  const toast = useToast();
+
+  const [payruns, setPayruns] = useState([]);
   const [selectedPayrunId, setSelectedPayrunId] = useState(null);
   const [selectedPayrun, setSelectedPayrun] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [payslips, setPayslips] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Email dispatch state & toast
+  // Email dispatch state
   const [isSendingEmails, setIsSendingEmails] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
-  // New Payrun Modal state
+  // New Payrun 2-Step Wizard State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1); // 1 = Scope & Dates, 2 = Employee Selection
+  const [structures, setStructures] = useState([]);
+  const [availableEmployees, setAvailableEmployees] = useState([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+
   const [formData, setFormData] = useState({
-    name: 'Payroll — September 2026',
-    structureName: 'Regular Salary Structure',
-    month: 9,
-    year: 2026,
-    paymentDate: '2026-09-30'
+    name: '',
+    structure_id: '',
+    period_start: '',
+    period_end: '',
   });
   const [modalSubmitting, setModalSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
 
-  // Fetch all payruns on mount
-  useEffect(() => {
-    fetchPayruns();
-  }, []);
-
-  const fetchPayruns = async () => {
+  // Fetch payruns list
+  const fetchPayruns = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await api.get('/payruns').catch(() => null);
-      if (res && res.data && res.data.data && res.data.data.length > 0) {
-        setPayruns(res.data.data);
+      const res = await api.get('/payruns');
+      if (res?.data?.data) {
+        setPayruns(Array.isArray(res.data.data) ? res.data.data : res.data.data.items || []);
       }
     } catch (err) {
-      console.warn('Using fallback payruns due to API err:', err);
+      toast.error(err.response?.data?.error?.message || 'Failed to load payruns');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [toast]);
 
-  // Fetch detailed payrun when selectedPayrunId changes
   useEffect(() => {
-    if (!selectedPayrunId) {
+    fetchPayruns();
+  }, [fetchPayruns]);
+
+  // Load structures & employees for wizard
+  useEffect(() => {
+    async function loadWizardPrerequisites() {
+      try {
+        const [structRes, empRes] = await Promise.all([
+          api.get('/salary-structures').catch(() => null),
+          api.get('/employees').catch(() => null),
+        ]);
+
+        if (structRes?.data?.data) {
+          const structList = Array.isArray(structRes.data.data)
+            ? structRes.data.data
+            : structRes.data.data.items || [];
+          setStructures(structList);
+          if (structList.length > 0 && !formData.structure_id) {
+            const def = structList.find((s) => s.is_default) || structList[0];
+            setFormData((prev) => ({ ...prev, structure_id: def.id }));
+          }
+        }
+
+        if (empRes?.data?.data) {
+          const empList = Array.isArray(empRes.data.data)
+            ? empRes.data.data
+            : empRes.data.data.items || [];
+          setAvailableEmployees(empList);
+          setSelectedEmployeeIds(empList.map((e) => e.id));
+        }
+      } catch (e) {
+        console.warn('Prerequisites load error:', e);
+      }
+    }
+
+    if (isModalOpen) {
+      loadWizardPrerequisites();
+    }
+  }, [isModalOpen]);
+
+  // Fetch detailed payrun & payslips when selectedPayrunId changes
+  const loadDetail = useCallback(async (id) => {
+    if (!id) {
       setSelectedPayrun(null);
+      setPayslips([]);
       return;
     }
 
-    const loadDetail = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/payruns/${selectedPayrunId}`).catch(() => null);
-        if (res && res.data && res.data.data) {
-          setSelectedPayrun(res.data.data);
-        } else {
-          // Fallback to local item
-          const local = payruns.find((p) => p.id === selectedPayrunId) || FALLBACK_PAYRUNS[0];
-          setSelectedPayrun(local);
-        }
-      } catch (err) {
-        const local = payruns.find((p) => p.id === selectedPayrunId) || FALLBACK_PAYRUNS[0];
-        setSelectedPayrun(local);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setDetailLoading(true);
+    try {
+      const [detailRes, payslipsRes] = await Promise.all([
+        api.get(`/payruns/${id}`),
+        api.get('/payslips', { params: { payrun_id: id } }).catch(() => ({ data: { data: [] } })),
+      ]);
 
-    loadDetail();
-  }, [selectedPayrunId, payruns]);
+      if (detailRes?.data?.data) {
+        setSelectedPayrun(detailRes.data.data);
+      }
+
+      if (payslipsRes?.data?.data) {
+        setPayslips(
+          Array.isArray(payslipsRes.data.data)
+            ? payslipsRes.data.data
+            : payslipsRes.data.data.items || []
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to load payrun details');
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (selectedPayrunId) {
+      loadDetail(selectedPayrunId);
+    }
+  }, [selectedPayrunId, loadDetail]);
+
+  // Handle Payrun Status Transitions (COMPUTE, VALIDATE, MARK_PAID)
+  const handleStatusChange = async (action) => {
+    if (!selectedPayrunId) return;
+    setActionLoading(true);
+
+    try {
+      const res = await api.post(`/payruns/${selectedPayrunId}/status-changes`, { action });
+      if (res?.data?.data) {
+        toast.success(`Payrun ${action.toLowerCase()} completed successfully!`);
+        await loadDetail(selectedPayrunId);
+        await fetchPayruns();
+      }
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          `Failed to ${action.toLowerCase()} payrun`
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Handle Send Payslips Email Dispatch
   const handleSendPayslips = async () => {
@@ -248,108 +195,174 @@ export default function PayrunsPage() {
     setIsSendingEmails(true);
 
     try {
-      await api.post(`/payruns/${selectedPayrun.id}/dispatches`).catch(() => null);
-    } catch (e) {
-      // Ignored for simulation
+      const res = await api.post(`/payruns/${selectedPayrun.id}/dispatches`, {});
+      toast.success(
+        `Payslips dispatched successfully! (${res?.data?.data?.dispatched_count || payslips.length} emails queued/sent)`
+      );
+      await loadDetail(selectedPayrun.id);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Failed to dispatch payslip emails'
+      );
+    } finally {
+      setIsSendingEmails(false);
     }
-
-    // Update local state
-    const empCount = selectedPayrun.payslips?.length || selectedPayrun.payslipCount || 9;
-    setSelectedPayrun((prev) => ({
-      ...prev,
-      emailSentAt: new Date().toISOString()
-    }));
-
-    setIsSendingEmails(false);
-    setToastMessage(`Email notification sent to ${empCount} employees with payslip PDFs attached!`);
-
-    // Auto dismiss toast after 4.5 seconds
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4500);
   };
 
-  // Handle Create Payrun Modal Submit
+  // Open Payrun Wizard
+  const handleOpenCreateModal = () => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
+    const monthStr = String(currentMonth).padStart(2, '0');
+
+    // Default to current month period
+    const defaultStart = `${currentYear}-${monthStr}-01`;
+    const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+    const defaultEnd = `${currentYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`;
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    setFormData({
+      name: `Payroll — ${monthNames[currentMonth - 1]} ${currentYear}`,
+      structure_id: structures[0]?.id || '',
+      period_start: defaultStart,
+      period_end: defaultEnd,
+    });
+    setWizardStep(1);
+    setModalError('');
+    setIsModalOpen(true);
+  };
+
+  // Handle Wizard Submission
   const handleCreatePayrun = async (e) => {
     e.preventDefault();
+    if (selectedEmployeeIds.length === 0) {
+      setModalError('Please select at least one employee for this payrun batch.');
+      return;
+    }
+
     setModalSubmitting(true);
     setModalError('');
 
     try {
       const payload = {
-        name: formData.name,
-        month: Number(formData.month),
-        year: Number(formData.year),
-        startDate: `${formData.year}-${String(formData.month).padStart(2, '0')}-01`,
-        endDate: `${formData.year}-${String(formData.month).padStart(2, '0')}-30`,
-        paymentDate: formData.paymentDate,
-        structureName: formData.structureName
+        name: formData.name.trim(),
+        structure_id: formData.structure_id,
+        period_start: formData.period_start,
+        period_end: formData.period_end,
+        employee_ids: selectedEmployeeIds,
       };
 
-      const res = await api.post('/payruns', payload).catch(() => null);
-      if (res && res.data && res.data.data) {
-        setPayruns((prev) => [res.data.data, ...prev]);
+      const res = await api.post('/payruns', payload);
+      if (res?.data?.data) {
+        toast.success('Payrun batch created successfully!');
+        setIsModalOpen(false);
+        await fetchPayruns();
         setSelectedPayrunId(res.data.data.id);
-      } else {
-        // Fallback local create
-        const newLocal = {
-          id: `pr-${Date.now()}`,
-          name: formData.name,
-          structureName: formData.structureName,
-          month: Number(formData.month),
-          year: Number(formData.year),
-          status: 'PAID',
-          createdByName: 'Vikram Rao',
-          payslipCount: 9,
-          grossTotal: 671200,
-          netTotal: 651500,
-          warningsCount: 0,
-          emailSentAt: null,
-          payslips: FALLBACK_PAYRUNS[0].payslips
-        };
-        setPayruns((prev) => [newLocal, ...prev]);
-        setSelectedPayrunId(newLocal.id);
       }
-
-      setIsModalOpen(false);
     } catch (err) {
-      setModalError(err.message || 'Failed to create payrun');
+      setModalError(
+        err.response?.data?.error?.message ||
+          err.response?.data?.message ||
+          'Failed to create payrun'
+      );
     } finally {
       setModalSubmitting(false);
     }
   };
 
-  // ==========================================
-  // VIEW: DETAIL (Screenshot 2)
-  // ==========================================
-  if (selectedPayrun) {
-    const payslips = selectedPayrun.payslips && selectedPayrun.payslips.length > 0 
-      ? selectedPayrun.payslips 
-      : FALLBACK_PAYRUNS[0].payslips;
+  // Filtered employees in step 2
+  const filteredEmployees = availableEmployees.filter((emp) => {
+    const q = employeeSearch.toLowerCase().trim();
+    if (!q) return true;
+    const name = `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase();
+    const code = (emp.employee_code || '').toLowerCase();
+    const dept = (emp.department?.name || '').toLowerCase();
+    return name.includes(q) || code.includes(q) || dept.includes(q);
+  });
 
-    const payslipCount = selectedPayrun.payslipCount || payslips.length || 9;
-    const grossTotalFormatted = formatLakhs(selectedPayrun.grossTotal || 671200);
-    const netTotalFormatted = formatLakhs(selectedPayrun.netTotal || 651500);
-    const warningsCount = selectedPayrun.warningsCount !== undefined ? selectedPayrun.warningsCount : 0;
-    const isEmailed = Boolean(selectedPayrun.emailSentAt);
+  const handleToggleEmployee = (id) => {
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
-    // Format subtitle date
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const monthStr = selectedPayrun.month ? monthNames[selectedPayrun.month - 1] : 'August';
-    const yearStr = selectedPayrun.year || 2026;
-    const creator = selectedPayrun.createdByName || 'Vikram Rao';
-    const structName = selectedPayrun.structureName || 'Regular Salary Structure';
+  const handleSelectAllEmployees = () => {
+    if (selectedEmployeeIds.length === availableEmployees.length) {
+      setSelectedEmployeeIds([]);
+    } else {
+      setSelectedEmployeeIds(availableEmployees.map((e) => e.id));
+    }
+  };
+
+  // Download / View Payslip PDF
+  const handleDownloadPdf = async (payslipId, empCode) => {
+    try {
+      const tokenRes = await api.get(`/payslips/${payslipId}/pdf`, { responseType: 'blob' });
+      const blob = new Blob([tokenRes.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payslip-${empCode || payslipId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error('Failed to download payslip PDF');
+    }
+  };
+
+  // ==========================================
+  // VIEW: DETAIL
+  // ==========================================
+  if (selectedPayrunId) {
+    if (detailLoading && !selectedPayrun) {
+      return (
+        <div className="payruns-page" style={{ padding: '2rem' }}>
+          <Skeleton height="40px" width="200px" style={{ marginBottom: '1.5rem' }} />
+          <Skeleton height="120px" style={{ marginBottom: '1.5rem' }} />
+          <Skeleton height="300px" />
+        </div>
+      );
+    }
+
+    if (!selectedPayrun) {
+      return (
+        <div className="payruns-page">
+          <button className="pr-back-btn" onClick={() => setSelectedPayrunId(null)}>
+            <ChevronLeft size={16} />
+            <span>All Payruns</span>
+          </button>
+          <EmptyState
+            title="Payrun Not Found"
+            description="The selected payrun could not be loaded."
+            action={{ label: 'Back to Payruns', onClick: () => setSelectedPayrunId(null) }}
+          />
+        </div>
+      );
+    }
+
+    const payslipCount = selectedPayrun.payslips_count ?? payslips.length;
+    const grossTotalFormatted = formatINR(selectedPayrun.total_gross);
+    const netTotalFormatted = formatINR(selectedPayrun.total_net);
+    const warnings = selectedPayrun.warnings || [];
+    const warningsCount = warnings.length;
+    const status = selectedPayrun.status || 'DRAFT';
+
+    const structName = selectedPayrun.structure?.name || 'Standard Salary Structure';
+    const periodDisplay = `${selectedPayrun.period_start} — ${selectedPayrun.period_end}`;
 
     return (
       <div className="payruns-page">
         {/* Back Link */}
-        <button
-          className="pr-back-btn"
-          onClick={() => setSelectedPayrunId(null)}
-        >
+        <button className="pr-back-btn" onClick={() => setSelectedPayrunId(null)}>
           <ChevronLeft size={16} />
           <span>All Payruns</span>
         </button>
@@ -357,37 +370,163 @@ export default function PayrunsPage() {
         {/* Detail Header */}
         <div className="pr-header">
           <div className="pr-header__left">
-            <h1 className="pr-header__title">{selectedPayrun.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <h1 className="pr-header__title">{selectedPayrun.name}</h1>
+              <span className={`pr-status-pill pr-status-pill--${status.toLowerCase()}`}>
+                {status}
+              </span>
+            </div>
             <p className="pr-header__subtitle">
-              {structName} · {monthStr} {yearStr} · created by {creator}
+              {structName} · {periodDisplay}
             </p>
           </div>
 
-          <div className="pr-header__right">
-            <button
-              className="pr-header__btn-primary"
-              onClick={handleSendPayslips}
-              disabled={isSendingEmails}
-            >
-              <Send size={15} />
-              <span>{isSendingEmails ? 'Sending...' : 'Send Payslips'}</span>
-            </button>
+          <div className="pr-header__right" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {status === 'DRAFT' && (
+              <button
+                className="pr-header__btn-primary"
+                onClick={() => handleStatusChange('COMPUTE')}
+                disabled={actionLoading}
+              >
+                <Sparkles size={15} />
+                <span>{actionLoading ? 'Computing...' : 'Compute Payslips'}</span>
+              </button>
+            )}
+
+            {status === 'COMPUTED' && (
+              <>
+                <button
+                  className="pr-header__btn-secondary"
+                  onClick={() => handleStatusChange('COMPUTE')}
+                  disabled={actionLoading}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.5rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: '#fff',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RefreshCw size={14} />
+                  <span>Recompute</span>
+                </button>
+
+                <button
+                  className="pr-header__btn-primary"
+                  onClick={() => handleStatusChange('VALIDATE')}
+                  disabled={actionLoading}
+                >
+                  <CheckCircle2 size={15} />
+                  <span>{actionLoading ? 'Validating...' : 'Validate Payrun'}</span>
+                </button>
+              </>
+            )}
+
+            {status === 'VALIDATED' && (
+              <button
+                className="pr-header__btn-primary"
+                onClick={() => handleStatusChange('MARK_PAID')}
+                disabled={actionLoading}
+                style={{ background: '#10b981' }}
+              >
+                <DollarSign size={15} />
+                <span>{actionLoading ? 'Processing...' : 'Mark as Paid'}</span>
+              </button>
+            )}
+
+            {status === 'PAID' && (
+              <button
+                className="pr-header__btn-primary"
+                onClick={handleSendPayslips}
+                disabled={isSendingEmails}
+              >
+                <Send size={15} />
+                <span>{isSendingEmails ? 'Sending...' : 'Send Payslips via Email'}</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Stepper / Flow Row */}
         <div className="pr-stepper-row">
           <div className="pr-stepper-row__pills">
-            <span className="pr-stepper-row__pill pr-stepper-row__pill--outline">Draft</span>
-            <span className="pr-stepper-row__pill pr-stepper-row__pill--outline">Computed</span>
-            <span className="pr-stepper-row__pill pr-stepper-row__pill--outline">Validated</span>
-            <span className="pr-stepper-row__pill pr-stepper-row__pill--active-paid">Paid</span>
+            <span
+              className={`pr-stepper-row__pill ${
+                status === 'DRAFT'
+                  ? 'pr-stepper-row__pill--active-draft'
+                  : 'pr-stepper-row__pill--outline'
+              }`}
+            >
+              Draft
+            </span>
+            <span
+              className={`pr-stepper-row__pill ${
+                status === 'COMPUTED'
+                  ? 'pr-stepper-row__pill--active-computed'
+                  : 'pr-stepper-row__pill--outline'
+              }`}
+            >
+              Computed
+            </span>
+            <span
+              className={`pr-stepper-row__pill ${
+                status === 'VALIDATED'
+                  ? 'pr-stepper-row__pill--active-validated'
+                  : 'pr-stepper-row__pill--outline'
+              }`}
+            >
+              Validated
+            </span>
+            <span
+              className={`pr-stepper-row__pill ${
+                status === 'PAID'
+                  ? 'pr-stepper-row__pill--active-paid'
+                  : 'pr-stepper-row__pill--outline'
+              }`}
+            >
+              Paid
+            </span>
           </div>
           <span className="pr-stepper-row__divider">|</span>
           <span className="pr-stepper-row__subtext">
-            computed ✓ validated ✓ paid ✓ {isEmailed ? 'emailed ✓' : 'emailed ✓'}
+            {status === 'DRAFT' && 'Batch created. Click Compute to generate payslip lines.'}
+            {status === 'COMPUTED' && 'Payslips generated with worked days & calculations. Review warnings before validation.'}
+            {status === 'VALIDATED' && 'Batch validated. Ready for salary disbursement.'}
+            {status === 'PAID' && 'Disbursement complete. Payslips finalized and ready for email dispatch.'}
           </span>
         </div>
+
+        {/* Pre-finalization Warnings Banner */}
+        {warningsCount > 0 && (
+          <div
+            style={{
+              background: '#fffbeb',
+              border: '1px solid #fef3c7',
+              borderRadius: '12px',
+              padding: '1rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#b45309', fontWeight: 600 }}>
+              <AlertCircle size={18} />
+              <span>Operational Warnings Detected ({warningsCount})</span>
+            </div>
+            <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#92400e', fontSize: '0.875rem' }}>
+              {warnings.map((w, idx) => (
+                <li key={idx}>
+                  {w.code || 'WARNING'}: {w.message || JSON.stringify(w)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* 4 Summary Stats Cards */}
         <div className="pr-summary-grid">
@@ -410,66 +549,125 @@ export default function PayrunsPage() {
 
           <div className="pr-summary-grid__card">
             <span className="pr-summary-grid__card-label">WARNINGS</span>
-            <span className="pr-summary-grid__card-value">{warningsCount}</span>
+            <span
+              className="pr-summary-grid__card-value"
+              style={{ color: warningsCount > 0 ? '#f59e0b' : '#64748b' }}
+            >
+              {warningsCount}
+            </span>
           </div>
         </div>
 
         {/* Payslips Table */}
         <div className="pr-table-card">
-          <div className="pr-table-card__table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Contract</th>
-                  <th>Worked Days</th>
-                  <th>Gross</th>
-                  <th>Deductions</th>
-                  <th>Net</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payslips.map((row, idx) => (
-                  <tr key={row.id || idx}>
-                    <td className="pr-cell--emp">{row.employeeName}</td>
-                    <td className="pr-cell--contract">{row.contractRef || `CTR-2026-00${idx + 1}`}</td>
-                    <td className="pr-cell--days">{row.workedDays || '22/22 days'}</td>
-                    <td className="pr-cell--gross">{row.gross || '₹98,000'}</td>
-                    <td className="pr-cell--deductions">{row.deductions || '-₹4,300'}</td>
-                    <td className="pr-cell--net">{row.net || '₹93,700'}</td>
-                    <td>
-                      <span className="pr-status-pill pr-status-pill--paid">
-                        Paid
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
+              Included Employee Payslips ({payslips.length})
+            </h3>
           </div>
-        </div>
 
-        {/* Toast Notification Banner */}
-        {toastMessage && (
-          <div className="pr-toast">
-            <CheckCircle2 size={18} className="pr-toast__icon" />
-            <span>{toastMessage}</span>
-            <button
-              className="pr-toast__close"
-              onClick={() => setToastMessage(null)}
-              aria-label="Close notification"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
+          {payslips.length === 0 ? (
+            <div style={{ padding: '3rem 1rem' }}>
+              <EmptyState
+                icon={FileText}
+                title={status === 'DRAFT' ? 'Payslips Not Computed Yet' : 'No Payslips Found'}
+                description={
+                  status === 'DRAFT'
+                    ? 'Click the "Compute Payslips" button above to evaluate contracts, time-off, and salary rules.'
+                    : 'No payslip records were generated for this payrun batch.'
+                }
+              />
+            </div>
+          ) : (
+            <div className="pr-table-card__table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Contract</th>
+                    <th>Worked Days</th>
+                    <th>Gross</th>
+                    <th>Deductions</th>
+                    <th>Net</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payslips.map((row) => {
+                    const empName = row.employee
+                      ? `${row.employee.first_name || row.employee.firstName || ''} ${
+                          row.employee.last_name || row.employee.lastName || ''
+                        }`
+                      : 'Employee';
+                    const empCode = row.employee?.employee_code || row.employee?.employeeCode || '';
+                    const contractRef = row.contract?.contract_ref || row.contract?.contractRef || '—';
+                    const worked = `${row.worked_days || 0} days`;
+                    const gross = formatINR(row.gross_salary);
+                    const ded = formatINR(row.total_deductions);
+                    const net = formatINR(row.net_salary);
+                    const pStatus = row.status || status;
+
+                    return (
+                      <tr key={row.id}>
+                        <td className="pr-cell--emp">
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{empName}</div>
+                          {empCode && (
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{empCode}</div>
+                          )}
+                        </td>
+                        <td className="pr-cell--contract">{contractRef}</td>
+                        <td className="pr-cell--days">{worked}</td>
+                        <td className="pr-cell--gross">{gross}</td>
+                        <td className="pr-cell--deductions" style={{ color: '#dc2626' }}>
+                          -{ded}
+                        </td>
+                        <td className="pr-cell--net" style={{ fontWeight: 700, color: '#059669' }}>
+                          {net}
+                        </td>
+                        <td>
+                          <span
+                            className={`pr-status-pill pr-status-pill--${pStatus.toLowerCase()}`}
+                          >
+                            {pStatus}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => handleDownloadPdf(row.id, empCode)}
+                            title="Download PDF Payslip"
+                            style={{
+                              background: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '6px',
+                              padding: '0.4rem 0.6rem',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              color: '#334155',
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Download size={13} />
+                            <span>PDF</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   // ==========================================
-  // VIEW: LIST / GRID (Screenshot 1)
+  // VIEW: LIST / GRID
   // ==========================================
   return (
     <div className="payruns-page">
@@ -483,80 +681,119 @@ export default function PayrunsPage() {
         </div>
 
         <div className="pr-header__right">
-          <button
-            className="pr-header__btn-primary"
-            onClick={() => setIsModalOpen(true)}
-          >
+          <button className="pr-header__btn-primary" onClick={handleOpenCreateModal}>
             <Plus size={16} />
             <span>New Payrun</span>
           </button>
         </div>
       </div>
 
-      {/* Payrun Cards Grid */}
-      <div className="pr-grid">
-        {payruns.map((payrun) => {
-          const netStr = formatLakhs(payrun.netTotal || 651500);
-          const pCount = payrun.payslipCount || 9;
-          const warnings = payrun.warningsCount !== undefined ? payrun.warningsCount : 0;
-
-          return (
-            <div
-              key={payrun.id}
-              className="pr-card"
-              onClick={() => setSelectedPayrunId(payrun.id)}
-            >
-              {/* Top Row: Icon + Title + Status */}
-              <div className="pr-card__top">
-                <div className="pr-card__brand-group">
-                  <div className="pr-card__icon">
-                    <Calendar size={20} />
-                  </div>
-                  <div className="pr-card__title-wrap">
-                    <h3 className="pr-card__title">{payrun.name}</h3>
-                    <p className="pr-card__type">
-                      {payrun.structureName || 'Regular Salary Structure'}
-                    </p>
-                  </div>
-                </div>
-
-                <span className="pr-status-pill pr-status-pill--paid">
-                  Paid
-                </span>
-              </div>
-
-              {/* 3 Stats Boxes */}
-              <div className="pr-card__stats">
-                <div className="pr-card__stat">
-                  <span className="pr-card__stat-value">{pCount}</span>
-                  <span className="pr-card__stat-label">PAYSLIPS</span>
-                </div>
-
-                <div className="pr-card__stat">
-                  <span className="pr-card__stat-value">{netStr}</span>
-                  <span className="pr-card__stat-label">NET TOTAL</span>
-                </div>
-
-                <div className="pr-card__stat">
-                  <span className="pr-card__stat-value">{warnings}</span>
-                  <span className="pr-card__stat-label">WARNINGS</span>
-                </div>
-              </div>
+      {/* Loading Skeleton */}
+      {loading && (
+        <div className="pr-grid">
+          {[1, 2, 3].map((n) => (
+            <div key={n} style={{ background: '#fff', padding: '1.5rem', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+              <Skeleton height="24px" width="60%" style={{ marginBottom: '1rem' }} />
+              <Skeleton height="16px" width="40%" style={{ marginBottom: '1.5rem' }} />
+              <Skeleton height="60px" />
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* New Payrun Modal */}
+      {/* Empty State */}
+      {!loading && payruns.length === 0 && (
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '3rem 1.5rem', border: '1px solid #f1f5f9' }}>
+          <EmptyState
+            icon={Calendar}
+            title="No Payruns Created Yet"
+            description="Start by creating a new payrun batch for your employees."
+            action={{
+              label: 'Create First Payrun',
+              onClick: handleOpenCreateModal,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Payrun Cards Grid */}
+      {!loading && payruns.length > 0 && (
+        <div className="pr-grid">
+          {payruns.map((payrun) => {
+            const netStr = formatLakhs(payrun.total_net);
+            const pCount = payrun.payslips_count ?? 0;
+            const warnings = payrun.warnings ? payrun.warnings.length : 0;
+            const status = payrun.status || 'DRAFT';
+
+            return (
+              <div
+                key={payrun.id}
+                className="pr-card"
+                onClick={() => setSelectedPayrunId(payrun.id)}
+              >
+                {/* Top Row: Icon + Title + Status */}
+                <div className="pr-card__top">
+                  <div className="pr-card__brand-group">
+                    <div className="pr-card__icon">
+                      <Calendar size={20} />
+                    </div>
+                    <div className="pr-card__title-wrap">
+                      <h3 className="pr-card__title">{payrun.name}</h3>
+                      <p className="pr-card__type">
+                        {payrun.structure?.name || 'Standard Salary Structure'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className={`pr-status-pill pr-status-pill--${status.toLowerCase()}`}>
+                    {status}
+                  </span>
+                </div>
+
+                {/* 3 Stats Boxes */}
+                <div className="pr-card__stats">
+                  <div className="pr-card__stat">
+                    <span className="pr-card__stat-value">{pCount}</span>
+                    <span className="pr-card__stat-label">PAYSLIPS</span>
+                  </div>
+
+                  <div className="pr-card__stat">
+                    <span className="pr-card__stat-value">{netStr}</span>
+                    <span className="pr-card__stat-label">NET TOTAL</span>
+                  </div>
+
+                  <div className="pr-card__stat">
+                    <span
+                      className="pr-card__stat-value"
+                      style={{ color: warnings > 0 ? '#f59e0b' : 'inherit' }}
+                    >
+                      {warnings}
+                    </span>
+                    <span className="pr-card__stat-label">WARNINGS</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2-Step Payrun Wizard Modal */}
       {isModalOpen && (
         <div className="pr-modal-backdrop" onClick={() => setIsModalOpen(false)}>
-          <div className="pr-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pr-modal"
+            style={{ maxWidth: wizardStep === 2 ? '680px' : '520px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="pr-modal__header">
-              <h2 className="pr-modal__header-title">Create New Payrun</h2>
-              <button
-                className="pr-modal__header-close"
-                onClick={() => setIsModalOpen(false)}
-              >
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h2 className="pr-modal__header-title">Create New Payrun Batch</h2>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  Step {wizardStep} of 2 — {wizardStep === 1 ? 'Scope & Period' : 'Select Employees'}
+                </span>
+              </div>
+              <button className="pr-modal__header-close" onClick={() => setIsModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
@@ -570,114 +807,210 @@ export default function PayrunsPage() {
                   </div>
                 )}
 
-                <div className="pr-modal__form-group">
-                  <label>Payrun Batch Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Payroll — September 2026"
-                  />
-                </div>
+                {/* STEP 1: Scope & Dates */}
+                {wizardStep === 1 && (
+                  <>
+                    <div className="pr-modal__form-group">
+                      <label>Payrun Batch Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="e.g. Payroll — September 2026"
+                      />
+                    </div>
 
-                <div className="pr-modal__form-group">
-                  <label>Salary Structure</label>
-                  <select
-                    value={formData.structureName}
-                    onChange={(e) => setFormData({ ...formData, structureName: e.target.value })}
-                  >
-                    <option value="Regular Salary Structure">Regular Salary Structure</option>
-                    <option value="Executive Salary Structure">Executive Salary Structure</option>
-                    <option value="Contractor Fixed Structure">Contractor Fixed Structure</option>
-                  </select>
-                </div>
+                    <div className="pr-modal__form-group">
+                      <label>Salary Structure *</label>
+                      <select
+                        required
+                        value={formData.structure_id}
+                        onChange={(e) => setFormData({ ...formData, structure_id: e.target.value })}
+                      >
+                        {structures.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.code}) {s.is_default ? '— Default' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="pr-modal__row">
-                  <div className="pr-modal__form-group">
-                    <label>Month</label>
-                    <select
-                      value={formData.month}
-                      onChange={(e) => {
-                        const m = Number(e.target.value);
-                        const monthNames = [
-                          'January', 'February', 'March', 'April', 'May', 'June',
-                          'July', 'August', 'September', 'October', 'November', 'December'
-                        ];
-                        setFormData({
-                          ...formData,
-                          month: m,
-                          name: `Payroll — ${monthNames[m - 1]} ${formData.year}`
-                        });
+                    <div className="pr-modal__row">
+                      <div className="pr-modal__form-group">
+                        <label>Period Start Date *</label>
+                        <input
+                          type="date"
+                          required
+                          value={formData.period_start}
+                          onChange={(e) =>
+                            setFormData({ ...formData, period_start: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="pr-modal__form-group">
+                        <label>Period End Date *</label>
+                        <input
+                          type="date"
+                          required
+                          value={formData.period_end}
+                          onChange={(e) =>
+                            setFormData({ ...formData, period_end: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* STEP 2: Employee Selection */}
+                {wizardStep === 2 && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
+                        Selected: {selectedEmployeeIds.length} of {availableEmployees.length} active employees
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllEmployees}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#2357fe',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {selectedEmployeeIds.length === availableEmployees.length
+                          ? 'Deselect All'
+                          : 'Select All'}
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={employeeSearch}
+                      onChange={(e) => setEmployeeSearch(e.target.value)}
+                      placeholder="Filter employees by name, code, or department..."
+                      style={{
+                        width: '100%',
+                        padding: '0.6rem 0.8rem',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        marginBottom: '0.75rem',
+                        fontSize: '0.875rem',
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        maxHeight: '260px',
+                        overflowY: 'auto',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
                       }}
                     >
-                      <option value={1}>January</option>
-                      <option value={2}>February</option>
-                      <option value={3}>March</option>
-                      <option value={4}>April</option>
-                      <option value={5}>May</option>
-                      <option value={6}>June</option>
-                      <option value={7}>July</option>
-                      <option value={8}>August</option>
-                      <option value={9}>September</option>
-                      <option value={10}>October</option>
-                      <option value={11}>November</option>
-                      <option value={12}>December</option>
-                    </select>
-                  </div>
+                      {filteredEmployees.length === 0 ? (
+                        <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
+                          No employees match the filter.
+                        </div>
+                      ) : (
+                        filteredEmployees.map((emp) => {
+                          const isSelected = selectedEmployeeIds.includes(emp.id);
+                          const name = `${emp.first_name || ''} ${emp.last_name || ''}`;
 
-                  <div className="pr-modal__form-group">
-                    <label>Year</label>
-                    <input
-                      type="number"
-                      value={formData.year}
-                      onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
-
-                <div className="pr-modal__form-group">
-                  <label>Payment Date</label>
-                  <input
-                    type="date"
-                    value={formData.paymentDate}
-                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-                  />
-                </div>
+                          return (
+                            <div
+                              key={emp.id}
+                              onClick={() => handleToggleEmployee(emp.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: '6px',
+                                background: isSelected ? '#eff6ff' : '#fff',
+                                cursor: 'pointer',
+                                border: isSelected ? '1px solid #bfdbfe' : '1px solid transparent',
+                              }}
+                            >
+                              {isSelected ? (
+                                <CheckSquare size={18} color="#2357fe" />
+                              ) : (
+                                <Square size={18} color="#94a3b8" />
+                              )}
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>
+                                  {name}
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                  {emp.employee_code} · {emp.department?.name || 'General'} · {emp.job?.name || 'Staff'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="pr-modal__footer">
-                <button
-                  type="button"
-                  className="pr-modal__footer-cancel"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="pr-modal__footer-save"
-                  disabled={modalSubmitting}
-                >
-                  {modalSubmitting ? 'Creating...' : 'Create Payrun'}
-                </button>
+                {wizardStep === 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pr-modal__footer-cancel"
+                      onClick={() => setIsModalOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="pr-modal__footer-save"
+                      onClick={() => {
+                        if (!formData.name || !formData.period_start || !formData.period_end) {
+                          setModalError('Please fill out all required fields.');
+                          return;
+                        }
+                        setModalError('');
+                        setWizardStep(2);
+                      }}
+                    >
+                      Continue to Employees →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="pr-modal__footer-cancel"
+                      onClick={() => {
+                        setModalError('');
+                        setWizardStep(1);
+                      }}
+                    >
+                      ← Back to Scope
+                    </button>
+                    <button
+                      type="submit"
+                      className="pr-modal__footer-save"
+                      disabled={modalSubmitting || selectedEmployeeIds.length === 0}
+                    >
+                      {modalSubmitting ? 'Creating Payrun...' : `Create Payrun (${selectedEmployeeIds.length} Staff)`}
+                    </button>
+                  </>
+                )}
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {/* Toast Notification Banner */}
-      {toastMessage && (
-        <div className="pr-toast">
-          <CheckCircle2 size={18} className="pr-toast__icon" />
-          <span>{toastMessage}</span>
-          <button
-            className="pr-toast__close"
-            onClick={() => setToastMessage(null)}
-          >
-            <X size={15} />
-          </button>
         </div>
       )}
     </div>

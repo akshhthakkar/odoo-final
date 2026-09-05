@@ -47,68 +47,120 @@ export default function EmployeeProfilePage() {
       }
       setLoading(true);
       try {
-        const [empRes, allocRes] = await Promise.all([
+        const [empRes, allocRes, attRes] = await Promise.all([
           api.get(`/employees/${id}`).catch(() => null),
           api.get(`/time-off/allocations`, { params: { employee_id: id } }).catch(() => null),
+          api.get(`/attendance`, { params: { employee_id: id, limit: 10 } }).catch(() => null),
         ]);
 
         if (empRes?.data?.data) {
           const data = empRes.data.data;
-          const wageNum = Number(data.wage || data.active_contract?.wage || 50000);
-          const wageFormatted = `₹${wageNum.toLocaleString('en-IN')}`;
-          const annualFormatted = `₹${(wageNum * 12).toLocaleString('en-IN')}`;
+          const wageRaw = data.wage || data.active_contract?.wage;
+          const wageNum = wageRaw !== undefined && wageRaw !== null ? Number(wageRaw) : null;
+          const wageFormatted = wageNum !== null ? `₹${wageNum.toLocaleString('en-IN')}` : '—';
+          const annualFormatted = wageNum !== null ? `₹${(wageNum * 12).toLocaleString('en-IN')}` : '—';
 
           // Format leave balances if allocations are returned
-          const allocItems = allocRes?.data?.data?.items || allocRes?.data?.data || [];
-          let paidLeaveTotal = 18, paidLeaveUsed = 0;
-          let sickLeaveTotal = 10, sickLeaveUsed = 0;
-          let casualLeaveTotal = 6, casualLeaveUsed = 0;
+          const rawAllocItems = Array.isArray(allocRes?.data?.data?.items)
+            ? allocRes.data.data.items
+            : Array.isArray(allocRes?.data?.data)
+            ? allocRes.data.data
+            : [];
 
-          allocItems.forEach((al) => {
-            const typeName = al.leave_type?.name?.toLowerCase() || '';
-            const days = Number(al.number_of_days) || 0;
-            if (typeName.includes('privilege') || typeName.includes('paid')) paidLeaveTotal = days;
-            if (typeName.includes('sick')) sickLeaveTotal = days;
-            if (typeName.includes('casual')) casualLeaveTotal = days;
+          const leaveAllocations = rawAllocItems.map((al) => {
+            const name = al.type?.name || al.leave_type?.name || al.type_name || 'Leave';
+            const total = Number(al.allocated_days || al.number_of_days) || 0;
+            const used = Number(al.taken_days) || 0;
+            const remaining = al.remaining !== undefined ? Number(al.remaining) : Math.max(0, total - used);
+            return {
+              id: al.id,
+              name,
+              total,
+              used,
+              remaining,
+            };
+          });
+
+          // Format recent attendance records
+          const rawAttItems = Array.isArray(attRes?.data?.data?.items)
+            ? attRes.data.data.items
+            : Array.isArray(attRes?.data?.data)
+            ? attRes.data.data
+            : [];
+
+          const recentAttendance = rawAttItems.slice(0, 5).map((att) => {
+            const d = att.attendance_date ? new Date(att.attendance_date) : null;
+            const dateStr = d && !isNaN(d.getTime())
+              ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+              : att.attendance_date || '—';
+
+            const formatTime = (iso) => {
+              if (!iso) return '—';
+              try {
+                if (iso.includes('T')) {
+                  const dt = new Date(iso);
+                  return isNaN(dt.getTime())
+                    ? '—'
+                    : dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+                }
+                return iso.slice(0, 5);
+              } catch {
+                return '—';
+              }
+            };
+
+            const checkIn = formatTime(att.check_in);
+            const checkOut = formatTime(att.check_out);
+            const hours = att.worked_hours !== undefined && att.worked_hours !== null
+              ? `${Number(att.worked_hours).toFixed(1)}h`
+              : '—';
+
+            return {
+              id: att.id,
+              date: dateStr,
+              checkIn,
+              checkOut,
+              hours,
+              status: att.status || 'PRESENT',
+            };
           });
 
           setEmployee({
             id: data.id,
-            code: data.employee_code,
-            name: `${data.first_name} ${data.last_name}`,
+            code: data.employee_code || '—',
+            name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Employee',
             jobTitle: data.job?.name || 'Staff Member',
             department: data.department?.name || 'General',
             status: data.status || 'ACTIVE',
             wage: wageFormatted,
             annualCtc: annualFormatted,
-            email: data.email,
-            phone: data.phone || '+91 98765 00000',
-            location: data.address || 'Bengaluru, India (HQ)',
+            email: data.email || '—',
+            phone: data.phone || '—',
+            location: data.address || '—',
             hireDate: data.hire_date
               ? new Date(data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-              : '01 Jan 2023',
+              : '—',
             contractType: data.active_contract?.contract_type
               ? data.active_contract.contract_type.replace('_', ' ')
-              : 'Full-time',
-            manager: data.manager ? `${data.manager.first_name} ${data.manager.last_name}` : 'Executive Manager',
+              : '—',
+            manager: data.manager ? `${data.manager.first_name || ''} ${data.manager.last_name || ''}`.trim() : '—',
             workingSchedule: data.working_schedule?.name || 'Standard 40h (Mon-Fri 09:00 - 18:00)',
-            gender: data.gender || 'Not specified',
+            gender: data.gender || '—',
             dob: data.date_of_birth
               ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-              : '14 Aug 1994',
-            maritalStatus: 'Single',
-            emergencyContact: 'Family Contact — +91 98765 00112',
-            pan: data.pan || 'ABCDE1234F',
-            aadhaar: data.aadhaar || 'XXXX-XXXX-4589',
-            uan: data.uan || '100982347891',
+              : '—',
+            maritalStatus: data.marital_status || '—',
+            emergencyContact: data.emergency_contact || '—',
+            pan: data.pan || '—',
+            aadhaar: data.aadhaar || '—',
+            uan: data.uan || '—',
             bankDetails: {
-              bankName: data.bank_account_name ? `${data.bank_account_name}'s Bank` : 'HDFC Bank Ltd',
-              accountNumber: data.bank_account_number || '50100458921102',
-              ifsc: data.bank_ifsc || 'HDFC0001245',
+              bankName: data.bank_account_name || '—',
+              accountNumber: data.bank_account_number || '—',
+              ifsc: data.bank_ifsc || '—',
               accountType: 'Salary Account',
-              branch: 'Koramangala, Bengaluru',
             },
-            salaryBreakdown: {
+            salaryBreakdown: wageNum !== null ? {
               basic: `₹${Math.round(wageNum * 0.5).toLocaleString('en-IN')}`,
               hra: `₹${Math.round(wageNum * 0.25).toLocaleString('en-IN')}`,
               special: `₹${Math.round(wageNum * 0.15).toLocaleString('en-IN')}`,
@@ -119,39 +171,34 @@ export default function EmployeeProfilePage() {
               tds: `₹${Math.round(wageNum * 0.05).toLocaleString('en-IN')}`,
               totalDeductions: `₹${Math.round(wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05).toLocaleString('en-IN')}`,
               netPay: `₹${Math.round(wageNum - (wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05)).toLocaleString('en-IN')}`,
-            },
-            leaveBalances: {
-              paidLeave: { used: paidLeaveUsed, total: paidLeaveTotal },
-              sickLeave: { used: sickLeaveUsed, total: sickLeaveTotal },
-              casualLeave: { used: casualLeaveUsed, total: casualLeaveTotal },
-            },
-            recentAttendance: [
-              { date: '04 Sep 2026', checkIn: '09:02 AM', checkOut: '06:14 PM', hours: '9h 12m', status: 'PRESENT' },
-              { date: '03 Sep 2026', checkIn: '08:58 AM', checkOut: '06:05 PM', hours: '9h 07m', status: 'PRESENT' },
-            ],
+            } : null,
+            leaveAllocations,
+            recentAttendance,
             contracts: data.active_contract
               ? [
                   {
                     id: data.active_contract.id,
-                    title: `${data.job?.name || 'Staff'} Employment Agreement (${data.active_contract.reference || 'REF-CNT'})`,
+                    title: `${data.job?.name || 'Employment'} Agreement (${data.active_contract.reference || 'REF-CNT'})`,
                     status: data.active_contract.status || 'ACTIVE',
                     startDate: data.active_contract.start_date
                       ? new Date(data.active_contract.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : '01 Jan 2023',
+                      : '—',
                     endDate: data.active_contract.end_date
                       ? new Date(data.active_contract.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                       : 'Permanent',
                     wage: wageFormatted,
                   },
                 ]
-              : data.contracts?.map((c) => ({
+              : Array.isArray(data.contracts)
+              ? data.contracts.map((c) => ({
                   id: c.id,
                   title: `Employment Contract (${c.reference || 'REF-CNT'})`,
                   status: c.status || 'ACTIVE',
-                  startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
+                  startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
                   endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent',
-                  wage: `₹${Number(c.wage || 50000).toLocaleString('en-IN')}`,
-                })) || [],
+                  wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
+                }))
+              : [],
           });
         } else {
           setEmployee(null);
@@ -215,7 +262,7 @@ export default function EmployeeProfilePage() {
     uan,
     bankDetails,
     salaryBreakdown,
-    leaveBalances,
+    leaveAllocations,
     recentAttendance,
     contracts,
   } = employee;
@@ -382,7 +429,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Blood Group</label>
-                  <p>O +ve</p>
+                  <p>—</p>
                 </div>
               </div>
             </div>
@@ -487,10 +534,6 @@ export default function EmployeeProfilePage() {
                   <p>{workingSchedule}</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Notice Period</label>
-                  <p>60 Days (2 Months)</p>
-                </div>
-                <div className="emp-profile__data-item">
                   <label>Employment Status</label>
                   <p>{status ? status.replace('_', ' ') : '—'}</p>
                 </div>
@@ -502,149 +545,159 @@ export default function EmployeeProfilePage() {
         {/* Tab 3: Salary & CTC Structure */}
         {activeTab === 'salary' && (
           <div className="emp-profile__salary-section">
-            {/* Top Summary Stats */}
-            <div className="emp-profile__salary-overview-row">
-              <div className="emp-profile__sal-box">
-                <span className="emp-profile__sal-box-label">Monthly Gross Wage</span>
-                <span className="emp-profile__sal-box-val">{salaryBreakdown.gross}</span>
-              </div>
-              <div className="emp-profile__sal-box">
-                <span className="emp-profile__sal-box-label">Total Monthly Deductions</span>
-                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--deduct">
-                  {salaryBreakdown.totalDeductions}
-                </span>
-              </div>
-              <div className="emp-profile__sal-box emp-profile__sal-box--highlight">
-                <span className="emp-profile__sal-box-label">Net Take-Home Pay</span>
-                <span className="emp-profile__sal-box-val emp-profile__sal-box-val--net">
-                  {salaryBreakdown.netPay}
-                </span>
-              </div>
-              <div className="emp-profile__sal-box">
-                <span className="emp-profile__sal-box-label">Annual CTC</span>
-                <span className="emp-profile__sal-box-val">{annualCtc}</span>
-              </div>
-            </div>
-
-            <div className="emp-profile__grid-2col">
-              {/* Earnings Table */}
-              <div className="emp-profile__card">
-                <div className="emp-profile__card-header">
-                  <h3 className="emp-profile__card-title">Earnings Breakdown (Monthly)</h3>
-                </div>
-                <table className="emp-profile__table">
-                  <thead>
-                    <tr>
-                      <th>Component</th>
-                      <th style={{ textAlign: 'right' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Basic Salary (50%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {salaryBreakdown.basic}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>House Rent Allowance (HRA 25%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {salaryBreakdown.hra}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Special Allowance (15%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {salaryBreakdown.special}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Conveyance / Performance Allowance (10%)</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {salaryBreakdown.conveyance}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td>
-                        <strong>Total Gross Earnings</strong>
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'right',
-                          fontWeight: 700,
-                          color: '#0f172a',
-                        }}
-                      >
-                        {salaryBreakdown.gross}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-
-              {/* Deductions & Bank Table */}
-              <div className="emp-profile__card">
-                <div className="emp-profile__card-header">
-                  <h3 className="emp-profile__card-title">Monthly Deductions &amp; Tax</h3>
-                </div>
-                <table className="emp-profile__table">
-                  <thead>
-                    <tr>
-                      <th>Deduction Item</th>
-                      <th style={{ textAlign: 'right' }}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Provident Fund (Employee 12%)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
-                        {salaryBreakdown.pfEmployee}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Professional Tax (PT)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
-                        {salaryBreakdown.professionalTax}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Income Tax / TDS (Estimated)</td>
-                      <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
-                        {salaryBreakdown.tds}
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td>
-                        <strong>Total Deductions</strong>
-                      </td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>
-                        {salaryBreakdown.totalDeductions}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-
-                {/* Bank Details Strip */}
-                <div className="emp-profile__bank-strip">
-                  <div className="emp-profile__bank-icon">
-                    <Building2 size={20} color="#2357fe" />
+            {salaryBreakdown ? (
+              <>
+                {/* Top Summary Stats */}
+                <div className="emp-profile__salary-overview-row">
+                  <div className="emp-profile__sal-box">
+                    <span className="emp-profile__sal-box-label">Monthly Gross Wage</span>
+                    <span className="emp-profile__sal-box-val">{salaryBreakdown.gross}</span>
                   </div>
-                  <div className="emp-profile__bank-info">
-                    <span className="emp-profile__bank-name">
-                      {bankDetails.bankName}
-                    </span>
-                    <span className="emp-profile__bank-acc">
-                      A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}
+                  <div className="emp-profile__sal-box">
+                    <span className="emp-profile__sal-box-label">Total Monthly Deductions</span>
+                    <span className="emp-profile__sal-box-val emp-profile__sal-box-val--deduct">
+                      {salaryBreakdown.totalDeductions}
                     </span>
                   </div>
-                  <span className="emp-profile__bank-type">{bankDetails.accountType}</span>
+                  <div className="emp-profile__sal-box emp-profile__sal-box--highlight">
+                    <span className="emp-profile__sal-box-label">Net Take-Home Pay</span>
+                    <span className="emp-profile__sal-box-val emp-profile__sal-box-val--net">
+                      {salaryBreakdown.netPay}
+                    </span>
+                  </div>
+                  <div className="emp-profile__sal-box">
+                    <span className="emp-profile__sal-box-label">Annual CTC</span>
+                    <span className="emp-profile__sal-box-val">{annualCtc}</span>
+                  </div>
                 </div>
+
+                <div className="emp-profile__grid-2col">
+                  {/* Earnings Table */}
+                  <div className="emp-profile__card">
+                    <div className="emp-profile__card-header">
+                      <h3 className="emp-profile__card-title">Earnings Breakdown (Monthly)</h3>
+                    </div>
+                    <table className="emp-profile__table">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Basic Salary (50%)</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {salaryBreakdown.basic}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>House Rent Allowance (HRA 25%)</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {salaryBreakdown.hra}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Special Allowance (15%)</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {salaryBreakdown.special}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Conveyance / Performance Allowance (10%)</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {salaryBreakdown.conveyance}
+                          </td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td>
+                            <strong>Total Gross Earnings</strong>
+                          </td>
+                          <td
+                            style={{
+                              textAlign: 'right',
+                              fontWeight: 700,
+                              color: '#0f172a',
+                            }}
+                          >
+                            {salaryBreakdown.gross}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  {/* Deductions & Bank Table */}
+                  <div className="emp-profile__card">
+                    <div className="emp-profile__card-header">
+                      <h3 className="emp-profile__card-title">Monthly Deductions &amp; Tax</h3>
+                    </div>
+                    <table className="emp-profile__table">
+                      <thead>
+                        <tr>
+                          <th>Deduction Item</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Provident Fund (Employee 12%)</td>
+                          <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                            {salaryBreakdown.pfEmployee}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Professional Tax (PT)</td>
+                          <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                            {salaryBreakdown.professionalTax}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>Income Tax / TDS (Estimated)</td>
+                          <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 600 }}>
+                            {salaryBreakdown.tds}
+                          </td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td>
+                            <strong>Total Deductions</strong>
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>
+                            {salaryBreakdown.totalDeductions}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+
+                    {/* Bank Details Strip */}
+                    <div className="emp-profile__bank-strip">
+                      <div className="emp-profile__bank-icon">
+                        <Building2 size={20} color="#2357fe" />
+                      </div>
+                      <div className="emp-profile__bank-info">
+                        <span className="emp-profile__bank-name">
+                          {bankDetails.bankName}
+                        </span>
+                        <span className="emp-profile__bank-acc">
+                          A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}
+                        </span>
+                      </div>
+                      <span className="emp-profile__bank-type">{bankDetails.accountType}</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="emp-profile__card">
+                <p style={{ color: '#64748b', padding: '24px' }}>
+                  No active salary or wage structure assigned to this employee.
+                </p>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -654,70 +707,33 @@ export default function EmployeeProfilePage() {
             {/* Leave Balances Card */}
             <div className="emp-profile__card">
               <div className="emp-profile__card-header">
-                <h3 className="emp-profile__card-title">Annual Leave Balances (2026)</h3>
+                <h3 className="emp-profile__card-title">Annual Leave Balances</h3>
               </div>
               <div className="emp-profile__leave-list">
-                <div className="emp-profile__leave-item">
-                  <div className="emp-profile__leave-header">
-                    <span className="emp-profile__leave-name">
-                      Paid Time Off (PTO / Privilege)
-                    </span>
-                    <span className="emp-profile__leave-nums">
-                      <strong>
-                        {leaveBalances.paidLeave.total - leaveBalances.paidLeave.used}
-                      </strong>{' '}
-                      / {leaveBalances.paidLeave.total} days remaining
-                    </span>
-                  </div>
-                  <div className="emp-profile__progress-bar">
-                    <div
-                      className="emp-profile__progress-fill"
-                      style={{
-                        width: `${Math.min(100, (leaveBalances.paidLeave.used / (leaveBalances.paidLeave.total || 1)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="emp-profile__leave-item">
-                  <div className="emp-profile__leave-header">
-                    <span className="emp-profile__leave-name">Sick / Medical Leave</span>
-                    <span className="emp-profile__leave-nums">
-                      <strong>
-                        {leaveBalances.sickLeave.total - leaveBalances.sickLeave.used}
-                      </strong>{' '}
-                      / {leaveBalances.sickLeave.total} days remaining
-                    </span>
-                  </div>
-                  <div className="emp-profile__progress-bar">
-                    <div
-                      className="emp-profile__progress-fill emp-profile__progress-fill--orange"
-                      style={{
-                        width: `${Math.min(100, (leaveBalances.sickLeave.used / (leaveBalances.sickLeave.total || 1)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="emp-profile__leave-item">
-                  <div className="emp-profile__leave-header">
-                    <span className="emp-profile__leave-name">Casual Leave</span>
-                    <span className="emp-profile__leave-nums">
-                      <strong>
-                        {leaveBalances.casualLeave.total - leaveBalances.casualLeave.used}
-                      </strong>{' '}
-                      / {leaveBalances.casualLeave.total} days remaining
-                    </span>
-                  </div>
-                  <div className="emp-profile__progress-bar">
-                    <div
-                      className="emp-profile__progress-fill emp-profile__progress-fill--blue"
-                      style={{
-                        width: `${Math.min(100, (leaveBalances.casualLeave.used / (leaveBalances.casualLeave.total || 1)) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                </div>
+                {leaveAllocations && leaveAllocations.length > 0 ? (
+                  leaveAllocations.map((al) => (
+                    <div key={al.id} className="emp-profile__leave-item">
+                      <div className="emp-profile__leave-header">
+                        <span className="emp-profile__leave-name">{al.name}</span>
+                        <span className="emp-profile__leave-nums">
+                          <strong>{al.remaining}</strong> / {al.total} days remaining
+                        </span>
+                      </div>
+                      <div className="emp-profile__progress-bar">
+                        <div
+                          className="emp-profile__progress-fill"
+                          style={{
+                            width: `${Math.min(100, (al.used / (al.total || 1)) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ color: '#64748b', padding: '16px' }}>
+                    No leave allocations recorded for this employee.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -726,36 +742,42 @@ export default function EmployeeProfilePage() {
               <div className="emp-profile__card-header">
                 <h3 className="emp-profile__card-title">Recent Attendance Logs</h3>
               </div>
-              <table className="emp-profile__table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>In / Out</th>
-                    <th>Duration</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentAttendance.map((log, idx) => (
-                    <tr key={idx}>
-                      <td>
-                        <strong>{log.date}</strong>
-                      </td>
-                      <td>
-                        {log.checkIn} — {log.checkOut}
-                      </td>
-                      <td>{log.hours}</td>
-                      <td>
-                        <span
-                          className={`emp-card__status-badge emp-card__status-badge--${log.status === 'PRESENT' ? 'active' : 'probation'}`}
-                        >
-                          ● {log.status}
-                        </span>
-                      </td>
+              {recentAttendance && recentAttendance.length > 0 ? (
+                <table className="emp-profile__table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>In / Out</th>
+                      <th>Duration</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {recentAttendance.map((log) => (
+                      <tr key={log.id}>
+                        <td>
+                          <strong>{log.date}</strong>
+                        </td>
+                        <td>
+                          {log.checkIn} — {log.checkOut}
+                        </td>
+                        <td>{log.hours}</td>
+                        <td>
+                          <span
+                            className={`emp-card__status-badge emp-card__status-badge--${log.status === 'PRESENT' ? 'active' : 'probation'}`}
+                          >
+                            ● {log.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p style={{ color: '#64748b', padding: '16px' }}>
+                  No recent attendance records found.
+                </p>
+              )}
             </div>
           </div>
         )}

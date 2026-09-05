@@ -126,10 +126,28 @@
         background: #ffffff;
       }
 
+      &--active-draft {
+        background: #f3f4f6;
+        color: #1f2937;
+        border: 1px solid #9ca3af;
+      }
+
+      &--active-computed {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #3b82f6;
+      }
+
+      &--active-validated {
+        background: #fef3c7;
+        color: #b45309;
+        border: 1px solid #f59e0b;
+      }
+
       &--active-paid {
-        background: #2357fe;
-        color: #ffffff;
-        border: 1px solid #2357fe;
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #10b981;
       }
     }
 

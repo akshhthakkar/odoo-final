@@ -47,7 +47,7 @@ const employeesData = [
     code: 'EMP-001',
     firstName: 'Arjun',
     lastName: 'Nair',
-    email: 'arjun.nair@peoplepay360.io',
+    email: 'arjun.nair@pay365.dev',
     phone: '+91 98765 43210',
     dateOfBirth: new Date('1994-08-14'),
     gender: 'Male',
@@ -67,7 +67,7 @@ const employeesData = [
     code: 'EMP-002',
     firstName: 'Meera',
     lastName: 'Krishnan',
-    email: 'meera.krishnan@peoplepay360.io',
+    email: 'meera.krishnan@pay365.dev',
     phone: '+91 98451 22334',
     dateOfBirth: new Date('1997-03-22'),
     gender: 'Female',
@@ -107,7 +107,7 @@ const employeesData = [
     code: 'EMP-004',
     firstName: 'Sneha',
     lastName: 'Patil',
-    email: 'sneha.patil@peoplepay360.io',
+    email: 'sneha.patil@pay365.dev',
     phone: '+91 99201 55667',
     dateOfBirth: new Date('1993-07-18'),
     gender: 'Female',
@@ -127,7 +127,7 @@ const employeesData = [
     code: 'EMP-005',
     firstName: 'Karthik',
     lastName: 'Menon',
-    email: 'karthik.menon@peoplepay360.io',
+    email: 'karthik.menon@pay365.dev',
     phone: '+91 98401 77889',
     dateOfBirth: new Date('1992-12-30'),
     gender: 'Male',
@@ -147,7 +147,7 @@ const employeesData = [
     code: 'EMP-006',
     firstName: 'Vikram',
     lastName: 'Rao',
-    email: 'vikram.rao@peoplepay360.io',
+    email: 'vikram.rao@pay365.dev',
     phone: '+91 98800 11223',
     dateOfBirth: new Date('1989-02-08'),
     gender: 'Male',
@@ -167,7 +167,7 @@ const employeesData = [
     code: 'EMP-007',
     firstName: 'Ananya',
     lastName: 'Deshmukh',
-    email: 'ananya.deshmukh@peoplepay360.io',
+    email: 'ananya.deshmukh@pay365.dev',
     phone: '+91 97654 33221',
     dateOfBirth: new Date('1996-10-19'),
     gender: 'Female',
@@ -187,7 +187,7 @@ const employeesData = [
     code: 'EMP-008',
     firstName: 'Rohan',
     lastName: 'Gupta',
-    email: 'rohan.gupta@peoplepay360.io',
+    email: 'rohan.gupta@pay365.dev',
     phone: '+91 98200 44556',
     dateOfBirth: new Date('1993-06-03'),
     gender: 'Male',
@@ -207,7 +207,7 @@ const employeesData = [
     code: 'EMP-009',
     firstName: 'Aditya',
     lastName: 'Joshi',
-    email: 'aditya.joshi@peoplepay360.io',
+    email: 'aditya.joshi@pay365.dev',
     phone: '+91 99887 66554',
     dateOfBirth: new Date('2002-09-12'),
     gender: 'Male',
@@ -227,7 +227,7 @@ const employeesData = [
     code: 'EMP-010',
     firstName: 'Priya',
     lastName: 'Sharma',
-    email: 'priya.sharma@peoplepay360.io',
+    email: 'priya.sharma@pay365.dev',
     phone: '+91 97766 55443',
     dateOfBirth: new Date('1998-01-28'),
     gender: 'Female',
@@ -327,7 +327,7 @@ async function main() {
               sequence: 10,
               computationType: 'PERCENTAGE',
               percentage: 50.0,
-              baseCode: 'WAGE',
+              baseCode: 'wage',
               appearsOnPayslip: true,
             },
             {
@@ -337,7 +337,7 @@ async function main() {
               sequence: 20,
               computationType: 'PERCENTAGE',
               percentage: 25.0,
-              baseCode: 'WAGE',
+              baseCode: 'wage',
               appearsOnPayslip: true,
             },
             {
@@ -347,7 +347,7 @@ async function main() {
               sequence: 30,
               computationType: 'PERCENTAGE',
               percentage: 15.0,
-              baseCode: 'WAGE',
+              baseCode: 'wage',
               appearsOnPayslip: true,
             },
             {
@@ -357,7 +357,7 @@ async function main() {
               sequence: 40,
               computationType: 'PERCENTAGE',
               percentage: 10.0,
-              baseCode: 'WAGE',
+              baseCode: 'wage',
               appearsOnPayslip: true,
             },
             {
@@ -428,46 +428,27 @@ async function main() {
     });
     empMap[e.code] = employee.id;
 
-    // Seed/upsert active contract
-    await prisma.contract.upsert({
-      where: { id: employee.id }, // dummy fallback
-      update: {},
-      create: {
-        employeeId: employee.id,
-        reference: e.contractRef,
-        startDate: e.hireDate,
-        wage: e.wage,
-        currency: 'INR',
-        contractType: e.contractType,
-        departmentId: deptMap[e.deptCode] || null,
-        jobId: jobMap[e.jobTitle] || null,
-        workingScheduleId: schedule.id,
-        salaryStructureId: structure.id,
-        status: 'ACTIVE',
-      },
-    }).catch(async () => {
-      // If upsert fails on where ID, check if contract with reference exists
-      const existing = await prisma.contract.findFirst({
-        where: { reference: e.contractRef },
-      });
-      if (!existing) {
-        await prisma.contract.create({
-          data: {
-            employeeId: employee.id,
-            reference: e.contractRef,
-            startDate: e.hireDate,
-            wage: e.wage,
-            currency: 'INR',
-            contractType: e.contractType,
-            departmentId: deptMap[e.deptCode] || null,
-            jobId: jobMap[e.jobTitle] || null,
-            workingScheduleId: schedule.id,
-            salaryStructureId: structure.id,
-            status: 'ACTIVE',
-          },
-        });
-      }
+    // Seed contract: idempotent by reference (no upsert-by-fake-id pattern).
+    const existingContract = await prisma.contract.findFirst({
+      where: { reference: e.contractRef },
     });
+    if (!existingContract) {
+      await prisma.contract.create({
+        data: {
+          employeeId: employee.id,
+          reference: e.contractRef,
+          startDate: e.hireDate,
+          wage: e.wage,
+          currency: 'INR',
+          contractType: e.contractType,
+          departmentId: deptMap[e.deptCode] || null,
+          jobId: jobMap[e.jobTitle] || null,
+          workingScheduleId: schedule.id,
+          salaryStructureId: structure.id,
+          status: 'ACTIVE',
+        },
+      });
+    }
   }
 
   // Set manager relationships
@@ -585,6 +566,7 @@ async function main() {
     });
   }
 
+<<<<<<< HEAD
   // ─── 6. Seed Historical Payruns & Payslips across all months ───────────────
   console.log('Seeding historical payruns and payslips across 6 months (Mar - Aug 2026)...');
 

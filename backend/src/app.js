@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import session from 'express-session';
 import pgSimple from 'connect-pg-simple';
+import rateLimit from 'express-rate-limit';
 import { env } from './config/env.js';
 import requestId from './middleware/request-id.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -29,7 +30,21 @@ import { requireRole } from './middleware/rbac.js';
 const app = express();
 const PgSession = pgSimple(session);
 
+// SEC-05: global abuse-resistance layer (contract §5: 300 req/min/IP) on top
+// of the stricter login limiter.
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { code: 'RATE_LIMITED', message: 'Too many requests', details: [] },
+  },
+});
+
 app.use(requestId);
+app.use(globalLimiter);
 app.use(helmet());
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
 app.use(express.json());

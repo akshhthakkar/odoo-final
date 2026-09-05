@@ -89,7 +89,7 @@ export async function createUser({ email, password, full_name, role, employee_id
     }
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
     data: {
@@ -166,7 +166,7 @@ export async function resetPassword(id, newPassword, actorId) {
     throw new AppError(404, 'NOT_FOUND', 'User not found');
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({
     where: { id },
     data: { passwordHash },
