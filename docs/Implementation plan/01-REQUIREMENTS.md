@@ -69,7 +69,7 @@ Basic HR tools store employees, attendance, leave, and salary as disconnected re
 |---|---|---|
 | NFR-01 | API response time | p95 < 300 ms for CRUD; payrun compute of 50 employees < 10 s |
 | NFR-02 | Payroll correctness | Rule sequencing deterministic; identical inputs → identical payslip |
-| NFR-03 | Security | OWASP basics: hashed passwords (bcrypt), JWT, input validation everywhere, parameterized queries (Prisma), rate-limited login |
+| NFR-03 | Security | OWASP basics: hashed passwords (bcrypt), session-based auth (express-session + httpOnly sid cookie), input validation everywhere, parameterized queries (Prisma), rate-limited login |
 | NFR-04 | Auditability | Security-sensitive actions (approvals, payroll finalization, role changes) audit-logged |
 | NFR-05 | Testability | All P0 API endpoints have happy-path + error-path tests; engine has Vitest coverage of rule types |
 | NFR-06 | Deployability | `docker-compose up` brings up the whole stack with seed data |

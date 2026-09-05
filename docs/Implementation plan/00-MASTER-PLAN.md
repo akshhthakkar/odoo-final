@@ -2,7 +2,7 @@
 
 **Project:** Pay365 HR & Payroll
 **Date:** 2026-09-05
-**Status:** Approved — Architecture Baseline v1.1 (Payroll Calculation Engine as an in-process TypeScript module inside the Node.js backend)
+**Status:** Approved — Architecture Baseline v1.1 (Payroll Calculation Engine as an in-process JavaScript module inside the Node.js backend)
 **Reference Spec:** `docs/Others/Pay365 HR & Payroll.md`
 
 ---
@@ -33,9 +33,9 @@ The architecture is a **3-tier system**:
 | UI | SCSS (SASS/SCSS modular styles) + custom components | Clean, modular CSS design system |
 | Forms | react-hook-form + zod | Zod schemas shared shape with API validation |
 | Charts | Recharts | Dashboard charts |
-| API framework | Express 5 + JavaScript (ES Modules) | Layered: routes → controllers → services → repositories |
+| API framework | Express 5 + JavaScript (ES Modules) | Layered: routes → controllers → services → repositories (CSR pattern) |
 | ORM | Prisma | PostgreSQL access via Prisma Client JS, migrations |
-| Auth | JWT access (15 min) + refresh (7 days, httpOnly cookie) | 5 roles, RBAC middleware |
+| Auth | Session-based stateful auth (express-session + connect-pg-simple) | Server-side sessions stored in PostgreSQL; 5 roles, RBAC middleware |
 | Validation | zod on every endpoint | Never trust client input |
 | Payroll engine | In-process module (`src/engine/`) inside the Express app | Pure calculation library — no DB, no HTTP, no I/O |
 | Formula evaluation | Grammar-whitelisted parser/evaluator (NO eval / NO new Function) | Safe formula salary rules |
@@ -60,7 +60,7 @@ odoo-final/
 │   │   │   ├── validator/   # rule-set validation (validateRules)
 │   │   │   └── types/       # compute request/response schemas (zod)
 │   │   ├── modules/
-│   │   │   ├── auth/        # login, JWT, refresh
+│   │   │   ├── auth/        # login, session auth, logout, /me
 │   │   │   ├── users/       # admin user management
 │   │   │   ├── employees/   # employees, departments, jobs
 │   │   │   ├── contracts/
@@ -101,7 +101,7 @@ odoo-final/
 | `02-SYSTEM-ARCHITECTURE.md` | Architecture decisions, module boundaries, data flows, integrations |
 | `03-DATABASE-DESIGN.md` | Full schema: entities, fields, relationships, indexes, constraints |
 | `04-API-CONTRACTS.md` | API standards, endpoint catalog, detailed contracts for critical endpoints |
-| `05-PAYROLL-ENGINE-CONTRACT.md` | TypeScript engine module spec, compute contract, formula DSL, warning codes |
+| `05-PAYROLL-ENGINE-CONTRACT.md` | JavaScript engine module spec, compute contract, formula DSL, warning codes |
 | `06-FRONTEND-ARCHITECTURE.md` | Routes, component taxonomy, state, patterns, payrun wizard UX |
 | `07-SECURITY-RBAC.md` | Auth strategy, full RBAC permission matrix, security standards |
 | `08-ROADMAP-AND-TASKS.md` | Phased task board with Agent-2-ready task specs and acceptance criteria |
@@ -137,7 +137,7 @@ Full task specifications with acceptance criteria: see `08-ROADMAP-AND-TASKS.md`
 | TASK-011 | Salary Structures CRUD | P0 | Not Started | TASK-004 |
 | TASK-012 | Salary Rules Configuration & Sequencing | P0 | Not Started | TASK-011 |
 | TASK-013 | Payrun Wizard & Orchestration Service | P0 | Not Started | TASK-005, 007, 010, 012 |
-| TASK-014 | Pure In-Process TypeScript Payroll Engine Module | P0 | Not Started | TASK-012 (contract only) |
+| TASK-014 | Pure In-Process JavaScript Payroll Engine Module | P0 | Not Started | TASK-012 (contract only) |
 | TASK-015 | Payslips Generation & Line Assembly | P0 | Not Started | TASK-013, 014 |
 | TASK-016 | Payroll Validation, Warnings & State Machine | P0 | Not Started | TASK-015 |
 | TASK-017 | Payslip PDF Generation (`pdfkit`) | P1 | Not Started | TASK-015 |
