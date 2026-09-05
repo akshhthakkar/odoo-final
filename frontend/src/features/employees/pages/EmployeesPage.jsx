@@ -1,157 +1,129 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Plus, RefreshCw, AlertCircle } from 'lucide-react';
+import { api } from '../../../lib/api.js';
+import { INITIAL_EMPLOYEES } from '../data/employeesData.js';
 import './EmployeesPage.scss';
 
-// ─── Initial Employee Data ───────────────────────────────────────────────────
-const INITIAL_EMPLOYEES = [
-  {
-    id: 'emp-001',
-    code: 'EMP-001',
-    name: 'Arjun Nair',
-    jobTitle: 'Senior Engineer',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹92,000',
-    email: 'arjun.nair@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-002',
-    code: 'EMP-002',
-    name: 'Meera Krishnan',
-    jobTitle: 'Engineer',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹52,000',
-    email: 'meera.krishnan@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-003',
-    code: 'EMP-003',
-    name: 'Rahul Verma',
-    jobTitle: 'Sales Executive',
-    department: 'Sales',
-    status: 'ACTIVE',
-    wage: '₹45,000',
-    email: 'employee@pay365.dev',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-004',
-    code: 'EMP-004',
-    name: 'Sneha Patil',
-    jobTitle: 'Marketing Lead',
-    department: 'Marketing',
-    status: 'ACTIVE',
-    wage: '₹58,000',
-    email: 'sneha.patil@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-005',
-    code: 'EMP-005',
-    name: 'Karthik Menon',
-    jobTitle: 'Accountant',
-    department: 'Finance',
-    status: 'ACTIVE',
-    wage: '₹47,000',
-    email: 'karthik.menon@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-006',
-    code: 'EMP-006',
-    name: 'Vikram Rao',
-    jobTitle: 'Principal Architect',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹1,20,000',
-    email: 'vikram.rao@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-007',
-    code: 'EMP-007',
-    name: 'Ananya Deshmukh',
-    jobTitle: 'Product Designer',
-    department: 'Design',
-    status: 'ACTIVE',
-    wage: '₹62,000',
-    email: 'ananya.deshmukh@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-008',
-    code: 'EMP-008',
-    name: 'Rohan Gupta',
-    jobTitle: 'DevOps Specialist',
-    department: 'Engineering',
-    status: 'ACTIVE',
-    wage: '₹75,000',
-    email: 'rohan.gupta@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-  {
-    id: 'emp-009',
-    code: 'EMP-009',
-    name: 'Aditya Joshi',
-    jobTitle: 'Engineering Intern',
-    department: 'Engineering',
-    status: 'PROBATION',
-    wage: '₹25,000',
-    email: 'aditya.joshi@peoplepay360.io',
-    contractType: 'Intern',
-  },
-  {
-    id: 'emp-010',
-    code: 'EMP-010',
-    name: 'Priya Sharma',
-    jobTitle: 'Sales Associate',
-    department: 'Sales',
-    status: 'ON_LEAVE',
-    wage: '₹38,000',
-    email: 'priya.sharma@peoplepay360.io',
-    contractType: 'Full-time',
-  },
-];
-
-// Status columns configuration
-const STATUS_COLUMNS = [
-  { key: 'ACTIVE', label: 'Active', dotClass: 'emp-kanban__status-dot--active' },
-  { key: 'PROBATION', label: 'Probation', dotClass: 'emp-kanban__status-dot--probation' },
-  { key: 'ON_LEAVE', label: 'On Leave', dotClass: 'emp-kanban__status-dot--on_leave' },
-  { key: 'RESIGNED', label: 'Resigned', dotClass: 'emp-kanban__status-dot--resigned' },
-];
-
+// Helper for user avatar initials
 function getInitials(name) {
   if (!name) return 'EM';
-  return name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function EmployeesPage() {
+  const navigate = useNavigate();
+
+  // State
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const [departments, setDepartments] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [viewMode, setViewMode] = useState('kanban'); // 'kanban' | 'list'
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'PROBATION' | 'ON_LEAVE' | 'RESIGNED'
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // New Employee Form State
   const [newEmp, setNewEmp] = useState({
-    name: '',
-    code: `EMP-00${employees.length + 1}`,
+    firstName: '',
+    lastName: '',
+    code: '',
     email: '',
-    jobTitle: '',
-    department: 'Engineering',
+    phone: '',
+    departmentId: '',
+    jobId: '',
     status: 'ACTIVE',
-    wage: '',
-    contractType: 'Full-time',
+    hireDate: new Date().toISOString().slice(0, 10),
+    wage: '50000',
+    contractType: 'FULL_TIME',
   });
+
+  // Fetch departments & jobs
+  async function fetchMetadata() {
+    try {
+      const [deptRes, jobRes] = await Promise.all([
+        api.get('/employees/departments').catch(() => null),
+        api.get('/employees/jobs').catch(() => null),
+      ]);
+      if (deptRes?.data?.data) setDepartments(deptRes.data.data);
+      if (jobRes?.data?.data) setJobs(jobRes.data.data);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fetch employees list from backend
+  async function fetchEmployees() {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = { limit: 100 };
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+      if (departmentFilter !== 'all') {
+        const foundDept = departments.find(
+          (d) => d.name.toLowerCase() === departmentFilter.toLowerCase()
+        );
+        if (foundDept) params.department_id = foundDept.id;
+      }
+      if (searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+
+      const res = await api.get('/employees', { params });
+      const items = Array.isArray(res?.data?.data) ? res.data.data : res?.data?.data?.items;
+
+      if (items && items.length > 0) {
+        // Map backend schema to UI format
+        const mapped = items.map((emp) => ({
+          id: emp.id,
+          code: emp.employee_code,
+          name: `${emp.first_name} ${emp.last_name}`,
+          jobTitle: emp.job?.name || 'Staff Member',
+          department: emp.department?.name || 'General',
+          status: emp.status,
+          wage: emp.wage ? `₹${Number(emp.wage).toLocaleString('en-IN')}` : '₹45,000',
+          annualCtc: emp.wage ? `₹${(Number(emp.wage) * 12).toLocaleString('en-IN')}` : '₹5,40,000',
+          email: emp.email,
+          phone: emp.phone || '+91 98765 00000',
+          location: emp.address || 'Bengaluru, India (HQ)',
+          hireDate: emp.hire_date ? new Date(emp.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '01 Jan 2023',
+          contractType: 'Full-time',
+        }));
+        setEmployees(mapped);
+      } else if (items && items.length === 0 && !searchQuery) {
+        setEmployees(INITIAL_EMPLOYEES);
+      }
+    } catch (err) {
+      // Graceful fallback to initial mock data if session/network is not connected
+      console.warn('Could not load backend employees, using fallback data:', err?.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchMetadata();
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [statusFilter, departmentFilter]);
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
-    const counts = { ALL: employees.length, ACTIVE: 0, PROBATION: 0, ON_LEAVE: 0, RESIGNED: 0 };
+    const counts = { ALL: employees.length, ACTIVE: 0, PROBATION: 0, ON_LEAVE: 0, RESIGNED: 0, TERMINATED: 0 };
     employees.forEach((emp) => {
       const st = emp.status.toUpperCase();
       if (counts[st] !== undefined) {
@@ -161,7 +133,7 @@ export default function EmployeesPage() {
     return counts;
   }, [employees]);
 
-  // Filtered list
+  // Filtered list for search box
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       const q = searchQuery.toLowerCase().trim();
@@ -183,39 +155,72 @@ export default function EmployeesPage() {
     });
   }, [employees, searchQuery, departmentFilter, statusFilter]);
 
-  function handleCreateEmployee(e) {
+  // Handle create employee API call
+  async function handleCreateEmployee(e) {
     e.preventDefault();
-    if (!newEmp.name.trim() || !newEmp.email.trim()) return;
+    if (!newEmp.firstName.trim() || !newEmp.lastName.trim() || !newEmp.email.trim()) return;
 
-    const created = {
-      id: `emp-${Date.now()}`,
-      code: newEmp.code || `EMP-00${employees.length + 1}`,
-      name: newEmp.name.trim(),
-      jobTitle: newEmp.jobTitle || 'Team Member',
-      department: newEmp.department,
-      status: newEmp.status,
-      wage: newEmp.wage ? `₹${newEmp.wage}` : '₹40,000',
-      email: newEmp.email.trim(),
-      contractType: newEmp.contractType,
-    };
+    setSubmitting(true);
+    try {
+      const payload = {
+        employee_code: newEmp.code || `EMP-00${employees.length + 1}`,
+        first_name: newEmp.firstName.trim(),
+        last_name: newEmp.lastName.trim(),
+        email: newEmp.email.trim(),
+        phone: newEmp.phone || null,
+        hire_date: newEmp.hireDate || new Date().toISOString().slice(0, 10),
+        department_id: newEmp.departmentId || (departments[0]?.id || null),
+        job_id: newEmp.jobId || (jobs[0]?.id || null),
+      };
 
-    setEmployees((prev) => [created, ...prev]);
-    setIsModalOpen(false);
-    setNewEmp({
-      name: '',
-      code: `EMP-00${employees.length + 2}`,
-      email: '',
-      jobTitle: '',
-      department: 'Engineering',
-      status: 'ACTIVE',
-      wage: '',
-      contractType: 'Full-time',
-    });
+      const res = await api.post('/employees', payload).catch(() => null);
+
+      if (res?.data?.data) {
+        // Created in backend successfully, refresh list
+        await fetchEmployees();
+      } else {
+        // Local fallback addition
+        const created = {
+          id: `emp-${Date.now()}`,
+          code: newEmp.code || `EMP-00${employees.length + 1}`,
+          name: `${newEmp.firstName.trim()} ${newEmp.lastName.trim()}`,
+          jobTitle: jobs.find((j) => j.id === newEmp.jobId)?.name || 'Team Member',
+          department: departments.find((d) => d.id === newEmp.departmentId)?.name || 'Engineering',
+          status: 'ACTIVE',
+          wage: newEmp.wage ? `₹${Number(newEmp.wage).toLocaleString('en-IN')}` : '₹50,000',
+          annualCtc: newEmp.wage ? `₹${(Number(newEmp.wage) * 12).toLocaleString('en-IN')}` : '₹6,00,000',
+          email: newEmp.email.trim(),
+          phone: newEmp.phone || '+91 98765 00000',
+          location: 'Bengaluru, India (HQ)',
+          hireDate: new Date(newEmp.hireDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          contractType: newEmp.contractType || 'Full-time',
+        };
+        setEmployees((prev) => [created, ...prev]);
+      }
+
+      setIsModalOpen(false);
+      setNewEmp({
+        firstName: '',
+        lastName: '',
+        code: '',
+        email: '',
+        phone: '',
+        departmentId: '',
+        jobId: '',
+        status: 'ACTIVE',
+        hireDate: new Date().toISOString().slice(0, 10),
+        wage: '50000',
+        contractType: 'FULL_TIME',
+      });
+    } catch (err) {
+      console.error('Error creating employee:', err);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
     <div className="employees-page">
-
       {/* ── 1. Page Header & Action Controls ── */}
       <header className="emp-header">
         <div className="emp-header__left">
@@ -313,10 +318,7 @@ export default function EmployeesPage() {
             className="emp-header__add-btn"
             onClick={() => setIsModalOpen(true)}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
+            <Plus size={16} strokeWidth={2.5} />
             <span>New Employee</span>
           </button>
         </div>
@@ -346,11 +348,21 @@ export default function EmployeesPage() {
             aria-label="Filter by department"
           >
             <option value="all">All departments</option>
-            <option value="Engineering">Engineering</option>
-            <option value="Sales">Sales</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Finance">Finance</option>
-            <option value="Design">Design</option>
+            {departments.length > 0 ? (
+              departments.map((d) => (
+                <option key={d.id} value={d.name}>
+                  {d.name}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="Engineering">Engineering</option>
+                <option value="Sales">Sales</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Finance">Finance</option>
+                <option value="Design">Design</option>
+              </>
+            )}
           </select>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -379,6 +391,13 @@ export default function EmployeesPage() {
                 <div
                   key={emp.id}
                   className="emp-card"
+                  onClick={() => navigate(`/employees/${emp.id}`)}
+                  title={`View profile of ${emp.name}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/employees/${emp.id}`);
+                  }}
                 >
                   <div className="emp-card__header">
                     <div className="emp-card__avatar">
@@ -410,7 +429,9 @@ export default function EmployeesPage() {
             </div>
           ) : (
             <div className="emp-cards-grid__empty">
-              <div className="emp-cards-grid__empty-icon">👥</div>
+              <div className="emp-cards-grid__empty-icon">
+                <Users size={36} color="#2357fe" />
+              </div>
               <h3>No employees found</h3>
               <p>No employees match the selected status or filters.</p>
               {statusFilter !== 'ALL' && (
@@ -442,7 +463,11 @@ export default function EmployeesPage() {
               </thead>
               <tbody>
                 {filteredEmployees.map((emp) => (
-                  <tr key={emp.id}>
+                  <tr
+                    key={emp.id}
+                    onClick={() => navigate(`/employees/${emp.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>
                       <div className="emp-list-card__user-cell">
                         <div className="emp-card__avatar">
@@ -469,7 +494,13 @@ export default function EmployeesPage() {
                     <td style={{ fontWeight: 700, color: '#0f172a' }}>{emp.wage}</td>
                     <td>{emp.email}</td>
                     <td>
-                      <button className="emp-list-card__action-link">
+                      <button
+                        className="emp-list-card__action-link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/employees/${emp.id}`);
+                        }}
+                      >
                         View Profile →
                       </button>
                     </td>
@@ -503,80 +534,95 @@ export default function EmployeesPage() {
               <div className="emp-modal__body">
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
-                    <label>Full Name *</label>
+                    <label>First Name *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Vikram Rao"
-                      value={newEmp.name}
-                      onChange={(e) => setNewEmp({ ...newEmp, name: e.target.value })}
+                      placeholder="e.g. Vikram"
+                      value={newEmp.firstName}
+                      onChange={(e) => setNewEmp({ ...newEmp, firstName: e.target.value })}
                       autoFocus
                     />
                   </div>
                   <div className="emp-modal__field">
-                    <label>Employee Code</label>
+                    <label>Last Name *</label>
                     <input
                       type="text"
-                      placeholder="e.g. EMP-008"
-                      value={newEmp.code}
-                      onChange={(e) => setNewEmp({ ...newEmp, code: e.target.value })}
+                      required
+                      placeholder="e.g. Rao"
+                      value={newEmp.lastName}
+                      onChange={(e) => setNewEmp({ ...newEmp, lastName: e.target.value })}
                     />
                   </div>
                 </div>
 
-                <div className="emp-modal__field">
-                  <label>Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. vikram.rao@peoplepay360.io"
-                    value={newEmp.email}
-                    onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })}
-                  />
+                <div className="emp-modal__field-row">
+                  <div className="emp-modal__field">
+                    <label>Employee Code</label>
+                    <input
+                      type="text"
+                      placeholder={`e.g. EMP-00${employees.length + 1}`}
+                      value={newEmp.code}
+                      onChange={(e) => setNewEmp({ ...newEmp, code: e.target.value })}
+                    />
+                  </div>
+                  <div className="emp-modal__field">
+                    <label>Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. vikram.rao@company.io"
+                      value={newEmp.email}
+                      onChange={(e) => setNewEmp({ ...newEmp, email: e.target.value })}
+                    />
+                  </div>
                 </div>
 
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
                     <label>Department</label>
                     <select
-                      value={newEmp.department}
-                      onChange={(e) => setNewEmp({ ...newEmp, department: e.target.value })}
+                      value={newEmp.departmentId}
+                      onChange={(e) => setNewEmp({ ...newEmp, departmentId: e.target.value })}
                     >
-                      <option value="Engineering">Engineering</option>
-                      <option value="Sales">Sales</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Finance">Finance</option>
+                      <option value="">Select department</option>
+                      {departments.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="emp-modal__field">
-                    <label>Job Title</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Senior Frontend Dev"
-                      value={newEmp.jobTitle}
-                      onChange={(e) => setNewEmp({ ...newEmp, jobTitle: e.target.value })}
-                    />
+                    <label>Job Title / Designation</label>
+                    <select
+                      value={newEmp.jobId}
+                      onChange={(e) => setNewEmp({ ...newEmp, jobId: e.target.value })}
+                    >
+                      <option value="">Select job</option>
+                      {jobs.map((j) => (
+                        <option key={j.id} value={j.id}>
+                          {j.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
                 <div className="emp-modal__field-row">
                   <div className="emp-modal__field">
-                    <label>Status</label>
-                    <select
-                      value={newEmp.status}
-                      onChange={(e) => setNewEmp({ ...newEmp, status: e.target.value })}
-                    >
-                      <option value="ACTIVE">Active</option>
-                      <option value="PROBATION">Probation</option>
-                      <option value="ON_LEAVE">On Leave</option>
-                      <option value="RESIGNED">Resigned</option>
-                    </select>
+                    <label>Date of Joining</label>
+                    <input
+                      type="date"
+                      value={newEmp.hireDate}
+                      onChange={(e) => setNewEmp({ ...newEmp, hireDate: e.target.value })}
+                    />
                   </div>
                   <div className="emp-modal__field">
-                    <label>Monthly Salary / Wage</label>
+                    <label>Monthly Gross Wage (₹)</label>
                     <input
-                      type="text"
-                      placeholder="e.g. 65,000"
+                      type="number"
+                      placeholder="e.g. 65000"
                       value={newEmp.wage}
                       onChange={(e) => setNewEmp({ ...newEmp, wage: e.target.value })}
                     />
@@ -595,15 +641,15 @@ export default function EmployeesPage() {
                 <button
                   type="submit"
                   className="emp-modal__submit-btn"
+                  disabled={submitting}
                 >
-                  Create Employee
+                  {submitting ? 'Creating...' : 'Create Employee'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }

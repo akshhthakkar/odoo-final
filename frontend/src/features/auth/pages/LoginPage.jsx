@@ -191,6 +191,75 @@ export default function LoginPage() {
               Forgot your password?
             </a>
           </div>
+
+          {/* Quick Demo Sign In */}
+          <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid #f1f5f9' }}>
+            <p style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Quick Demo Sign-In
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                style={{
+                  background: '#EEF3FF',
+                  border: '1px solid #c7d7fe',
+                  color: '#2357fe',
+                  padding: '5px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setFields({ email: 'admin@pay365.dev', password: 'Password@123' });
+                  setErrors({});
+                  setServerError('');
+                }}
+              >
+                Admin
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  color: '#334155',
+                  padding: '5px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setFields({ email: 'hr.manager@pay365.dev', password: 'Password@123' });
+                  setErrors({});
+                  setServerError('');
+                }}
+              >
+                HR Manager
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  color: '#334155',
+                  padding: '5px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setFields({ email: 'employee@pay365.dev', password: 'Password@123' });
+                  setErrors({});
+                  setServerError('');
+                }}
+              >
+                Employee (Rahul)
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     </div>

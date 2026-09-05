@@ -83,8 +83,8 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 
       .emp-header__status-tab-badge {
-        background: #eef2ff;
-        color: #4f46e5;
+        background: #eef3ff;
+        color: $color-primary;
       }
     }
   }
@@ -103,10 +103,10 @@
   &__view-switch {
     display: flex;
     align-items: center;
-    background: #eef2ff;
+    background: #f1f5f9;
     padding: 3px;
     border-radius: 8px;
-    border: 1px solid #e0e7ff;
+    border: 1px solid #e2e8f0;
   }
 
   &__switch-btn {
@@ -133,12 +133,12 @@
     }
 
     &--active {
-      background: #c7d2fe;
-      color: #3730a3;
-      box-shadow: none;
+      background: #ffffff;
+      color: $color-primary;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 
       svg {
-        color: #3730a3;
+        color: $color-primary;
       }
     }
   }
@@ -148,7 +148,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #5046e5;
+    background: $color-primary;
     color: #ffffff;
     border: none;
     padding: 8px 18px;
@@ -157,12 +157,12 @@
     font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(80, 70, 229, 0.25);
+    box-shadow: $shadow-primary-btn;
     transition: all $transition-fast;
 
     &:hover {
-      background: #4338ca;
-      box-shadow: 0 4px 12px rgba(80, 70, 229, 0.35);
+      background: $color-primary-hover;
+      box-shadow: $shadow-primary-hover;
       transform: translateY(-1px);
     }
   }
@@ -367,7 +367,7 @@
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-    border-color: #818cf8;
+    border-color: $color-primary;
   }
 
   &__header {
@@ -380,8 +380,8 @@
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    background: #eef2ff;
-    color: #6366f1;
+    background: $color-primary-subtle;
+    color: $color-primary;
     font-size: 13px;
     font-weight: 700;
     display: flex;

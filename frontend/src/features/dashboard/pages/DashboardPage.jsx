@@ -14,9 +14,9 @@ const MONTHLY_PAYROLL_DATA = [
 
 const DEPT_DISTRIBUTION = [
   { name: 'Engineering', amount: '₹9.8L', pct: 50.5, color: '#2357fe' },
-  { name: 'Operations', amount: '₹4.6L', pct: 23.7, color: '#6366f1' },
+  { name: 'Operations', amount: '₹4.6L', pct: 23.7, color: '#2563eb' },
   { name: 'Sales & Marketing', amount: '₹3.2L', pct: 16.5, color: '#38bdf8' },
-  { name: 'Finance & HR', amount: '₹1.8L', pct: 9.3, color: '#a855f7' },
+  { name: 'Finance & HR', amount: '₹1.8L', pct: 9.3, color: '#0284c7' },
 ];
 
 const RECENT_PAYRUNS = [
@@ -442,7 +442,7 @@ export default function DashboardPage() {
                   cy="60"
                   r="46"
                   fill="none"
-                  stroke="#6366f1"
+                  stroke="#2357fe"
                   strokeWidth="14"
                   strokeDasharray="289"
                   strokeDashoffset="0"
@@ -586,7 +586,7 @@ export default function DashboardPage() {
                 <span className="overview-card__leave-count"><strong>4</strong> / 18 d used</span>
               </div>
               <div className="overview-card__progress-track">
-                <div className="overview-card__progress-fill" style={{ width: '22.2%', background: '#6366f1' }} />
+                <div className="overview-card__progress-fill" style={{ width: '22.2%', background: '#2357fe' }} />
               </div>
             </div>
 

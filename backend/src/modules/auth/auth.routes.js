@@ -5,9 +5,11 @@ import { validateBody } from '../../middleware/validate.js';
 import { requireAuth } from '../../middleware/auth.js';
 import * as auth from './auth.controller.js';
 
+import { env } from '../../config/env.js';
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: env.NODE_ENV === 'production' ? 5 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => `${req.body?.email || 'anonymous'}:${req.ip}`,

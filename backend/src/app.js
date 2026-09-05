@@ -15,6 +15,7 @@ import attendanceRoutes from './modules/attendance/attendance.routes.js';
 import timeoffRoutes from './modules/timeoff/timeoff.routes.js';
 import payrollConfigRoutes from './modules/payroll-config/payroll-config.routes.js';
 import payrollRunRoutes from './modules/payroll-run/payroll-run.routes.js';
+import payslipsRoutes from './modules/payroll-run/payslips.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/v1/attendance', attendanceRoutes);
 app.use('/api/v1/time-off', timeoffRoutes);
 app.use('/api/v1/salary-structures', payrollConfigRoutes);
 app.use('/api/v1/payruns', payrollRunRoutes);
+app.use('/api/v1/payslips', payslipsRoutes);
 app.use('/api/v1/dashboard', reportsRoutes);
 
 app.use(notFound);
