@@ -13,6 +13,19 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32).default('dev-only-session-secret-change-me-in-prod'),
   SESSION_MAX_AGE_DAYS: z.coerce.number().default(7),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
+
+  // Email / SMTP Settings (TASK-018)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z
+    .preprocess((val) => {
+      if (typeof val === 'string') return val === 'true' || val === '1';
+      return val;
+    }, z.boolean())
+    .default(false),
+  SMTP_FROM: z.string().default('Pay365 <payslips@pay365.dev>'),
 });
 
 const parsed = schema.safeParse(process.env);

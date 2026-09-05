@@ -1,52 +1,68 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireRole } from '../../middleware/rbac.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
-import * as payruns from './payruns.controller.js';
+import * as controller from './payroll-run.controller.js';
+import {
+  createPayrunSchema,
+  statusChangeSchema,
+  eligibilitySchema,
+  dispatchSchema,
+} from './schemas.js';
+import { requireUuidParam } from './payslips.routes.js';
 
-const listPayrunsQuerySchema = z.object({
-  search: z.string().optional(),
-  page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
-});
-
-const createPayrunSchema = z.object({
-  name: z.string().min(1).max(140),
-  structure_id: z.string().uuid(),
-  period_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  period_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  employee_ids: z.array(z.string().uuid()).optional(),
-});
+// COMPUTE is a payroll-user action; VALIDATE/MARK_PAID/CANCEL need the manager.
+const COMPUTE_ROLES = ['HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN'];
+const MANAGE_ROLES = ['HR_PAYROLL_MANAGER', 'ADMIN'];
 
 const router = Router();
 
 router.use(requireAuth);
 
 router.get(
+  '/eligibility-checks',
+  requireRole(...COMPUTE_ROLES),
+  validateQuery(eligibilitySchema),
+  controller.eligibility
+);
+
+router.post(
   '/',
-  requireRole('ADMIN', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
-  validateQuery(listPayrunsQuerySchema),
-  payruns.listPayruns
+  requireRole(...COMPUTE_ROLES),
+  validateBody(createPayrunSchema),
+  controller.create
+);
+
+router.get(
+  '/',
+  requireRole(...COMPUTE_ROLES),
+  controller.list
 );
 
 router.get(
   '/:id',
-  requireRole('ADMIN', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
-  payruns.getPayrun
+  requireRole(...COMPUTE_ROLES),
+  requireUuidParam('id'),
+  controller.get
 );
 
 router.post(
-  '/',
-  requireRole('ADMIN', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
-  validateBody(createPayrunSchema),
-  payruns.createPayrun
+  '/:id/status-changes',
+  requireUuidParam('id'),
+  // Role depends on the action in the body, so pick the middleware dynamically.
+  (req, res, next) => {
+    const roles = req.body?.action === 'COMPUTE' ? COMPUTE_ROLES : MANAGE_ROLES;
+    requireRole(...roles)(req, res, next);
+  },
+  validateBody(statusChangeSchema),
+  controller.statusChange
 );
 
 router.post(
   '/:id/dispatches',
-  requireRole('ADMIN', 'HR_PAYROLL_MANAGER'),
-  payruns.dispatchPayslips
+  requireRole(...COMPUTE_ROLES),
+  requireUuidParam('id'),
+  controller.dispatch
 );
 
 export default router;
