@@ -1,17 +1,22 @@
+import { AppError } from '../../shared/errors.js';
 import * as attendanceService from './attendance.service.js';
 
 export async function listAttendance(req, res, next) {
   try {
-    const { employee_id, status, department_id, date, from_date, to_date, search, page, limit } = req.query;
+    const { employee_id, start_date, end_date, status, source, page, limit } = req.query;
+
+    // Regular EMPLOYEE can only list their own attendance records
+    let targetEmployeeId = employee_id;
+    if (req.user?.role === 'EMPLOYEE') {
+      targetEmployeeId = req.user.employee_id;
+    }
 
     const result = await attendanceService.listAttendance({
-      employee_id,
+      employee_id: targetEmployeeId,
+      start_date,
+      end_date,
       status,
-      department_id,
-      date,
-      from_date,
-      to_date,
-      search,
+      source,
       page,
       limit,
     });
@@ -29,6 +34,12 @@ export async function listAttendance(req, res, next) {
 export async function getAttendance(req, res, next) {
   try {
     const record = await attendanceService.getAttendanceById(req.params.id);
+
+    // Regular EMPLOYEE can only view their own record
+    if (req.user?.role === 'EMPLOYEE' && record.employee_id !== req.user.employee_id) {
+      throw new AppError(403, 'FORBIDDEN', 'Access denied to this attendance record');
+    }
+
     return res.status(200).json({
       success: true,
       data: record,
@@ -38,9 +49,54 @@ export async function getAttendance(req, res, next) {
   }
 }
 
-export async function createAttendance(req, res, next) {
+export async function checkIn(req, res, next) {
   try {
-    const record = await attendanceService.createAttendance(req.body, req.user?.role === 'EMPLOYEE' ? 'SELF' : 'HR');
+    const employeeId = req.body.employee_id || req.user?.employee_id;
+    if (!employeeId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'No employee associated with this account');
+    }
+
+    const source = req.user?.role === 'EMPLOYEE' ? 'SELF' : (req.body.source || 'HR');
+
+    const record = await attendanceService.checkIn({
+      employee_id: employeeId,
+      check_in_time: req.body.check_in,
+      source,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: record,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function checkOut(req, res, next) {
+  try {
+    const employeeId = req.body.employee_id || req.user?.employee_id;
+    if (!employeeId) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'No employee associated with this account');
+    }
+
+    const record = await attendanceService.checkOut({
+      employee_id: employeeId,
+      check_out_time: req.body.check_out,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: record,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createManualAttendance(req, res, next) {
+  try {
+    const record = await attendanceService.createManualAttendance(req.body);
     return res.status(201).json({
       success: true,
       data: record,
@@ -52,34 +108,10 @@ export async function createAttendance(req, res, next) {
 
 export async function updateAttendance(req, res, next) {
   try {
-    const record = await attendanceService.updateAttendance(req.params.id, req.body, req.user?.role === 'EMPLOYEE' ? 'SELF' : 'HR');
+    const record = await attendanceService.updateAttendance(req.params.id, req.body);
     return res.status(200).json({
       success: true,
       data: record,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function deleteAttendance(req, res, next) {
-  try {
-    const result = await attendanceService.deleteAttendance(req.params.id);
-    return res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function getSummary(req, res, next) {
-  try {
-    const summary = await attendanceService.getAttendanceSummary(req.query.date);
-    return res.status(200).json({
-      success: true,
-      data: summary,
     });
   } catch (err) {
     next(err);

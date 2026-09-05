@@ -19,6 +19,9 @@ import payslipsRoutes from './modules/payroll-run/payslips.routes.js';
 import meRoutes from './modules/payroll-run/me.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 
+import swaggerUi from 'swagger-ui-express';
+import { swaggerDocument } from './docs/swagger.js';
+
 const app = express();
 const PgSession = pgSimple(session);
 
@@ -64,6 +67,10 @@ app.use('/api/v1/payruns', payrollRunRoutes);
 app.use('/api/v1/payslips', payslipsRoutes);
 app.use('/api/v1/me', meRoutes);
 app.use('/api/v1/dashboard', reportsRoutes);
+
+// Swagger API Documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.get('/api/docs.json', (req, res) => res.json(swaggerDocument));
 
 app.use(notFound);
 app.use(errorHandler);
