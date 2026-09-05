@@ -57,9 +57,9 @@ Route guards: `<RequireRole roles={[...]}>` wrapper reads Redux auth state (`use
 
 ## 4. API Client
 
-- Axios instance, `baseURL = import.meta.env.VITE_API_URL` (validated at boot).
-- Request interceptor: attach Bearer token, generate `X-Request-Id`.
-- Response interceptor: on 401 → single `POST /auth/refresh` attempt → retry original → else clear store + redirect /login.
+- Axios instance, `baseURL = import.meta.env.VITE_API_URL` (validated at boot), **`withCredentials: true`** (sends `sid` session cookie on every request).
+- Request interceptor: generate `X-Request-Id`; no token to attach.
+- Response interceptor: on 401 → clear Redux auth store + redirect to `/login` (session has expired or been destroyed server-side).
 - Error normalization: unwrap `error.code/message/details` for toasts/forms.
 - Retry (React Query): 1 retry on network/5xx, never on 4xx; compute timeout 60 s.
 
@@ -70,7 +70,7 @@ Route guards: `<RequireRole roles={[...]}>` wrapper reads Redux auth state (`use
 Step 1 — Scope:   name (auto-suggested "Regular Payroll — Sep 2026"),
                   Salary Structure (select, active only), Period (month picker or date range).
                   [Continue] → no record created yet; eligibility fetch:
-                  GET /payruns/eligible-employees → table of ACTIVE employees with
+                  GET /payruns/eligibility-checks → table of ACTIVE employees with
                   eligibility flags (✓ contract for period, ⚠ no contract, structure mismatch).
 Step 2 — Select:  checkbox list (default: all eligible); ineligible rows disabled with reason.
                   [Create Payrun] → POST /payruns → navigate to PayrunDetail.

@@ -17,8 +17,8 @@
 
 ### TASK-001: Foundation / Auth & Scaffolding (P0, deps: —)
 **Goal:** Monorepo skeleton + DB migrations + base authentication.
-**Scope:** Monorepo layout (`backend/`, `frontend/`), Express+JS hello API, Vite React app with SCSS, Docker Compose (PostgreSQL 16, API, Web), Prisma ORM migrations, JWT auth endpoints (`/login`, `/refresh`, `/logout`, `/me`), bcrypt password hashing, session cookies.
-**AC:** `docker-compose up` serves API + Web + DB; login returns token + cookie; `/me` returns user identity; rate limiting blocks 5 bad attempts.
+**Scope:** Monorepo layout (`backend/`, `frontend/`), Express+JS hello API, Vite React app with SCSS, Docker Compose (PostgreSQL 16, API, Web), Prisma ORM migrations, session auth endpoints (`/login`, `/logout`, `/me`) using `express-session` + `connect-pg-simple`, bcrypt password hashing, `sid` httpOnly cookie.
+**AC:** `docker-compose up` serves API + Web + DB; login creates server-side session and sets `sid` cookie; `/me` returns user identity from session; logout destroys session; rate limiting blocks 5 bad attempts per IP.
 
 ### TASK-002: Departments & Jobs CRUD (P0, deps: 001)
 **Goal:** Organizational structure master data.

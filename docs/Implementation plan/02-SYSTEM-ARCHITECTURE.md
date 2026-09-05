@@ -32,11 +32,11 @@
 │  Time Off · Schedules · Salary Structures/Rules · Payruns  │
 │  Payslips · Reports                                        │
 └──────────────────────────┬─────────────────────────────────┘
-                           │ HTTPS / JSON  (JWT Bearer)
+                           │ HTTPS / JSON  (Session Cookie `sid`)
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  NODE + EXPRESS + JavaScript (ES Modules) — API / Orchestration     │
-│  Auth(JWT) · RBAC(5 roles) · Validation(zod) · CRUD                 │
+│  Auth(Session) · RBAC(5 roles) · Validation(zod) · CRUD             │
 │  Workflows: approve leave · payrun compute/validate/paid            │
 │  Audit log · PDF generation · Email dispatch                        │
 │  ┌───────────────────────────────────────────────────────────────┐  │
@@ -62,11 +62,12 @@
 ## 3. Frontend ↔ Backend Contract
 
 - **Protocol:** REST, JSON, base path `/api/v1`.
-- **Auth:** `Authorization: Bearer <access token>` (15 min); refresh token in httpOnly SameSite=Lax cookie (7 days) at `POST /api/v1/auth/refresh`.
+- **Auth:** Session-based stateful auth. `express-session` + `connect-pg-simple` (PostgreSQL `sessions` table). `sid` cookie: `httpOnly`, `Secure`, `SameSite=Lax`. No tokens issued to client. Middleware reads `req.session.userId` / `req.session.role` on every request.
+- **Session hydration on page load:** `GET /auth/me` returns `{ user, employee }` — same schema as login response — so Redux store can be rehydrated after a browser refresh without re-authenticating.
 - **Errors:** standard envelope `{ success, error: { code, message, details[] } }` (see `04-API-CONTRACTS.md`).
 - **Pagination:** `page`/`limit` query params; response `pagination` block.
-- **Client:** single axios instance with request interceptor (attach token, X-Request-Id), response interceptor (401 → refresh once → retry → else logout), React Query for caching/retries.
-- **Timeouts:** default 15 s; `POST /payruns/:id/compute` 60 s.
+- **Client:** single axios instance with `withCredentials: true` (sends `sid` cookie), request interceptor (X-Request-Id), response interceptor (401 → redirect to /login), React Query for caching/retries.
+- **Timeouts:** default 15 s; `POST /payruns/:id/status-changes` (COMPUTE action) 60 s.
 - **Real-time:** none (poll/refetch on navigation). Documented trade-off.
 
 ## 4. Module Boundaries (Node API)
@@ -75,7 +76,7 @@ Each module = routes → controller → service → (Prisma via repositories). C
 
 | Module | Owns | Exposes | Depends on | Does NOT |
 |---|---|---|---|---|
-| auth | users, sessions, JWT, password hashing | /auth/* | users | assign roles |
+| auth | users, sessions, password hashing, session management | /auth/* | users | assign roles |
 | users | user records, role assignment | /users/* (Admin) | auth(mw) | touch employees |
 | employees | employees, departments, jobs, smart-button counts | /employees/* | contracts(read counts), schedules(read), timeoff(read counts) | mutate those modules |
 | contracts | contracts + period-overlap validation + active-contract uniqueness | /contracts/* | employees | compute payroll |
@@ -84,9 +85,9 @@ Each module = routes → controller → service → (Prisma via repositories). C
 | timeoff | types, allocations, requests, approval workflow, balance deduction | /time-off/* | employees | attendance |
 | payroll-config | salary_structures, salary_rules, sequencing validation | /salary-structures/*, /salary-rules/* | — | run payroll |
 | payroll-run | payruns, payrun_employees, payslips, payslip_lines, warnings, state machine, period-contract selection, engine invocation (in-process) | /payruns/*, /payslips/* | employees, contracts, attendance, timeoff, payroll-config, payroll-engine | edit salary config |
-| notifications | PDF rendering from persisted payslip lines; SMTP send + delivery status | /payslips/:id/pdf, /payruns/:id/send-payslips | payroll-run (read) | recompute anything |
+| notifications | PDF rendering from persisted payslip lines; SMTP send + delivery status | /payslips/:id/pdf, /payruns/:id/dispatches | payroll-run (read) | recompute anything |
 | reports | dashboard aggregate queries (KPIs, charts, alerts) | /dashboard/* | read-only across modules | mutate anything |
-| payroll-engine | pure TypeScript calculation module: rule sequencing, condition evaluation, fixed/%/formula computation, safe formula evaluator, warnings; direct function API (`computeBatch`, `validateRules`) | internal module (called by payroll-run + payroll-config) | — | touch DB, HTTP, or any I/O; decide payrun membership; persist anything |
+| payroll-engine | pure JavaScript calculation module: rule sequencing, condition evaluation, fixed/%/formula computation, safe formula evaluator, warnings; direct function API (`computeBatch`, `validateRules`) | internal module (called by payroll-run + payroll-config) | — | touch DB, HTTP, or any I/O; decide payrun membership; persist anything |
 
 ## 5. Core Data Flows
 
@@ -172,11 +173,11 @@ GET /api/v1/dashboard/metrics?period_start&period_end&department_id&employee_typ
 
 | ADR | Title | Status |
 |---|---|---|
-| ADR-001 | Modular monolith with in-process TypeScript calculation engine | Accepted |
+| ADR-001 | Modular monolith with in-process JavaScript calculation engine | Accepted |
 | ADR-002 | React 19 SPA (CSR) over Next.js SSR | Accepted |
 | ADR-003 | PostgreSQL + Prisma ORM | Accepted |
-| ADR-004 | JWT access + httpOnly refresh cookie | Accepted |
-| ADR-005 | Pure in-process TypeScript engine with batch compute; grammar-whitelisted formula evaluator (no eval / no new Function) | Accepted (revised v1.1) |
+| ADR-004 | Stateful session auth (express-session + connect-pg-simple + httpOnly sid cookie) over JWT stateless | Accepted |
+| ADR-005 | Pure in-process JavaScript engine with batch compute; grammar-whitelisted formula evaluator (no eval / no new Function) | Accepted (revised v1.1) |
 | ADR-006 | Node-side PDF (pdfkit) from persisted lines, not headless browser | Accepted |
 | ADR-007 | Synchronous compute within request (no job queue) | Accepted |
 | ADR-008 | Payrun state machine DRAFT→COMPUTED→VALIDATED→PAID; duplicates as warnings, not hard constraint | Accepted |
