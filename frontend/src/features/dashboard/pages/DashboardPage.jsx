@@ -209,7 +209,14 @@ export default function DashboardPage() {
             onMouseLeave={() => setActiveBar(null)}
           >
             {activeBar && (
-              <div className="chart-tooltip">
+              <div
+                className="chart-tooltip"
+                style={{
+                  left: `${(activeBar.x / 600) * 100}%`,
+                  top: `${Math.max(12, ((activeBar.y - 12) / 240) * 100)}%`,
+                  transform: 'translate(-50%, -100%)',
+                }}
+              >
                 <span className="chart-tooltip__month">{activeBar.month} 2026 Payroll</span>
                 <div className="chart-tooltip__row">
                   <span style={{ color: '#a5b4fc' }}>Gross:</span>
@@ -223,6 +230,7 @@ export default function DashboardPage() {
                   <span>Count:</span>
                   <span>{activeBar.employees} slips</span>
                 </div>
+                <div className="chart-tooltip__arrow" />
               </div>
             )}
 
@@ -261,7 +269,13 @@ export default function DashboardPage() {
                   <g
                     key={item.month}
                     className="bar-group"
-                    onMouseEnter={() => setActiveBar(item)}
+                    onMouseEnter={() =>
+                      setActiveBar({
+                        ...item,
+                        x: groupX + 16,
+                        y: baseY - grossHeight,
+                      })
+                    }
                   >
                     {/* Gross Bar */}
                     <rect
