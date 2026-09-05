@@ -44,9 +44,11 @@ export function buildVariables(inputs) {
 const round2 = (value) => value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 const isDeduction = (category) => category === 'DEDUCTION' || category === 'EMPLOYER_CONTRIB';
 
-function computeRuleAmount(rule, variables) {
+// Compute one rule: returns the raw value plus any non-fatal formula warnings
+// (e.g. division by zero). Throws RuleError for fatal problems (unknown variable).
+function computeRule(rule, variables) {
   if (rule.computation_type === 'FIXED') {
-    return new Decimal(rule.fixed_amount ?? 0);
+    return { value: new Decimal(rule.fixed_amount ?? 0), warnings: [] };
   }
   if (rule.computation_type === 'PERCENTAGE') {
     const base = variables[rule.base_code];
@@ -54,15 +56,12 @@ function computeRuleAmount(rule, variables) {
       throw new RuleError(`Base code '${rule.base_code}' is not defined for this employee`);
     }
     const baseValue = base instanceof Decimal ? base : new Decimal(base);
-    return baseValue.times(new Decimal(rule.percentage ?? 0)).dividedBy(100);
+    return {
+      value: baseValue.times(new Decimal(rule.percentage ?? 0)).dividedBy(100),
+      warnings: [],
+    };
   }
-  return evaluateFormula(rule.formula, variables).value;
-}
-
-function computeRuleWarnings(rule, variables) {
-  if (rule.computation_type !== 'FORMULA') return [];
-  const { warnings } = evaluateFormula(rule.formula, variables);
-  return warnings.map((w) => ({ severity: w.severity, message: `${rule.code}: ${w.message}` }));
+  return evaluateFormula(rule.formula, variables);
 }
 
 export function runRuleSequence({ rules, variables: rawVariables }) {
@@ -87,11 +86,18 @@ export function runRuleSequence({ rules, variables: rawVariables }) {
       if (!truthy) continue;
     }
 
-    warnings.push(...computeRuleWarnings(rule, variables));
-
     try {
-      const raw = computeRuleAmount(rule, variables);
-      const amount = isDeduction(rule.category) ? raw.abs().negated() : raw;
+      const { value: raw, warnings: formulaWarnings } = computeRule(rule, variables);
+      warnings.push(
+        ...formulaWarnings.map((w) => ({ severity: w.severity, message: `${rule.code}: ${w.message}` }))
+      );
+
+      // Deductions are negative on the payslip line; zero stays +0 (avoid -0).
+      const amount = isDeduction(rule.category)
+        ? raw.isZero()
+          ? raw
+          : raw.abs().negated()
+        : raw;
       const rounded = round2(amount);
       variables[rule.code] = rounded.abs();
       lines.push({

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node ../backend/scripts/kill-port.js 5173",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

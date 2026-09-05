@@ -346,35 +346,20 @@ export default function ContractsPage() {
         status: newContract.status,
       };
 
-      const res = await api.post('/contracts', payload).catch((err) => {
-        const msg = err.response?.data?.error?.message || 'Could not create contract';
-        setModalError(msg);
-        return null;
-      });
+      const res = await api.post('/contracts', payload);
 
       if (res?.data?.data) {
         await fetchContracts();
         setIsModalOpen(false);
-      } else if (!modalError) {
-        // Local fallback
-        const emp = employeesList.find((e) => e.id === newContract.employee_id);
-        const created = {
-          id: `cnt-${Date.now()}`,
-          reference: newContract.reference,
-          employee_id: newContract.employee_id,
-          employee: emp ? { employee_code: emp.employee_code, first_name: emp.first_name, last_name: emp.last_name } : { employee_code: 'EMP-NEW', first_name: 'New', last_name: 'Employee' },
-          department: { name: departments.find((d) => d.id === newContract.department_id)?.name || 'Engineering' },
-          job: { name: jobs.find((j) => j.id === newContract.job_id)?.name || 'Specialist' },
-          contract_type: newContract.contract_type,
-          wage: Number(newContract.wage),
-          currency: newContract.currency,
-          start_date: newContract.start_date,
-          end_date: newContract.end_date || null,
-          status: newContract.status,
-        };
-        setContracts((prev) => [created, ...prev]);
-        setIsModalOpen(false);
+      } else {
+        setModalError('Unexpected server response. Please check your data.');
       }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Could not create contract. Please check if another active contract overlaps for this employee.';
+      setModalError(msg);
     } finally {
       setSubmitting(false);
     }

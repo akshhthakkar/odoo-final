@@ -5,8 +5,11 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "predev": "node scripts/kill-port.js 4000",
     "dev": "npx nodemon src/server.js",
+    "prestart": "node scripts/kill-port.js 4000",
     "start": "node src/server.js",
+    "kill:port": "node scripts/kill-port.js 4000",
     "test": "npx vitest run",
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:deploy": "npx prisma migrate deploy",

@@ -37,8 +37,9 @@ export function validateRules(rules) {
     sequenceCounts.set(seqKey, (sequenceCounts.get(seqKey) || 0) + 1);
   }
   for (const rule of safeRules) {
-    if (codeCounts.get(String(rule.code ?? '').toUpperCase()) > 1) {
-      check(rule, `Duplicate rule code '${rule.code}'`, errors);
+    const codeKey = String(rule.code ?? '').toUpperCase();
+    if (codeCounts.get(codeKey) > 1) {
+      check(rule, `Duplicate rule code '${codeKey}'`, errors);
     }
     if (sequenceCounts.get(String(rule.sequence ?? '')) > 1) {
       check(rule, 'Duplicate sequence', errors);

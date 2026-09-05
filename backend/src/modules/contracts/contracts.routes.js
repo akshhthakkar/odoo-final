@@ -55,8 +55,17 @@ const router = Router();
 
 router.use(requireAuth);
 
-router.get('/', validateQuery(listContractsQuerySchema), contracts.listContracts);
-router.get('/:id', contracts.getContract);
+router.get(
+  '/',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  validateQuery(listContractsQuerySchema),
+  contracts.listContracts
+);
+router.get(
+  '/:id',
+  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  contracts.getContract
+);
 
 router.post(
   '/',
