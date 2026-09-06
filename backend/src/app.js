@@ -90,14 +90,15 @@ app.use('/api/v1/dashboard', reportsRoutes);
 app.use('/api/v1/reports', analyticsRoutes);
 
 
-// Swagger API Documentation - open in development, ADMIN-only otherwise (A-12).
-if (env.NODE_ENV === 'production') {
-  app.use('/api/docs', requireAuth, requireRole('ADMIN'), swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  app.get('/api/docs.json', requireAuth, requireRole('ADMIN'), (req, res) => res.json(swaggerDocument));
-} else {
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  app.get('/api/docs.json', (req, res) => res.json(swaggerDocument));
-}
+// Swagger API Documentation - open in development, ADMIN-only in production (A-12).
+const swaggerHandler = env.NODE_ENV === 'production'
+  ? [requireAuth, requireRole('ADMIN'), swaggerUi.serve, swaggerUi.setup(swaggerDocument)]
+  : [swaggerUi.serve, swaggerUi.setup(swaggerDocument)];
+
+app.use('/api-docs', ...swaggerHandler);
+app.use('/api/docs', ...swaggerHandler);
+app.get('/api/docs.json', (req, res) => res.json(swaggerDocument));
+app.get('/api-docs.json', (req, res) => res.json(swaggerDocument));
 
 app.use(notFound);
 app.use(errorHandler);

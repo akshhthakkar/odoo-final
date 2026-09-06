@@ -275,6 +275,28 @@ export default function AppShell() {
 
                   <div className="dash-navbar__dropdown-divider" />
 
+                  {/* My Profile */}
+                  <button
+                    className="dash-navbar__dropdown-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      if (user?.employee_id) {
+                        navigate(`/employees/${user.employee_id}`);
+                      } else {
+                        navigate('/profile');
+                      }
+                    }}
+                    role="menuitem"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    <span>My Profile</span>
+                  </button>
+
+                  <div className="dash-navbar__dropdown-divider" />
+
                   {/* Sign out row */}
                   <button
                     className="dash-navbar__dropdown-logout"

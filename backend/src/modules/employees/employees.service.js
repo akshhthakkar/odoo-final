@@ -385,6 +385,21 @@ export async function updateEmployee(id, data, actorId) {
     },
   });
 
+  // Sync with linked User account if name or email changed
+  if (data.first_name !== undefined || data.last_name !== undefined || data.email !== undefined) {
+    const userUpdates = {};
+    if (data.first_name !== undefined || data.last_name !== undefined) {
+      userUpdates.fullName = `${updated.firstName} ${updated.lastName}`.trim();
+    }
+    if (data.email !== undefined) {
+      userUpdates.email = data.email;
+    }
+    await prisma.user.updateMany({
+      where: { employeeId: id },
+      data: userUpdates,
+    });
+  }
+
   await writeAudit(prisma, {
     actorId,
     action: 'EMPLOYEE_UPDATED',
