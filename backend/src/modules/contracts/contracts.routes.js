@@ -65,35 +65,37 @@ const router = Router();
 
 router.use(requireAuth);
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 router.get(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  requireRole(...HR_ROLES),
   validateQuery(listContractsQuerySchema),
   contracts.listContracts
 );
 router.get(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  requireRole(...HR_ROLES),
   contracts.getContract
 );
 
 router.post(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createContractSchema),
   contracts.createContract
 );
 
 router.patch(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateContractSchema),
   contracts.updateContract
 );
 
 router.patch(
   '/:id/status',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateContractStatusSchema),
   contracts.updateContractStatus
 );

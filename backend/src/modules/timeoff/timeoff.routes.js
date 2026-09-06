@@ -17,11 +17,13 @@ const router = Router();
 
 router.use(requireAuth);
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 // Types
 router.get('/types', timeoff.listTypes);
 router.post(
   '/types',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createTypeSchema),
   timeoff.createType
 );
@@ -30,7 +32,7 @@ router.post(
 router.get('/allocations', validateQuery(listAllocationsQuerySchema), timeoff.listAllocations);
 router.post(
   '/allocations',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createAllocationSchema),
   timeoff.createAllocation
 );
@@ -42,7 +44,7 @@ router.post('/requests', validateBody(createRequestSchema), timeoff.createReques
 // Contract route: POST /requests/:id/status-changes { action: APPROVE | REFUSE }
 router.post(
   '/requests/:id/status-changes',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(statusChangeSchema),
   timeoff.statusChange
 );
@@ -54,13 +56,13 @@ router.delete('/requests/:id', timeoff.cancelRequest);
 // service functions (no duplicated business logic).
 router.patch(
   '/requests/:id/approve',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   timeoff.approveRequest
 );
 
 router.patch(
   '/requests/:id/refuse',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(refuseRequestSchema),
   timeoff.refuseRequest
 );

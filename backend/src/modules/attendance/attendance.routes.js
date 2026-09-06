@@ -54,16 +54,18 @@ router.post('/check-out', validateBody(checkOutSchema), attendance.checkOut);
 router.get('/', validateQuery(listAttendanceQuerySchema), attendance.listAttendance);
 router.get('/:id', attendance.getAttendance);
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 router.post(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createManualAttendanceSchema),
   attendance.createManualAttendance
 );
 
 router.patch(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateAttendanceSchema),
   attendance.updateAttendance
 );

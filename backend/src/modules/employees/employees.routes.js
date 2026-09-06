@@ -111,23 +111,25 @@ router.get(
   employees.getEmployee
 );
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 router.post(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createEmployeeSchema),
   employees.createEmployee
 );
 
 router.patch(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateEmployeeSchema),
   employees.updateEmployee
 );
 
 router.patch(
   '/:id/status',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateStatusSchema),
   employees.updateEmployeeStatus
 );

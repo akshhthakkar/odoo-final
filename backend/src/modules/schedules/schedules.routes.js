@@ -40,43 +40,45 @@ const router = Router();
 
 router.use(requireAuth);
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 router.get(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  requireRole(...HR_ROLES),
   validateQuery(listSchedulesQuerySchema),
   schedules.listSchedules
 );
 
 router.get(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  requireRole(...HR_ROLES),
   schedules.getSchedule
 );
 
 router.post(
   '/',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(createScheduleSchema),
   schedules.createSchedule
 );
 
 router.patch(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(updateScheduleSchema),
   schedules.updateSchedule
 );
 
 router.post(
   '/:id/assign-employees',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(assignEmployeesSchema),
   schedules.assignEmployees
 );
 
 router.delete(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   schedules.deleteSchedule
 );
 

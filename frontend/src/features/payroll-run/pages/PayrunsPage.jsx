@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Plus,
   ChevronLeft,
@@ -42,6 +43,8 @@ function formatLakhs(amount) {
 
 export default function PayrunsPage() {
   const toast = useToast();
+  const authUser = useSelector((s) => s.auth.user);
+  const canManagePayrun = authUser?.role === 'ADMIN' || authUser?.role === 'HR_PAYROLL_MANAGER';
 
   const [payruns, setPayruns] = useState([]);
   const [selectedPayrunId, setSelectedPayrunId] = useState(null);
@@ -415,18 +418,20 @@ export default function PayrunsPage() {
                   <span>Recompute</span>
                 </button>
 
-                <button
-                  className="pr-header__btn-primary"
-                  onClick={() => handleStatusChange('VALIDATE')}
-                  disabled={actionLoading}
-                >
-                  <CheckCircle2 size={15} />
-                  <span>{actionLoading ? 'Validating...' : 'Validate Payrun'}</span>
-                </button>
+                {canManagePayrun && (
+                  <button
+                    className="pr-header__btn-primary"
+                    onClick={() => handleStatusChange('VALIDATE')}
+                    disabled={actionLoading}
+                  >
+                    <CheckCircle2 size={15} />
+                    <span>{actionLoading ? 'Validating...' : 'Validate Payrun'}</span>
+                  </button>
+                )}
               </>
             )}
 
-            {status === 'VALIDATED' && (
+            {status === 'VALIDATED' && canManagePayrun && (
               <button
                 className="pr-header__btn-primary"
                 onClick={() => handleStatusChange('MARK_PAID')}
@@ -438,7 +443,7 @@ export default function PayrunsPage() {
               </button>
             )}
 
-            {status === 'PAID' && (
+            {status === 'PAID' && canManagePayrun && (
               <button
                 className="pr-header__btn-primary"
                 onClick={handleSendPayslips}

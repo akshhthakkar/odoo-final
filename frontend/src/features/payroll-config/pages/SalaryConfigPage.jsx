@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import {
   Layers,
   Plus,
@@ -27,6 +28,8 @@ import './SalaryConfigPage.scss';
 
 export default function SalaryConfigPage() {
   const toast = useToast();
+  const authUser = useSelector((s) => s.auth.user);
+  const canManageSalary = authUser?.role === 'ADMIN' || authUser?.role === 'HR_PAYROLL_MANAGER';
 
   const [activeTab, setActiveTab] = useState('structures'); // 'structures' | 'rules' | 'simulator'
   const [structures, setStructures] = useState([]);
@@ -404,10 +407,17 @@ export default function SalaryConfigPage() {
             <Calculator size={16} />
             <span>Formula Simulator</span>
           </button>
-          <button className="sc-header__btn-primary" onClick={handleOpenCreateStruct}>
-            <Plus size={16} />
-            <span>New Structure</span>
-          </button>
+          {canManageSalary ? (
+            <button className="sc-header__btn-primary" onClick={handleOpenCreateStruct}>
+              <Plus size={16} />
+              <span>New Structure</span>
+            </button>
+          ) : (
+            <div className="sc-header__readonly-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+              <ShieldCheck size={15} color="#64748b" />
+              <span>Read-Only Mode</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -488,22 +498,24 @@ export default function SalaryConfigPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button
-                        className="sc-struct-card__btn-action-icon"
-                        onClick={() => handleOpenEditStruct(struct)}
-                        title="Edit Structure"
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        className="sc-struct-card__btn-action-icon"
-                        onClick={() => handleDeleteStructure(struct.id)}
-                        title="Delete Structure"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+                    {canManageSalary && (
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <button
+                          className="sc-struct-card__btn-action-icon"
+                          onClick={() => handleOpenEditStruct(struct)}
+                          title="Edit Structure"
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          className="sc-struct-card__btn-action-icon"
+                          onClick={() => handleDeleteStructure(struct.id)}
+                          title="Delete Structure"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Description */}
@@ -531,12 +543,21 @@ export default function SalaryConfigPage() {
                   <div className="sc-struct-card__rules-preview">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <span className="sc-struct-card__rules-heading">Execution Sequence</span>
-                      <button
-                        onClick={() => handleOpenAddRule(struct.id)}
-                        style={{ background: 'none', border: 'none', color: '#2357fe', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
-                      >
-                        <Plus size={13} /> Add Rule
-                      </button>
+                      {canManageSalary ? (
+                        <button
+                          onClick={() => handleOpenAddRule(struct.id)}
+                          style={{ background: 'none', border: 'none', color: '#2357fe', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                        >
+                          <Plus size={13} /> Add Rule
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setManagingStruct(struct)}
+                          style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          View All Rules
+                        </button>
+                      )}
                     </div>
 
                     {rules.length === 0 ? (
@@ -669,13 +690,17 @@ export default function SalaryConfigPage() {
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button
-                          onClick={() => handleOpenEditRule(rule.structureId, rule)}
-                          title="Edit Rule"
-                          style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', padding: '4px' }}
-                        >
-                          <Edit2 size={14} />
-                        </button>
+                        {canManageSalary ? (
+                          <button
+                            onClick={() => handleOpenEditRule(rule.structureId, rule)}
+                            title="Edit Rule"
+                            style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -845,25 +870,27 @@ export default function SalaryConfigPage() {
                 <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
                   Execution Order (Ascending Sequence)
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleOpenAddRule(managingStruct.id)}
-                  style={{
-                    background: '#2357fe',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '0.4rem 0.8rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <Plus size={14} /> Add Rule
-                </button>
+                {canManageSalary && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddRule(managingStruct.id)}
+                    style={{
+                      background: '#2357fe',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '0.4rem 0.8rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <Plus size={14} /> Add Rule
+                  </button>
+                )}
               </div>
 
               <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
@@ -875,7 +902,9 @@ export default function SalaryConfigPage() {
                       <th style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#64748b' }}>Rule Name</th>
                       <th style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#64748b' }}>Category</th>
                       <th style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#64748b' }}>Calculation</th>
-                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'right' }}>Actions</th>
+                      <th style={{ padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'right' }}>
+                        {canManageSalary ? 'Actions' : 'Status'}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -899,20 +928,26 @@ export default function SalaryConfigPage() {
                           {rule.formula || (rule.percentage ? `${rule.percentage}% × ${rule.base_code || 'WAGE'}` : `₹${rule.fixed_amount || 0}`)}
                         </td>
                         <td style={{ padding: '0.6rem 0.75rem', textAlign: 'right' }}>
-                          <button
-                            onClick={() => handleOpenEditRule(managingStruct.id, rule)}
-                            title="Edit Rule"
-                            style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', padding: '4px' }}
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteRule(managingStruct.id, rule.code)}
-                            title="Delete Rule"
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', marginLeft: '4px' }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {canManageSalary ? (
+                            <>
+                              <button
+                                onClick={() => handleOpenEditRule(managingStruct.id, rule)}
+                                title="Edit Rule"
+                                style={{ background: 'none', border: 'none', color: '#2357fe', cursor: 'pointer', padding: '4px' }}
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRule(managingStruct.id, rule.code)}
+                                title="Delete Rule"
+                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', marginLeft: '4px' }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Active</span>
+                          )}
                         </td>
                       </tr>
                     ))}
