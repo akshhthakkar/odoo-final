@@ -72,3 +72,17 @@ export async function updateContractStatus(req, res, next) {
     next(err);
   }
 }
+
+export async function deleteContract(req, res, next) {
+  try {
+    const result = await contractsService.deleteContract(req.params.id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Contract deleted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

@@ -428,7 +428,7 @@ describe('contract date integrity (A-14)', () => {
     expect(res.status).toBe(400);
   });
 
-  it("rejects overlapping ACTIVE contracts", async () => {
+  it("when creating a new ACTIVE contract, automatically archives previous active contract to EXPIRED so only 1 active contract exists", async () => {
     const hr = await loginAs('t-hr@test.dev');
     const hrCookie = hr.headers['set-cookie'].map((c) => c.split(';')[0]).join('; ');
     const emp = await prisma.employee.findUnique({ where: { employeeCode: 'T-EMP-2' } });
@@ -444,6 +444,8 @@ describe('contract date integrity (A-14)', () => {
         status: 'ACTIVE',
       });
     expect(first.status).toBe(201);
+    expect(first.body.data.status).toBe('ACTIVE');
+
     const second = await request(app)
       .post('/api/v1/contracts')
       .set('Cookie', hrCookie)
@@ -455,8 +457,19 @@ describe('contract date integrity (A-14)', () => {
         contract_type: 'FULL_TIME',
         status: 'ACTIVE',
       });
-    expect(second.status).toBe(409);
-    expect(second.body.error.code).toBe('CONTRACT_OVERLAP');
+    expect(second.status).toBe(201);
+    expect(second.body.data.status).toBe('ACTIVE');
+
+    // Verify first contract is now EXPIRED and still visible in DB
+    const firstInDb = await prisma.contract.findUnique({ where: { id: first.body.data.id } });
+    expect(firstInDb.status).toBe('EXPIRED');
+
+    // Verify exactly 1 active contract exists for the employee
+    const activeContracts = await prisma.contract.findMany({
+      where: { employeeId: emp.id, status: 'ACTIVE' },
+    });
+    expect(activeContracts).toHaveLength(1);
+    expect(activeContracts[0].id).toBe(second.body.data.id);
   });
 });
 

@@ -255,26 +255,30 @@ export default function EmployeeProfilePage() {
           bankIfsc: data.bank_ifsc || '',
           leaveAllocations,
           recentAttendance,
-          contracts: data.active_contract
+          contracts: Array.isArray(data.contracts) && data.contracts.length > 0
+            ? data.contracts.map((c) => ({
+                id: c.id,
+                title: `${c.job?.name || data.job?.name || 'Employment'} Contract (${c.reference || 'REF-CNT'})`,
+                reference: c.reference,
+                status: c.status || 'ACTIVE',
+                startDate: formatDate(c.start_date),
+                endDate: c.end_date ? formatDate(c.end_date) : 'Indefinite / Permanent',
+                wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
+                contractType: c.contract_type ? c.contract_type.replace('_', ' ') : 'Full-time',
+              }))
+            : data.active_contract
             ? [
                 {
                   id: data.active_contract.id,
                   title: `${data.job?.name || 'Employment'} Agreement (${data.active_contract.reference || 'REF-CNT'})`,
+                  reference: data.active_contract.reference,
                   status: data.active_contract.status || 'ACTIVE',
                   startDate: formatDate(data.active_contract.start_date),
-                  endDate: data.active_contract.end_date ? formatDate(data.active_contract.end_date) : 'Permanent',
+                  endDate: data.active_contract.end_date ? formatDate(data.active_contract.end_date) : 'Indefinite / Permanent',
                   wage: wageFormatted,
+                  contractType: data.active_contract.contract_type ? data.active_contract.contract_type.replace('_', ' ') : 'Full-time',
                 },
               ]
-            : Array.isArray(data.contracts)
-            ? data.contracts.map((c) => ({
-                id: c.id,
-                title: `Employment Contract (${c.reference || 'REF-CNT'})`,
-                status: c.status || 'ACTIVE',
-                startDate: formatDate(c.start_date),
-                endDate: c.end_date ? formatDate(c.end_date) : 'Permanent',
-                wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
-              }))
             : [],
         });
       } else {
@@ -1042,37 +1046,62 @@ export default function EmployeeProfilePage() {
         {/* Tab 5: Contracts & Documents */}
         {activeTab === 'contracts' && (
           <div className="emp-profile__card">
-            <div className="emp-profile__card-header">
-              <h3 className="emp-profile__card-title">Active Contracts &amp; HR Agreements</h3>
+            <div className="emp-profile__card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 className="emp-profile__card-title">Employment Contracts &amp; Agreements</h3>
+                <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                  Only 1 contract is active at a time. All previous contracts remain safely recorded below in history.
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  className="emp-profile__doc-action-btn"
+                  onClick={() => navigate('/contracts')}
+                >
+                  Manage All Contracts →
+                </button>
+              )}
             </div>
             <div className="emp-profile__contracts-list">
               {contracts && contracts.length > 0 ? (
-                contracts.map((cnt) => (
-                  <div key={cnt.id} className="emp-profile__contract-item">
-                    <div className="emp-profile__contract-left">
-                      <div className="emp-profile__doc-icon">
-                        <FileText size={20} color="#2357fe" />
+                contracts.map((cnt) => {
+                  const isActive = cnt.status === 'ACTIVE';
+                  return (
+                    <div
+                      key={cnt.id}
+                      className={`emp-profile__contract-item ${isActive ? 'emp-profile__contract-item--active' : 'emp-profile__contract-item--historical'}`}
+                    >
+                      <div className="emp-profile__contract-left">
+                        <div className={`emp-profile__doc-icon emp-profile__doc-icon--${cnt.status?.toLowerCase()}`}>
+                          <FileText size={20} />
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <h4 className="emp-profile__doc-title">{cnt.title}</h4>
+                            <span className={`emp-profile__contract-badge emp-profile__contract-badge--${cnt.status?.toLowerCase()}`}>
+                              ● {cnt.status?.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <p className="emp-profile__doc-meta">
+                            <strong>Period:</strong> {cnt.startDate} → {cnt.endDate} &bull;{' '}
+                            <strong>Wage:</strong> {cnt.wage}/mo &bull;{' '}
+                            <strong>Type:</strong> {cnt.contractType}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="emp-profile__doc-title">{cnt.title}</h4>
-                        <p className="emp-profile__doc-meta">
-                          Valid from {cnt.startDate} &bull; Wage: {cnt.wage}/mo &bull; Status:{' '}
-                          <span className="emp-profile__badge-soft">{cnt.status}</span>
-                        </p>
-                      </div>
+                      {isAdmin && (
+                        <button
+                          className="emp-profile__doc-action-btn"
+                          onClick={() => navigate('/contracts')}
+                        >
+                          View in Contracts →
+                        </button>
+                      )}
                     </div>
-                    {isAdmin && (
-                      <button
-                        className="emp-profile__doc-action-btn"
-                        onClick={() => navigate('/contracts')}
-                      >
-                        View in Contracts →
-                      </button>
-                    )}
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <p style={{ color: '#64748b', padding: '16px' }}>No active contracts found.</p>
+                <p style={{ color: '#64748b', padding: '16px' }}>No contracts found for this employee.</p>
               )}
             </div>
           </div>

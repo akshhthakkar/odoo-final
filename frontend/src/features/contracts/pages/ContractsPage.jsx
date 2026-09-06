@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   FileText,
   Plus,
@@ -14,6 +15,7 @@ import {
   Calendar,
   X,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
@@ -33,6 +35,8 @@ function getInitials(firstName, lastName) {
 export default function ContractsPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const currentUser = useSelector((s) => s.auth.user);
+  const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'HR_MANAGER';
 
   // State
   const [contracts, setContracts] = useState([]);
@@ -50,6 +54,10 @@ export default function ContractsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
+
+  // Delete Target Modal
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form State
   const [newContract, setNewContract] = useState({
@@ -81,7 +89,7 @@ export default function ContractsPage() {
 
   // Reusable Pagination Hook (Server-Side Mode)
   const pagination = usePagination(totalCount, {
-    initialPageSize: 5,
+    initialPageSize: 15,
     resetDeps: [debouncedSearch, departmentFilter, statusFilter],
   });
 
@@ -223,6 +231,27 @@ export default function ContractsPage() {
       toast.error('Failed to update contract status');
     }
   }
+
+  // Handle Delete Contract
+  async function handleDeleteContract() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await api.delete(`/contracts/${deleteTarget.id}`);
+      toast.success(`Contract ${deleteTarget.reference} deleted successfully`);
+      setDeleteTarget(null);
+      await fetchContracts();
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to delete contract';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
 
   return (
     <div className="contracts-page">
@@ -498,6 +527,15 @@ export default function ContractsPage() {
                           >
                             <MoreVertical size={16} />
                           </button>
+                          {canDelete && (
+                            <button
+                              className="cnt-table__icon-btn cnt-table__icon-btn--delete"
+                              onClick={() => setDeleteTarget(cnt)}
+                              title="Delete Contract"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -544,6 +582,27 @@ export default function ContractsPage() {
                     <span>{modalError}</span>
                   </div>
                 )}
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '10px',
+                    fontSize: '12.5px',
+                    color: '#166534',
+                    marginBottom: '16px',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  <CheckCircle2 size={16} color="#16a34a" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>
+                    <strong>Single Active Contract Policy:</strong> When saving as <em>Active</em>, any previous active contract for this employee is automatically archived to <em>Expired</em>, preserving historical records.
+                  </span>
+                </div>
 
                 <div className="cnt-modal__field-row">
                   <div className="cnt-modal__field">
@@ -696,6 +755,55 @@ export default function ContractsPage() {
           </div>
         </div>
       )}
+
+      {/* ── 6. Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="cnt-modal-overlay" onClick={() => !isDeleting && setDeleteTarget(null)}>
+          <div className="cnt-modal cnt-modal--delete" onClick={(e) => e.stopPropagation()}>
+            <div className="cnt-modal__header">
+              <h2 className="cnt-modal__title" style={{ color: '#ef4444' }}>Delete Contract</h2>
+              <button
+                className="cnt-modal__close-btn"
+                onClick={() => !isDeleting && setDeleteTarget(null)}
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="cnt-modal__body">
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.925rem', color: '#475569', lineHeight: '1.5' }}>
+                Are you sure you want to delete contract <strong>{deleteTarget.reference}</strong> for{' '}
+                <strong>
+                  {deleteTarget.employee
+                    ? `${deleteTarget.employee.first_name} ${deleteTarget.employee.last_name}`
+                    : 'Staff Member'}
+                </strong>
+                ? This action will permanently remove the contract record.
+              </p>
+            </div>
+            <div className="cnt-modal__footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '16px 24px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                className="cnt-modal__cancel-btn"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="cnt-modal__submit-btn"
+                style={{ background: '#ef4444', color: '#ffffff', border: 'none' }}
+                onClick={handleDeleteContract}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

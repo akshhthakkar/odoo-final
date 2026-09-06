@@ -544,6 +544,14 @@
       color: #0f172a;
       border-color: #cbd5e1;
     }
+
+    &--delete {
+      &:hover {
+        background: #fef2f2;
+        color: #ef4444;
+        border-color: #fecaca;
+      }
+    }
   }
 }
 

@@ -60,8 +60,15 @@ const formatContract = (c) => ({
   updated_at: c.updatedAt,
 });
 
-async function checkContractOverlap(employeeId, startDate, endDate, excludeContractId = null) {
-  const existingActive = await prisma.contract.findMany({
+async function archivePreviousActiveContracts(
+  tx,
+  employeeId,
+  newStartDate,
+  excludeContractId = null,
+  actorId = null,
+  newRef = ''
+) {
+  const existingActive = await tx.contract.findMany({
     where: {
       employeeId,
       status: 'ACTIVE',
@@ -69,20 +76,35 @@ async function checkContractOverlap(employeeId, startDate, endDate, excludeContr
     },
   });
 
-  const newStart = new Date(startDate);
-  const newEnd = endDate ? new Date(endDate) : new Date('9999-12-31');
+  const newStart = new Date(newStartDate);
 
-  for (const c of existingActive) {
-    const activeStart = new Date(c.startDate);
-    const activeEnd = c.endDate ? new Date(c.endDate) : new Date('9999-12-31');
+  for (const prev of existingActive) {
+    const prevStart = new Date(prev.startDate);
+    const dayBefore = new Date(newStart.getTime() - 86400000);
+    const calculatedEnd = dayBefore >= prevStart ? dayBefore : newStart;
 
-    // Overlap exists if (newStart <= activeEnd && newEnd >= activeStart)
-    if (newStart <= activeEnd && newEnd >= activeStart) {
-      throw new AppError(
-        409,
-        'CONTRACT_OVERLAP',
-        `Contract overlaps with existing active contract "${c.reference}" (${c.startDate.toISOString().slice(0, 10)} to ${c.endDate ? c.endDate.toISOString().slice(0, 10) : 'indefinite'})`
-      );
+    await tx.contract.update({
+      where: { id: prev.id },
+      data: {
+        status: 'EXPIRED',
+        endDate: prev.endDate && prev.endDate < calculatedEnd ? prev.endDate : calculatedEnd,
+      },
+    });
+
+    if (actorId) {
+      await writeAudit(tx, {
+        actorId,
+        action: 'CONTRACT_SUPERSEDED',
+        entity: 'contract',
+        entityId: prev.id,
+        payload: {
+          employee_id: employeeId,
+          reference: prev.reference,
+          superseded_by: newRef || excludeContractId,
+          from_status: 'ACTIVE',
+          to_status: 'EXPIRED',
+        },
+      });
     }
   }
 }
@@ -227,7 +249,7 @@ export async function createContract(data, actorId) {
     if (data.end_date && new Date(data.end_date) < new Date()) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Cannot create an ACTIVE contract whose period already ended');
     }
-    await checkContractOverlap(data.employee_id, data.start_date, data.end_date);
+    await archivePreviousActiveContracts(prisma, data.employee_id, data.start_date, null, actorId, data.reference);
   }
 
   const contract = await prisma.contract.create({
@@ -301,7 +323,7 @@ export async function updateContract(id, data, actorId) {
   }
 
   if (targetStatus === 'ACTIVE') {
-    await checkContractOverlap(existing.employeeId, newStartDate, newEndDate, id);
+    await archivePreviousActiveContracts(prisma, existing.employeeId, newStartDate, id, actorId, data.reference || existing.reference);
   }
 
   const updateData = {};
@@ -349,7 +371,7 @@ export async function updateContractStatus(id, { status }, actorId) {
   assertAllowedContractTransition(existing.status, status);
 
   if (status === 'ACTIVE') {
-    await checkContractOverlap(existing.employeeId, existing.startDate, existing.endDate, id);
+    await archivePreviousActiveContracts(prisma, existing.employeeId, existing.startDate, id, actorId, existing.reference);
   }
 
   const updated = await prisma.contract.update({
@@ -374,3 +396,57 @@ export async function updateContractStatus(id, { status }, actorId) {
 
   return formatContract(updated);
 }
+
+export async function deleteContract(id, actorId) {
+  return await prisma.$transaction(async (tx) => {
+    const existing = await tx.contract.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
+        payslips: { select: { id: true, status: true } },
+      },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'NOT_FOUND', 'Contract not found');
+    }
+
+    const paidOrValidated = existing.payslips.some((p) => p.status === 'VALIDATED' || p.status === 'PAID');
+    if (paidOrValidated) {
+      throw new AppError(400, 'CANNOT_DELETE_CONTRACT', 'Cannot delete contract associated with validated or paid payslips');
+    }
+
+    // Delete any draft/computed payslips linked to this contract
+    const payslipIds = existing.payslips.map((p) => p.id);
+    if (payslipIds.length > 0) {
+      await tx.payrollWarning.deleteMany({ where: { payslipId: { in: payslipIds } } });
+      await tx.payslipLine.deleteMany({ where: { payslipId: { in: payslipIds } } });
+      await tx.payslip.deleteMany({ where: { id: { in: payslipIds } } });
+    }
+
+    await tx.contract.delete({
+      where: { id },
+    });
+
+    await writeAudit(tx, {
+      actorId,
+      action: 'CONTRACT_DELETED',
+      entity: 'contract',
+      entityId: id,
+      payload: {
+        reference: existing.reference,
+        employee_id: existing.employeeId,
+        employee_name: existing.employee
+          ? `${existing.employee.firstName} ${existing.employee.lastName}`
+          : null,
+      },
+    });
+
+    return {
+      id: existing.id,
+      reference: existing.reference,
+      employee_id: existing.employeeId,
+    };
+  });
+}
+

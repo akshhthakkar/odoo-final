@@ -100,4 +100,11 @@ router.patch(
   contracts.updateContractStatus
 );
 
+router.delete(
+  '/:id',
+  requireRole(...HR_ROLES),
+  contracts.deleteContract
+);
+
 export default router;
+

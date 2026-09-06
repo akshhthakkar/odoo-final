@@ -191,8 +191,11 @@ export async function getEmployeeById(id) {
       manager: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
       workingSchedule: { select: { id: true, name: true } },
       contracts: {
-        where: { status: 'ACTIVE' },
-        take: 1,
+        orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+        include: {
+          department: { select: { id: true, name: true } },
+          job: { select: { id: true, name: true } },
+        },
       },
     },
   });
@@ -202,7 +205,21 @@ export async function getEmployeeById(id) {
   }
 
   const formatted = formatEmployee(employee);
-  formatted.active_contract = employee.contracts?.[0] || null;
+  const activeContract = employee.contracts?.find((c) => c.status === 'ACTIVE') || null;
+  formatted.active_contract = activeContract;
+  formatted.wage = activeContract ? Number(activeContract.wage) : null;
+  formatted.contracts = (employee.contracts || []).map((c) => ({
+    id: c.id,
+    reference: c.reference,
+    status: c.status,
+    contract_type: c.contractType,
+    wage: Number(c.wage),
+    currency: c.currency,
+    start_date: c.startDate,
+    end_date: c.endDate,
+    department: c.department ? { id: c.department.id, name: c.department.name } : null,
+    job: c.job ? { id: c.job.id, name: c.job.name } : null,
+  }));
   return formatted;
 }
 

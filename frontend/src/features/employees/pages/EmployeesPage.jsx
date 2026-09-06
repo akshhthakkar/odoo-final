@@ -97,7 +97,7 @@ export default function EmployeesPage() {
 
   // Reusable Pagination Hook (Server-Side Mode)
   const pagination = usePagination(totalCount, {
-    initialPageSize: 5,
+    initialPageSize: 15,
     resetDeps: [debouncedSearch, departmentFilter, statusFilter],
   });
 
