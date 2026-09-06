@@ -44,6 +44,74 @@
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    &__checkin-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    &__checkin-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+
+      &--in {
+        background: #16a34a;
+        color: #ffffff;
+        box-shadow: 0 1px 3px rgba(22, 163, 74, 0.25);
+
+        &:hover:not(:disabled) {
+          background: #15803d;
+          box-shadow: 0 3px 8px rgba(22, 163, 74, 0.35);
+          transform: translateY(-1px);
+        }
+      }
+
+      &--out {
+        background: #dc2626;
+        color: #ffffff;
+        box-shadow: 0 1px 3px rgba(220, 38, 38, 0.25);
+
+        &:hover:not(:disabled) {
+          background: #b91c1c;
+          box-shadow: 0 3px 8px rgba(220, 38, 38, 0.35);
+          transform: translateY(-1px);
+        }
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    &__status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+
+      &--active {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+      }
     }
 
     &__add-btn {
@@ -69,6 +137,92 @@
 
       &:active {
         transform: translateY(0);
+      }
+    }
+  }
+
+  // ── Employee Today Check-In Hero Card ──
+  .att-hero-card {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2357fe 100%);
+    border-radius: 14px;
+    padding: 1.25rem 1.75rem;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    box-shadow: 0 4px 16px rgba(35, 87, 254, 0.18);
+
+    &__left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    &__tag {
+      font-size: 0.75rem;
+      color: #bfdbfe;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+
+    &__title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    &__desc {
+      font-size: 0.85rem;
+      color: #dbeafe;
+      margin: 0;
+    }
+
+    &__right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    &__btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.4rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+
+      &--in {
+        background: #10b981;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+
+        &:hover:not(:disabled) {
+          background: #059669;
+          transform: translateY(-1px);
+        }
+      }
+
+      &--out {
+        background: #ef4444;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+
+        &:hover:not(:disabled) {
+          background: #dc2626;
+          transform: translateY(-1px);
+        }
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
       }
     }
   }

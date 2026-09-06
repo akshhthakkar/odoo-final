@@ -186,11 +186,15 @@ export default function TimeOffPage() {
   const fetchTimeOffData = useCallback(async () => {
     setLoading(true);
     try {
+      const empPromise = isEmployeeRole
+        ? Promise.resolve(null)
+        : api.get('/employees', { params: { limit: 100 } }).catch(() => null);
+
       const [typesRes, reqsRes, allocsRes, empsRes] = await Promise.all([
         api.get('/time-off/types').catch(() => null),
         api.get('/time-off/requests').catch(() => null),
         api.get('/time-off/allocations').catch(() => null),
-        api.get('/employees', { params: { limit: 100 } }).catch(() => null),
+        empPromise,
       ]);
 
       if (typesRes?.data?.data) {
@@ -201,22 +205,30 @@ export default function TimeOffPage() {
         }
       }
 
-      if (empsRes?.data?.data) {
+      if (isEmployeeRole) {
+        const selfId = authUser?.employee_id || 'self';
+        const selfName = authUser?.full_name || 'My Leaves';
+        const selfEmp = {
+          id: selfId,
+          code: authUser?.employee_code || 'EMP',
+          name: selfName,
+          initials: getInitials(selfName),
+          color: AVATAR_COLORS[0],
+        };
+        setEmployees([selfEmp]);
+        setFormEmployeeId(selfId);
+      } else if (empsRes?.data?.data) {
         const empList = Array.isArray(empsRes.data.data) ? empsRes.data.data : empsRes.data.data.items || [];
         const formatted = empList.map((e, idx) => ({
           id: e.id,
           code: e.employee_code,
-          name: `${e.first_name || ''} ${e.last_name || ''}`,
-          initials: getInitials(`${e.first_name || ''} ${e.last_name || ''}`),
+          name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || e.employee_code || 'Employee',
+          initials: getInitials(`${e.first_name || ''} ${e.last_name || ''}`.trim() || e.employee_code || 'E'),
           color: AVATAR_COLORS[idx % AVATAR_COLORS.length],
         }));
         setEmployees(formatted);
         if (formatted.length > 0 && !formEmployeeId) {
-          // If logged in user is employee, default to own employee ID
-          const currentEmp = authUser?.employee_id
-            ? formatted.find((e) => e.id === authUser.employee_id)
-            : formatted[0];
-          setFormEmployeeId(currentEmp ? currentEmp.id : formatted[0].id);
+          setFormEmployeeId(formatted[0].id);
         }
       }
 
@@ -231,6 +243,8 @@ export default function TimeOffPage() {
         const mapped = reqList.map((r) => {
           const empName = r.employee
             ? `${r.employee.first_name || ''} ${r.employee.last_name || ''}`.trim() || 'Staff Member'
+            : isEmployeeRole
+            ? (authUser?.full_name || 'My Leaves')
             : 'Staff Member';
           const typeName = r.type?.name || r.leave_type?.name || 'Leave';
           const fromStr = r.date_from
@@ -254,7 +268,7 @@ export default function TimeOffPage() {
 
           return {
             id: r.id,
-            employeeId: r.employee_id,
+            employeeId: isEmployeeRole ? (authUser?.employee_id || 'self') : r.employee_id,
             employeeName: empName,
             leaveType: typeName,
             leaveTypeId: r.type_id || r.leave_type_id,
@@ -419,7 +433,7 @@ export default function TimeOffPage() {
             onClick={() => setIsAllRequestsOpen(true)}
           >
             <CalendarDays size={15} />
-            <span>See all requests</span>
+            <span>{isEmployeeRole ? 'My Requests' : 'See all requests'}</span>
             <span className="to-header__badge">{requests.length}</span>
           </button>
 
@@ -778,7 +792,9 @@ export default function TimeOffPage() {
         <div className="to-modal-overlay" onClick={() => setIsAllRequestsOpen(false)}>
           <div className="to-modal to-modal--wide" onClick={(e) => e.stopPropagation()}>
             <div className="to-modal__header">
-              <h2 className="to-modal__title">All Time Off Requests ({requests.length})</h2>
+              <h2 className="to-modal__title">
+                {isEmployeeRole ? 'My Time Off Requests' : 'All Time Off Requests'} ({requests.length})
+              </h2>
               <button
                 className="to-modal__close-btn"
                 onClick={() => setIsAllRequestsOpen(false)}

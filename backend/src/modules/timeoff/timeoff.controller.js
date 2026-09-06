@@ -25,7 +25,7 @@ export async function listAllocations(req, res, next) {
 
     let targetEmployeeId = employee_id;
     if (req.user?.role === 'EMPLOYEE') {
-      targetEmployeeId = req.user.employee_id;
+      targetEmployeeId = req.user.employee_id || '00000000-0000-0000-0000-000000000000';
     }
 
     const allocations = await timeoffService.listAllocations({
@@ -55,7 +55,7 @@ export async function listRequests(req, res, next) {
 
     let targetEmployeeId = employee_id;
     if (req.user?.role === 'EMPLOYEE') {
-      targetEmployeeId = req.user.employee_id;
+      targetEmployeeId = req.user.employee_id || '00000000-0000-0000-0000-000000000000';
     }
 
     const requests = await timeoffService.listRequests({

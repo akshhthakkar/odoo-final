@@ -179,6 +179,9 @@ export default function EmployeesPage() {
       hireDate: new Date().toISOString().slice(0, 10),
       wage: '50000',
       contractType: 'FULL_TIME',
+      casualLeave: 12,
+      sickLeave: 12,
+      privilegeLeave: 15,
     });
     setIsModalOpen(true);
   }
@@ -231,6 +234,11 @@ export default function EmployeesPage() {
         hire_date: newEmp.hireDate || new Date().toISOString().slice(0, 10),
         department_id: newEmp.departmentId || (departments[0]?.id || null),
         job_id: newEmp.jobId || (jobs[0]?.id || null),
+        initial_leaves: {
+          casual_leave: Number(newEmp.casualLeave) >= 0 ? Number(newEmp.casualLeave) : 12,
+          sick_leave: Number(newEmp.sickLeave) >= 0 ? Number(newEmp.sickLeave) : 12,
+          privilege_leave: Number(newEmp.privilegeLeave) >= 0 ? Number(newEmp.privilegeLeave) : 15,
+        },
       };
 
       const res = await api.post('/employees', payload);
@@ -695,6 +703,45 @@ export default function EmployeesPage() {
                       value={newEmp.hireDate}
                       onChange={(e) => setNewEmp({ ...newEmp, hireDate: e.target.value })}
                     />
+                  </div>
+                </div>
+
+                {/* Annual Leave Balances Allocation */}
+                <div style={{ marginTop: '0.85rem', padding: '0.85rem 1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Annual Leave Balances (Days)
+                  </span>
+                  <div className="emp-modal__field-row" style={{ marginTop: '0.6rem', marginBottom: 0 }}>
+                    <div className="emp-modal__field">
+                      <label style={{ fontSize: '0.75rem' }}>Casual Leave (CL)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        value={newEmp.casualLeave}
+                        onChange={(e) => setNewEmp({ ...newEmp, casualLeave: e.target.value })}
+                      />
+                    </div>
+                    <div className="emp-modal__field">
+                      <label style={{ fontSize: '0.75rem' }}>Sick Leave (SL)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        value={newEmp.sickLeave}
+                        onChange={(e) => setNewEmp({ ...newEmp, sickLeave: e.target.value })}
+                      />
+                    </div>
+                    <div className="emp-modal__field">
+                      <label style={{ fontSize: '0.75rem' }}>Privilege Leave (PL)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        value={newEmp.privilegeLeave}
+                        onChange={(e) => setNewEmp({ ...newEmp, privilegeLeave: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

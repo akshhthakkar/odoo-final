@@ -8,7 +8,7 @@ export async function listAttendance(req, res, next) {
     // Regular EMPLOYEE can only list their own attendance records
     let targetEmployeeId = employee_id;
     if (req.user?.role === 'EMPLOYEE') {
-      targetEmployeeId = req.user.employee_id;
+      targetEmployeeId = req.user.employee_id || '00000000-0000-0000-0000-000000000000';
     }
 
     const result = await attendanceService.listAttendance({

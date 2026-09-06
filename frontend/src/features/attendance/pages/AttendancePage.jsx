@@ -86,12 +86,17 @@ function formatOvertimeDisplay(hours) {
 export default function AttendancePage() {
   const toast = useToast();
   const userRole = useSelector((s) => s.auth.user?.role);
+  const isEmployeeRole = userRole === 'EMPLOYEE';
   const canCorrect = userRole === 'ADMIN' || userRole === 'HR_MANAGER';
 
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Today's Check-In / Check-Out state
+  const [todayRecord, setTodayRecord] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -131,6 +136,28 @@ export default function AttendancePage() {
     note: '',
   });
 
+  // Fetch today's record for employee self-service
+  const fetchTodayRecord = useCallback(async () => {
+    try {
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const res = await api.get('/attendance', {
+        params: {
+          start_date: todayISO,
+          end_date: todayISO,
+          limit: 1,
+        },
+      });
+      const items = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data?.data?.items)
+        ? res.data.data.items
+        : [];
+      setTodayRecord(items[0] || null);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   // Fetch attendance list from backend with optional date override
   const fetchAttendance = useCallback(
     async (overrideDate) => {
@@ -146,8 +173,8 @@ export default function AttendancePage() {
           params.end_date = activeDate;
         }
         if (statusFilter !== 'ALL') params.status = statusFilter;
-        if (employeeFilter !== 'ALL') params.employee_id = employeeFilter;
-        if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+        if (!isEmployeeRole && employeeFilter !== 'ALL') params.employee_id = employeeFilter;
+        if (!isEmployeeRole && debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
         const res = await api.get('/attendance', { params });
         const items = Array.isArray(res.data?.data)
@@ -164,11 +191,42 @@ export default function AttendancePage() {
         setLoading(false);
       }
     },
-    [dateFilter, statusFilter, employeeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize]
+    [isEmployeeRole, dateFilter, statusFilter, employeeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize]
   );
 
-  // Fetch employees list for dropdown
+  // Self check-in action
+  const handleSelfCheckIn = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/attendance/check-in', {});
+      toast.success('Successfully checked in!');
+      await fetchTodayRecord();
+      await fetchAttendance();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Check-in failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Self check-out action
+  const handleSelfCheckOut = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/attendance/check-out', {});
+      toast.success('Successfully checked out!');
+      await fetchTodayRecord();
+      await fetchAttendance();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || 'Check-out failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Fetch employees list for dropdown (HR / Admin only)
   const fetchEmployees = useCallback(async () => {
+    if (isEmployeeRole) return;
     try {
       const res = await api.get('/employees', { params: { limit: 100 } });
       const items = Array.isArray(res.data?.data)
@@ -180,7 +238,7 @@ export default function AttendancePage() {
     } catch {
       // ignore
     }
-  }, []);
+  }, [isEmployeeRole]);
 
   useEffect(() => {
     fetchAttendance();
@@ -189,6 +247,10 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
+
+  useEffect(() => {
+    fetchTodayRecord();
+  }, [fetchTodayRecord]);
 
   // Combined Employee Options (from employees API + unique attendance items)
   const employeeOptions = useMemo(() => {
@@ -390,11 +452,51 @@ export default function AttendancePage() {
         <div className="att-header__left">
           <h1 className="att-header__title">Attendance</h1>
           <p className="att-header__subtitle">
-            Daily presence, exceptions and corrections. Attendance feeds payroll and the dashboard.
+            {isEmployeeRole
+              ? 'Your personal daily presence, work hours, and check-in history.'
+              : 'Daily presence, exceptions and corrections. Attendance feeds payroll and the dashboard.'}
           </p>
         </div>
 
         <div className="att-header__right">
+          {/* Employee Self Check-In / Check-Out Header Controls */}
+          {isEmployeeRole && (
+            <div className="att-header__checkin-group">
+              {!todayRecord ? (
+                <button
+                  className="att-header__checkin-btn att-header__checkin-btn--in"
+                  onClick={handleSelfCheckIn}
+                  disabled={actionLoading}
+                >
+                  <Clock size={16} />
+                  <span>{actionLoading ? 'Checking In...' : 'Check In'}</span>
+                </button>
+              ) : !todayRecord.check_out ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className="att-header__status-pill att-header__status-pill--active">
+                    <Clock size={14} />
+                    In: {formatTimeDisplay(todayRecord.check_in)}
+                  </span>
+                  <button
+                    className="att-header__checkin-btn att-header__checkin-btn--out"
+                    onClick={handleSelfCheckOut}
+                    disabled={actionLoading}
+                  >
+                    <Clock size={16} />
+                    <span>{actionLoading ? 'Checking Out...' : 'Check Out'}</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="att-header__status-pill">
+                  <CheckCircle2 size={15} color="#16a34a" />
+                  <span>
+                    Today: {formatTimeDisplay(todayRecord.check_in)} – {formatTimeDisplay(todayRecord.check_out)} ({formatWorkedDisplay(todayRecord.worked_hours)})
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+
           {canCorrect && (
             <button className="att-header__add-btn" onClick={handleOpenCreate}>
               <Plus size={16} strokeWidth={2.5} />
@@ -403,6 +505,52 @@ export default function AttendancePage() {
           )}
         </div>
       </header>
+
+      {/* ── Employee Today Action Banner ── */}
+      {isEmployeeRole && !todayRecord && (
+        <div className="att-hero-card">
+          <div className="att-hero-card__left">
+            <span className="att-hero-card__tag">Today's Attendance</span>
+            <h2 className="att-hero-card__title">You haven't checked in today yet</h2>
+            <p className="att-hero-card__desc">
+              Mark your check-in to record your daily working hours and feed your payroll calculations.
+            </p>
+          </div>
+          <div className="att-hero-card__right">
+            <button
+              className="att-hero-card__btn att-hero-card__btn--in"
+              onClick={handleSelfCheckIn}
+              disabled={actionLoading}
+            >
+              <Clock size={18} />
+              <span>{actionLoading ? 'Checking In...' : 'Mark Check In'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+      {isEmployeeRole && todayRecord && !todayRecord.check_out && (
+        <div className="att-hero-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' }}>
+          <div className="att-hero-card__left">
+            <span className="att-hero-card__tag" style={{ color: '#86efac' }}>Currently Checked In</span>
+            <h2 className="att-hero-card__title">
+              Working since {formatTimeDisplay(todayRecord.check_in)} IST
+            </h2>
+            <p className="att-hero-card__desc">
+              Remember to mark check-out when your shift ends to finalize your worked hours.
+            </p>
+          </div>
+          <div className="att-hero-card__right">
+            <button
+              className="att-hero-card__btn att-hero-card__btn--out"
+              onClick={handleSelfCheckOut}
+              disabled={actionLoading}
+            >
+              <Clock size={18} />
+              <span>{actionLoading ? 'Checking Out...' : 'Mark Check Out'}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── 2. Filters & Controls Row ── */}
       <div className="att-controls">
@@ -423,22 +571,24 @@ export default function AttendancePage() {
             <ChevronDown size={14} className="att-controls__select-icon" />
           </div>
 
-          {/* Employee Filter */}
-          <div className="att-controls__select-wrap">
-            <select
-              value={employeeFilter}
-              onChange={(e) => setEmployeeFilter(e.target.value)}
-              aria-label="Filter by employee"
-            >
-              <option value="ALL">All Employees</option>
-              {employeeOptions.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="att-controls__select-icon" />
-          </div>
+          {/* Employee Filter - HR / Admin only */}
+          {!isEmployeeRole && (
+            <div className="att-controls__select-wrap">
+              <select
+                value={employeeFilter}
+                onChange={(e) => setEmployeeFilter(e.target.value)}
+                aria-label="Filter by employee"
+              >
+                <option value="ALL">All Employees</option>
+                {employeeOptions.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="att-controls__select-icon" />
+            </div>
+          )}
 
           {/* Date Picker Input */}
           <div className="att-controls__date-picker">
@@ -461,16 +611,18 @@ export default function AttendancePage() {
             </button>
           )}
 
-          {/* Search Box */}
-          <div className="att-controls__search-box">
-            <Search size={14} color="#9ca3af" />
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          {/* Search Box - HR / Admin only */}
+          {!isEmployeeRole && (
+            <div className="att-controls__search-box">
+              <Search size={14} color="#9ca3af" />
+              <input
+                type="text"
+                placeholder="Search employee..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          )}
         </div>
 
         <div className="att-controls__right">
@@ -492,15 +644,15 @@ export default function AttendancePage() {
               <EmptyState
                 icon={Clock}
                 title="No attendance records found"
-                hint={searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL' ? "Try adjusting your filters or date selection." : "Record check-ins or manual attendance to start tracking."}
-                actionLabel={searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL' ? "Clear Filters" : "Record Attendance"}
+                hint={searchQuery || dateFilter || statusFilter !== 'ALL' || (!isEmployeeRole && employeeFilter !== 'ALL') ? "Try adjusting your filters or date selection." : "Record check-ins or manual attendance to start tracking."}
+                actionLabel={searchQuery || dateFilter || statusFilter !== 'ALL' || (!isEmployeeRole && employeeFilter !== 'ALL') ? "Clear Filters" : (canCorrect ? "Record Attendance" : undefined)}
                 onAction={() => {
-                  if (searchQuery || dateFilter || statusFilter !== 'ALL' || employeeFilter !== 'ALL') {
+                  if (searchQuery || dateFilter || statusFilter !== 'ALL' || (!isEmployeeRole && employeeFilter !== 'ALL')) {
                     setSearchQuery('');
                     setDateFilter('');
                     setStatusFilter('ALL');
                     setEmployeeFilter('ALL');
-                  } else {
+                  } else if (canCorrect) {
                     handleOpenCreate();
                   }
                 }}
@@ -510,14 +662,14 @@ export default function AttendancePage() {
             <table>
               <thead>
                 <tr>
-                  <th>Employee</th>
+                  {!isEmployeeRole && <th>Employee</th>}
                   <th>Date</th>
                   <th>Check In</th>
                   <th>Check Out</th>
                   <th>Worked</th>
                   <th>Overtime</th>
                   <th>Status</th>
-                  <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>Actions</th>
+                  {canCorrect && <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -527,15 +679,17 @@ export default function AttendancePage() {
 
                   return (
                     <tr key={rec.id}>
-                      {/* Employee */}
-                      <td>
-                        <div className="att-cell--emp">
-                          <span className="att-cell__name">{empName}</span>
-                          {empCode && (
-                            <span className="att-cell__meta">{empCode}</span>
-                          )}
-                        </div>
-                      </td>
+                      {/* Employee - HR / Admin only */}
+                      {!isEmployeeRole && (
+                        <td>
+                          <div className="att-cell--emp">
+                            <span className="att-cell__name">{empName}</span>
+                            {empCode && (
+                              <span className="att-cell__meta">{empCode}</span>
+                            )}
+                          </div>
+                        </td>
+                      )}
 
                       {/* Date */}
                       <td className="att-cell--date">
@@ -571,9 +725,9 @@ export default function AttendancePage() {
                       {/* Status Pill */}
                       <td>{renderStatusBadge(rec.status)}</td>
 
-                      {/* Actions */}
-                      <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
-                        {canCorrect && (
+                      {/* Actions - HR / Admin only */}
+                      {canCorrect && (
+                        <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
                           <button
                             className="att-cell__edit-btn"
                             onClick={() => handleOpenEdit(rec)}
@@ -582,8 +736,8 @@ export default function AttendancePage() {
                           >
                             <Edit2 size={15} />
                           </button>
-                        )}
-                      </td>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -67,6 +67,8 @@ const createEmployeeSchema = z.object({
   bank_account_name: z.string().max(120).nullable().optional(),
   bank_account_number: bankAccountSchema.nullable().optional(),
   bank_ifsc: ifscSchema.nullable().optional(),
+  initial_leaves: z.record(z.any()).optional(),
+  allocations: z.record(z.any()).optional(),
 });
 
 const updateEmployeeSchema = z.object({

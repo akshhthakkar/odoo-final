@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../shared/errors.js';
 import { writeAudit } from '../../shared/audit.js';
@@ -260,6 +261,76 @@ export async function createEmployee(data, actorId) {
       manager: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
     },
   });
+
+  // Auto-provision or link User account for seamless employee login workflow
+  if (employee.email) {
+    const existingUser = await prisma.user.findUnique({ where: { email: employee.email } });
+    if (!existingUser) {
+      const passwordHash = await bcrypt.hash('Password@123', 12);
+      await prisma.user.create({
+        data: {
+          email: employee.email,
+          fullName: `${employee.firstName} ${employee.lastName}`.trim(),
+          role: 'EMPLOYEE',
+          passwordHash,
+          employeeId: employee.id,
+          isActive: true,
+        },
+      });
+    } else if (!existingUser.employeeId) {
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { employeeId: employee.id },
+      });
+    }
+  }
+
+  // Auto-allocate annual leave balances for the newly created employee
+  try {
+    const currentYear = new Date().getFullYear();
+    const validFrom = new Date(Date.UTC(currentYear, 0, 1));
+    const validTo = new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59));
+
+    const activeTypes = await prisma.timeOffType.findMany({
+      where: { isActive: true, requiresAllocation: true },
+    });
+
+    const customAllocations = data.initial_leaves || data.allocations || {};
+
+    for (const type of activeTypes) {
+      let days = 12; // default 12 days
+      const codeUpper = (type.code || '').toUpperCase();
+      const nameUpper = (type.name || '').toUpperCase();
+
+      if (codeUpper === 'PL' || nameUpper.includes('PRIVILEGE') || nameUpper.includes('EARNED')) {
+        days = customAllocations.privilege_leave ?? customAllocations.PL ?? 15;
+      } else if (codeUpper === 'SL' || nameUpper.includes('SICK')) {
+        days = customAllocations.sick_leave ?? customAllocations.SL ?? 12;
+      } else if (codeUpper === 'CL' || nameUpper.includes('CASUAL')) {
+        days = customAllocations.casual_leave ?? customAllocations.CL ?? 12;
+      } else if (customAllocations[type.code] !== undefined) {
+        days = Number(customAllocations[type.code]) || 12;
+      } else if (customAllocations[type.id] !== undefined) {
+        days = Number(customAllocations[type.id]) || 12;
+      }
+
+      if (days > 0) {
+        await prisma.timeOffAllocation.create({
+          data: {
+            employeeId: employee.id,
+            typeId: type.id,
+            validFrom,
+            validTo,
+            allocatedDays: days,
+            takenDays: 0,
+            status: 'APPROVED',
+          },
+        });
+      }
+    }
+  } catch {
+    // Non-blocking fallback for leave allocation
+  }
 
   await writeAudit(prisma, {
     actorId,

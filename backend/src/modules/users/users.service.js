@@ -98,15 +98,42 @@ export async function createUser({ email, password, full_name, role, employee_id
     throw new AppError(409, 'DUPLICATE', 'Email already in use');
   }
 
-  if (employee_id) {
-    const employee = await prisma.employee.findUnique({ where: { id: employee_id } });
+  let targetEmployeeId = employee_id || null;
+
+  if (targetEmployeeId) {
+    const employee = await prisma.employee.findUnique({ where: { id: targetEmployeeId } });
     if (!employee) {
       throw new AppError(404, 'NOT_FOUND', 'Employee not found');
     }
-    const alreadyLinked = await prisma.user.findUnique({ where: { employeeId: employee_id } });
+    const alreadyLinked = await prisma.user.findUnique({ where: { employeeId: targetEmployeeId } });
     if (alreadyLinked) {
       throw new AppError(409, 'DUPLICATE', 'Employee is already linked to another user');
     }
+  } else if (role === 'EMPLOYEE') {
+    // Check if an employee exists with this email
+    let emp = await prisma.employee.findUnique({ where: { email } });
+    if (!emp) {
+      const nameParts = (full_name || 'Employee').trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Employee';
+      const lastName = nameParts.slice(1).join(' ') || 'User';
+      const count = await prisma.employee.count();
+      let code = `EMP-${String(count + 1).padStart(3, '0')}`;
+      const existsCode = await prisma.employee.findUnique({ where: { employeeCode: code } });
+      if (existsCode) {
+        code = `EMP-${Date.now().toString().slice(-4)}`;
+      }
+      emp = await prisma.employee.create({
+        data: {
+          employeeCode: code,
+          firstName,
+          lastName,
+          email,
+          hireDate: new Date(),
+          status: 'ACTIVE',
+        },
+      });
+    }
+    targetEmployeeId = emp.id;
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -117,7 +144,7 @@ export async function createUser({ email, password, full_name, role, employee_id
       passwordHash,
       fullName: full_name,
       role,
-      employeeId: employee_id || null,
+      employeeId: targetEmployeeId,
     },
   });
 
