@@ -96,8 +96,8 @@ export default function Hero() {
               {/* Foreground Looping Cards Track (Top to Bottom Infinite Scroll) */}
               <div className="lp-cards-viewport">
                 <div className="lp-cards-track">
-                  {/* Duplicated 3 times for completely seamless infinite top-to-bottom looping */}
-                  {[...HERO_CARDS, ...HERO_CARDS, ...HERO_CARDS].map((card, idx) => (
+                  {/* Duplicated for completely seamless infinite top-to-bottom looping */}
+                  {[...HERO_CARDS, ...HERO_CARDS].map((card, idx) => (
                     <div
                       key={`${card.id}-${idx}`}
                       className="lp-stream-card"

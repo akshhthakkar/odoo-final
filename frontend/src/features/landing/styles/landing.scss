@@ -234,7 +234,7 @@ html {
   align-items: center;
   gap: 64px;
   width: max-content;
-  animation: lpMarqueeRightToLeft 18s linear infinite;
+  animation: lpMarqueeRightToLeft 28s linear infinite;
   will-change: transform;
 }
 
@@ -327,7 +327,7 @@ html {
   opacity: 1;
 }
 
-// ── Looping Cards Viewport & Track (Behind Graph Bars, Fast Scroll) ──
+// ── Looping Cards Viewport & Track (Behind Graph Bars, Smooth Elegant Scroll) ──
 .lp-cards-viewport {
   position: absolute;
   inset: 0;
@@ -344,7 +344,7 @@ html {
   gap: 32px;
   width: 100%;
   padding: 20px 0;
-  animation: lpCardsScrollDown 8.5s linear infinite;
+  animation: lpCardsStepScroll 22s cubic-bezier(0.65, 0, 0.35, 1) infinite;
   will-change: transform;
 
   &:hover {
@@ -352,12 +352,21 @@ html {
   }
 }
 
-@keyframes lpCardsScrollDown {
-  0% {
-    transform: translateY(-50%);
+@keyframes lpCardsStepScroll {
+  0%, 20% {
+    transform: translateY(0%);
+  }
+  25%, 45% {
+    transform: translateY(-12.5%);
+  }
+  50%, 70% {
+    transform: translateY(-25%);
+  }
+  75%, 95% {
+    transform: translateY(-37.5%);
   }
   100% {
-    transform: translateY(0%);
+    transform: translateY(-50%);
   }
 }
 
