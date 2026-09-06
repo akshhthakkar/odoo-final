@@ -10,6 +10,19 @@ function assertDateRange(startDate, endDate) {
   }
 }
 
+function getEffectiveDateStatus(c) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(c.startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = c.endDate ? new Date(c.endDate) : null;
+  if (end) end.setHours(23, 59, 59, 999);
+
+  if (start > today) return 'FUTURE_SCHEDULED';
+  if (end && end < today) return 'EXPIRED_BY_DATE';
+  return 'CURRENT_EFFECTIVE';
+}
+
 const formatContract = (c) => ({
   id: c.id,
   reference: c.reference,
@@ -28,6 +41,8 @@ const formatContract = (c) => ({
   currency: c.currency,
   contract_type: c.contractType,
   status: c.status,
+  effective_date_status: getEffectiveDateStatus(c),
+  is_currently_effective: c.status === 'ACTIVE' && getEffectiveDateStatus(c) === 'CURRENT_EFFECTIVE',
   department_id: c.departmentId,
   department: c.department
     ? {
@@ -449,4 +464,62 @@ export async function deleteContract(id, actorId) {
     };
   });
 }
+
+export async function activateContractNow(id, actorId) {
+  return await prisma.$transaction(async (tx) => {
+    const existing = await tx.contract.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
+      },
+    });
+
+    if (!existing) {
+      throw new AppError(404, 'NOT_FOUND', 'Contract not found');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // If start_date was scheduled in the future, bring it to today so it starts immediately
+    const newStartDate = existing.startDate > today ? today : existing.startDate;
+    // If end_date was already in the past, clear it to ongoing
+    const newEndDate = existing.endDate && existing.endDate < today ? null : existing.endDate;
+
+    // Archive any other active contract for this employee so exactly 1 active contract remains
+    await archivePreviousActiveContracts(tx, existing.employeeId, newStartDate, id, actorId, existing.reference);
+
+    const updated = await tx.contract.update({
+      where: { id },
+      data: {
+        status: 'ACTIVE',
+        startDate: newStartDate,
+        endDate: newEndDate,
+      },
+      include: {
+        employee: { select: { id: true, employeeCode: true, firstName: true, lastName: true } },
+        department: { select: { id: true, name: true } },
+        job: { select: { id: true, name: true } },
+        workingSchedule: { select: { id: true, name: true } },
+        salaryStructure: { select: { id: true, name: true } },
+      },
+    });
+
+    await writeAudit(tx, {
+      actorId,
+      action: 'CONTRACT_ACTIVATED_NOW',
+      entity: 'contract',
+      entityId: id,
+      payload: {
+        employee_id: existing.employeeId,
+        reference: existing.reference,
+        effective_from: newStartDate.toISOString().slice(0, 10),
+        status: 'ACTIVE',
+      },
+    });
+
+    return formatContract(updated);
+  });
+}
+
 

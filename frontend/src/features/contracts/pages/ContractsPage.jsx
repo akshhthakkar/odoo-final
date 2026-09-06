@@ -222,13 +222,28 @@ export default function ContractsPage() {
     try {
       const res = await api.patch(`/contracts/${contractId}/status`, { status: newStatus });
       if (res?.data?.data) {
-        setContracts((prev) =>
-          prev.map((c) => (c.id === contractId ? { ...c, status: newStatus } : c))
-        );
         toast.success(`Contract status changed to ${newStatus}`);
+        await fetchContracts();
       }
     } catch (err) {
       toast.error('Failed to update contract status');
+    }
+  }
+
+  // Handle Activate Now (One-click immediate activation & date adjustment)
+  async function handleActivateNow(contractId, reference) {
+    try {
+      const res = await api.post(`/contracts/${contractId}/activate-now`);
+      if (res?.data?.data) {
+        toast.success(`Contract ${reference || ''} is now ACTIVE and effective immediately!`);
+        await fetchContracts();
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to activate contract now';
+      toast.error(msg);
     }
   }
 
@@ -489,6 +504,27 @@ export default function ContractsPage() {
                           <span className="cnt-table__arrow">→</span>
                           <span>{endDateFmt}</span>
                         </div>
+                        {cnt.effective_date_status === 'FUTURE_SCHEDULED' && (
+                          <div>
+                            <span className="cnt-table__date-pill cnt-table__date-pill--scheduled" title="Scheduled to start on a future date">
+                              <Clock size={10} /> Scheduled Future
+                            </span>
+                          </div>
+                        )}
+                        {cnt.effective_date_status === 'EXPIRED_BY_DATE' && (
+                          <div>
+                            <span className="cnt-table__date-pill cnt-table__date-pill--expired" title="Contract end date has already passed">
+                              <AlertTriangle size={10} /> Ended by Date
+                            </span>
+                          </div>
+                        )}
+                        {cnt.status === 'ACTIVE' && cnt.effective_date_status === 'CURRENT_EFFECTIVE' && (
+                          <div>
+                            <span className="cnt-table__date-pill cnt-table__date-pill--current" title="Currently effective for payroll and active">
+                              <CheckCircle2 size={10} /> Currently Effective
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       <td>
@@ -502,7 +538,16 @@ export default function ContractsPage() {
                           className="cnt-table__actions"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {cnt.status === 'DRAFT' && (
+                          {canDelete && (cnt.status !== 'ACTIVE' || cnt.effective_date_status === 'FUTURE_SCHEDULED') && (
+                            <button
+                              className="cnt-table__btn-action cnt-table__btn-action--activate-now"
+                              onClick={() => handleActivateNow(cnt.id, cnt.reference)}
+                              title="Make this contract ACTIVE NOW starting today (archives previous active contract)"
+                            >
+                              ⚡ Active Now
+                            </button>
+                          )}
+                          {cnt.status === 'DRAFT' && !canDelete && (
                             <button
                               className="cnt-table__btn-action cnt-table__btn-action--approve"
                               onClick={() => handleStatusChange(cnt.id, 'ACTIVE')}

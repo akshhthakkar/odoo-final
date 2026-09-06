@@ -443,6 +443,34 @@
     font-size: 11px;
   }
 
+  &__date-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 4px;
+    letter-spacing: 0.2px;
+
+    &--current {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+    &--scheduled {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+    }
+    &--expired {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #cbd5e1;
+    }
+  }
+
   // Status Badge
   &__status-badge {
     display: inline-flex;
@@ -498,6 +526,21 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
+
+    &--activate-now {
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1px solid #bfdbfe;
+      gap: 4px;
+      font-weight: 700;
+
+      &:hover {
+        background: #2563eb;
+        color: #ffffff;
+        border-color: #2563eb;
+        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+      }
+    }
 
     &--approve {
       background: #ecfdf5;

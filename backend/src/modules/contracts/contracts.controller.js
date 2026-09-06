@@ -86,3 +86,17 @@ export async function deleteContract(req, res, next) {
   }
 }
 
+export async function activateContractNow(req, res, next) {
+  try {
+    const contract = await contractsService.activateContractNow(req.params.id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      data: contract,
+      message: `Contract ${contract.reference} is now Active starting immediately`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+

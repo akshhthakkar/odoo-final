@@ -261,6 +261,8 @@ export default function EmployeeProfilePage() {
                 title: `${c.job?.name || data.job?.name || 'Employment'} Contract (${c.reference || 'REF-CNT'})`,
                 reference: c.reference,
                 status: c.status || 'ACTIVE',
+                effectiveDateStatus: c.effective_date_status,
+                isCurrentlyEffective: c.is_currently_effective,
                 startDate: formatDate(c.start_date),
                 endDate: c.end_date ? formatDate(c.end_date) : 'Indefinite / Permanent',
                 wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
@@ -273,6 +275,8 @@ export default function EmployeeProfilePage() {
                   title: `${data.job?.name || 'Employment'} Agreement (${data.active_contract.reference || 'REF-CNT'})`,
                   reference: data.active_contract.reference,
                   status: data.active_contract.status || 'ACTIVE',
+                  effectiveDateStatus: data.active_contract.effective_date_status,
+                  isCurrentlyEffective: data.active_contract.is_currently_effective,
                   startDate: formatDate(data.active_contract.start_date),
                   endDate: data.active_contract.end_date ? formatDate(data.active_contract.end_date) : 'Indefinite / Permanent',
                   wage: wageFormatted,
@@ -430,6 +434,23 @@ export default function EmployeeProfilePage() {
       toast.error(msg);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Activate Contract Now Handler (Immediate activation & automatic archival of previous active contracts)
+  const handleActivateContractNow = async (contractId, reference) => {
+    try {
+      const res = await api.post(`/contracts/${contractId}/activate-now`);
+      if (res?.data?.data) {
+        toast.success(`Contract ${reference || ''} is now ACTIVE & effective immediately!`);
+        await loadEmployee();
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to activate contract now.';
+      toast.error(msg);
     }
   };
 
@@ -1066,6 +1087,10 @@ export default function EmployeeProfilePage() {
               {contracts && contracts.length > 0 ? (
                 contracts.map((cnt) => {
                   const isActive = cnt.status === 'ACTIVE';
+                  const isFuture = cnt.effectiveDateStatus === 'FUTURE_SCHEDULED';
+                  const isExpiredDate = cnt.effectiveDateStatus === 'EXPIRED_BY_DATE';
+                  const isEffectiveNow = cnt.isCurrentlyEffective;
+
                   return (
                     <div
                       key={cnt.id}
@@ -1081,6 +1106,21 @@ export default function EmployeeProfilePage() {
                             <span className={`emp-profile__contract-badge emp-profile__contract-badge--${cnt.status?.toLowerCase()}`}>
                               ● {cnt.status?.replace('_', ' ')}
                             </span>
+                            {isFuture && (
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '1px 6px' }}>
+                                ⏳ Scheduled Future
+                              </span>
+                            )}
+                            {isExpiredDate && (
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '1px 6px' }}>
+                                ⏹️ Ended by Date
+                              </span>
+                            )}
+                            {isEffectiveNow && (
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '1px 6px' }}>
+                                ✓ Effective Now
+                              </span>
+                            )}
                           </div>
                           <p className="emp-profile__doc-meta">
                             <strong>Period:</strong> {cnt.startDate} → {cnt.endDate} &bull;{' '}
@@ -1089,14 +1129,26 @@ export default function EmployeeProfilePage() {
                           </p>
                         </div>
                       </div>
-                      {isAdmin && (
-                        <button
-                          className="emp-profile__doc-action-btn"
-                          onClick={() => navigate('/contracts')}
-                        >
-                          View in Contracts →
-                        </button>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {isAdmin && (!isActive || isFuture) && (
+                          <button
+                            className="emp-profile__doc-action-btn"
+                            style={{ background: '#eff6ff', color: '#2563eb', borderColor: '#bfdbfe', fontWeight: 700 }}
+                            onClick={() => handleActivateContractNow(cnt.id, cnt.reference)}
+                            title="Make this contract ACTIVE NOW starting today (archives any other active contract)"
+                          >
+                            ⚡ Make Active Now
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            className="emp-profile__doc-action-btn"
+                            onClick={() => navigate('/contracts')}
+                          >
+                            View in Contracts →
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })

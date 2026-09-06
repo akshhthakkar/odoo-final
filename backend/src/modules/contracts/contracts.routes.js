@@ -106,5 +106,11 @@ router.delete(
   contracts.deleteContract
 );
 
+router.post(
+  '/:id/activate-now',
+  requireRole(...HR_ROLES),
+  contracts.activateContractNow
+);
+
 export default router;
 
