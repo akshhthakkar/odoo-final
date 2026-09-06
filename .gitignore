@@ -87,3 +87,7 @@ docker-compose.override.yml
 .eslintcache
 .stylelintcache
 .turbo/
+
+# Explanation folder
+explaination/
+
