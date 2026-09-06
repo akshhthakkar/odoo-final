@@ -84,7 +84,10 @@ export function runRuleSequence({ rules, variables: rawVariables }) {
         continue;
       }
       const truthy = conditionResult instanceof Decimal ? !conditionResult.isZero() : Boolean(conditionResult);
-      if (!truthy) continue;
+      if (!truthy) {
+        variables[rule.code] = new Decimal(0);
+        continue;
+      }
     }
 
     try {

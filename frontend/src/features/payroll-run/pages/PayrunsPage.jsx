@@ -745,8 +745,7 @@ export default function PayrunsPage() {
             Manage monthly payroll batches, compute employee earnings, and issue payslips.
           </p>
         </div>
-
-        <div className="pr-header__right">
+         <div className="pr-header__right">
           <button className="pr-header__btn-primary" onClick={handleOpenCreateModal}>
             <Plus size={16} />
             <span>New Payrun</span>
@@ -881,17 +880,17 @@ export default function PayrunsPage() {
         <div className="pr-modal-backdrop" onClick={() => setIsModalOpen(false)}>
           <div
             className="pr-modal"
-            style={{ maxWidth: wizardStep === 2 ? '680px' : '520px' }}
+            style={{ maxWidth: wizardStep === 2 ? '680px' : '540px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pr-modal__header">
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div>
                 <h2 className="pr-modal__header-title">Create New Payrun Batch</h2>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                <p className="pr-modal__header-subtitle">
                   Step {wizardStep} of 2 — {wizardStep === 1 ? 'Scope & Period' : 'Select Employees'}
-                </span>
+                </p>
               </div>
-              <button className="pr-modal__header-close" onClick={() => setIsModalOpen(false)}>
+              <button className="pr-modal__header-close" onClick={() => setIsModalOpen(false)} aria-label="Close modal">
                 <X size={18} />
               </button>
             </div>
@@ -909,7 +908,7 @@ export default function PayrunsPage() {
                 {wizardStep === 1 && (
                   <>
                     <div className="pr-modal__field">
-                      <label>Payrun Batch Name</label>
+                      <label>Payrun Batch Name *</label>
                       <input
                         type="text"
                         required
@@ -921,7 +920,7 @@ export default function PayrunsPage() {
                     </div>
 
                     <div className="pr-modal__field">
-                      <label>Salary Structure Model</label>
+                      <label>Salary Structure Model *</label>
                       <select
                         value={formData.structure_id}
                         onChange={(e) => setFormData({ ...formData, structure_id: e.target.value })}
@@ -933,11 +932,14 @@ export default function PayrunsPage() {
                           </option>
                         ))}
                       </select>
+                      <span className="pr-modal__field-hint">
+                        Defines salary components, calculations, and statutory deductions.
+                      </span>
                     </div>
 
                     <div className="pr-modal__field-row">
                       <div className="pr-modal__field">
-                        <label>Period Start Date</label>
+                        <label>Period Start Date *</label>
                         <input
                           type="date"
                           required
@@ -946,7 +948,7 @@ export default function PayrunsPage() {
                         />
                       </div>
                       <div className="pr-modal__field">
-                        <label>Period End Date</label>
+                        <label>Period End Date *</label>
                         <input
                           type="date"
                           required
@@ -961,44 +963,32 @@ export default function PayrunsPage() {
                 {/* STEP 2: Employee Selection */}
                 {wizardStep === 2 && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                    <div className="pr-modal__emp-header">
+                      <span className="pr-modal__emp-header-count">
                         Selected: {selectedEmployeeIds.length} of {availableEmployees.length} active staff
                       </span>
                       <button
                         type="button"
                         onClick={handleSelectAllEmployees}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#2563eb',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
+                        className="pr-modal__emp-header-btn"
                       >
                         {selectedEmployeeIds.length === availableEmployees.length ? 'Deselect All' : 'Select All'}
                       </button>
                     </div>
 
-                    <input
-                      type="text"
-                      placeholder="Search employees by name or code..."
-                      value={employeeSearch}
-                      onChange={(e) => setEmployeeSearch(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem 0.75rem',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '8px',
-                        fontSize: '0.85rem',
-                        marginBottom: '0.75rem',
-                      }}
-                    />
+                    <div className="pr-modal__search-wrap">
+                      <input
+                        type="text"
+                        placeholder="Search employees by name or code..."
+                        value={employeeSearch}
+                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
 
-                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem' }}>
+                    <div className="pr-modal__emp-list">
                       {availableEmployees.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                        <div style={{ textAlign: 'center', padding: '1.5rem', color: '#94a3b8', fontSize: '0.85rem' }}>
                           No active employees found.
                         </div>
                       ) : (
@@ -1020,31 +1010,21 @@ export default function PayrunsPage() {
                               <div
                                 key={emp.id}
                                 onClick={() => handleToggleEmployee(emp.id)}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '0.45rem 0.6rem',
-                                  borderRadius: '6px',
-                                  background: isSelected ? '#eff6ff' : '#ffffff',
-                                  cursor: 'pointer',
-                                  marginBottom: '2px',
-                                  transition: 'background 0.15s ease',
-                                }}
+                                className={`pr-modal__emp-item ${isSelected ? 'pr-modal__emp-item--selected' : ''}`}
                               >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div className="pr-modal__emp-item-info">
                                   {isSelected ? (
-                                    <CheckSquare size={16} color="#2563eb" />
+                                    <CheckSquare size={16} color="#2357fe" />
                                   ) : (
                                     <Square size={16} color="#94a3b8" />
                                   )}
                                   <div>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{name}</span>
-                                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>({code})</span>
+                                    <span className="pr-modal__emp-item-name">{name}</span>
+                                    <span className="pr-modal__emp-item-code">({code})</span>
                                   </div>
                                 </div>
                                 {wage && (
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
+                                  <span className="pr-modal__emp-item-wage">
                                     ₹{Number(wage).toLocaleString('en-IN')}
                                   </span>
                                 )}
@@ -1114,7 +1094,7 @@ export default function PayrunsPage() {
         <div className="pr-modal-backdrop" onClick={() => !isDeleting && setDeleteTargetPayrun(null)}>
           <div
             className="pr-modal"
-            style={{ maxWidth: '420px', textAlign: 'center' }}
+            style={{ maxWidth: '420px', textAlign: 'center', padding: '2rem' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: '#dc2626' }}>
