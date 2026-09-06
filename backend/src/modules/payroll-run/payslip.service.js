@@ -21,22 +21,50 @@ const listInclude = {
   employee: {
     select: { id: true, firstName: true, lastName: true, employeeCode: true },
   },
+  contract: {
+    select: { id: true, reference: true },
+  },
 };
 
 // Decimals -> numbers at the API boundary.
 function toPublicPayslip(payslip, { withLines = false } = {}) {
+  const firstName = payslip.employee?.firstName || '';
+  const lastName = payslip.employee?.lastName || '';
+  const empName = `${firstName} ${lastName}`.trim() || 'Employee';
+  const empCode = payslip.employee?.employeeCode || '';
+  const contractRef = payslip.contract?.reference || null;
+
   const base = {
     id: payslip.id,
     payrun_id: payslip.payrunId,
     employee_id: payslip.employeeId,
-    employee_name: `${payslip.employee.firstName} ${payslip.employee.lastName}`,
-    employee_code: payslip.employee.employeeCode,
+    employee_name: empName,
+    employee_code: empCode,
+    employee: payslip.employee
+      ? {
+          id: payslip.employee.id,
+          first_name: firstName,
+          last_name: lastName,
+          employee_code: empCode,
+        }
+      : null,
+    contract_ref: contractRef,
+    contract: payslip.contract
+      ? {
+          id: payslip.contract.id,
+          contract_ref: contractRef,
+          reference: contractRef,
+        }
+      : null,
     period_start: payslip.periodStart,
     period_end: payslip.periodEnd,
     worked_days: Number(payslip.workedDays),
     gross: Number(payslip.gross),
+    gross_salary: Number(payslip.gross),
     deductions: Number(payslip.deductions),
+    total_deductions: Number(payslip.deductions),
     net: Number(payslip.net),
+    net_salary: Number(payslip.net),
     currency: payslip.currency,
     status: payslip.status,
     email_sent_at: payslip.emailSentAt,
@@ -81,7 +109,7 @@ export async function listPayslips(filters) {
     orderBy: { createdAt: 'desc' },
     skip: (filters.page - 1) * filters.limit,
     take: filters.limit,
-    include: { employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } } },
+    include: listInclude,
   });
   return payslips.map((payslip) => toPublicPayslip(payslip));
 }

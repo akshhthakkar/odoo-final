@@ -657,17 +657,28 @@ export default function PayrunsPage() {
                 </thead>
                 <tbody>
                   {payslips.map((row) => {
-                    const empName = row.employee
-                      ? `${row.employee.first_name || row.employee.firstName || ''} ${
-                          row.employee.last_name || row.employee.lastName || ''
-                        }`
-                      : 'Employee';
-                    const empCode = row.employee?.employee_code || row.employee?.employeeCode || '';
-                    const contractRef = row.contract?.contract_ref || row.contract?.contractRef || '—';
-                    const worked = `${row.worked_days || 0} days`;
-                    const gross = formatINR(row.gross_salary);
-                    const ded = formatINR(row.total_deductions);
-                    const net = formatINR(row.net_salary);
+                    const empName =
+                      row.employee_name ||
+                      (row.employee
+                        ? `${row.employee.first_name || row.employee.firstName || ''} ${
+                            row.employee.last_name || row.employee.lastName || ''
+                          }`.trim()
+                        : '') ||
+                      'Employee';
+                    const empCode =
+                      row.employee_code ||
+                      row.employee?.employee_code ||
+                      row.employee?.employeeCode ||
+                      '';
+                    const contractRef =
+                      row.contract_ref ||
+                      row.contract?.contract_ref ||
+                      row.contract?.contractRef ||
+                      '—';
+                    const worked = `${row.worked_days ?? 0} days`;
+                    const gross = formatINR(row.gross ?? row.gross_salary ?? 0);
+                    const ded = formatINR(row.deductions ?? row.total_deductions ?? 0);
+                    const net = formatINR(row.net ?? row.net_salary ?? 0);
                     const pStatus = row.status || status;
 
                     return (
@@ -700,7 +711,10 @@ export default function PayrunsPage() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <button
-                            onClick={() => handleDownloadPdf(row.id, empCode)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPdf(row.id, empCode);
+                            }}
                             title="Download PDF Payslip"
                             style={{
                               background: '#f8fafc',

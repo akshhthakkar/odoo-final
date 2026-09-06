@@ -10,12 +10,22 @@ const baseReportSchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 
+export const summaryKpisSchema = baseReportSchema;
+
 export const payrollByDepartmentSchema = baseReportSchema.extend({
-  sort: z.enum(['department', 'employee_count', 'gross', 'deductions', 'net']).default('net'),
+  sort: z.enum(['department', 'employee_count', 'gross', 'deductions', 'net', 'avg_net']).default('net'),
 });
 
 export const payrollByJobSchema = baseReportSchema.extend({
-  sort: z.enum(['job', 'employee_count', 'gross', 'deductions', 'net']).default('net'),
+  sort: z.enum(['job', 'employee_count', 'gross', 'deductions', 'net', 'avg_net']).default('net'),
+});
+
+export const payrollMonthlyTrendSchema = baseReportSchema;
+
+export const statutoryComplianceSchema = baseReportSchema;
+
+export const employeePayslipSummarySchema = baseReportSchema.extend({
+  sort: z.enum(['employee_name', 'employee_code', 'department', 'job', 'worked_days', 'gross', 'deductions', 'net', 'status']).default('net'),
 });
 
 export const leaveUtilizationSchema = baseReportSchema.extend({
