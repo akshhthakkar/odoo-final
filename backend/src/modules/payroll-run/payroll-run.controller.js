@@ -54,3 +54,13 @@ export async function dispatch(req, res, next) {
   }
 }
 
+export async function deletePayrun(req, res, next) {
+  try {
+    const result = await service.deletePayrun(req.params.id, req.user.id);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+

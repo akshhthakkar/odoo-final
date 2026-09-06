@@ -332,6 +332,10 @@ async function main() {
   }
 
   console.log('Seeding comprehensive salary structures & rules catalog...');
+  await prisma.salaryStructure.updateMany({
+    where: { isDefault: true },
+    data: { isDefault: false },
+  });
   const salaryStructuresData = [
     {
       name: 'Standard India CTC Structure',
@@ -423,20 +427,43 @@ async function main() {
   const structMap = {};
   for (const sData of salaryStructuresData) {
     const { rules, ...sMeta } = sData;
-    const struct = await prisma.salaryStructure.upsert({
+    let struct = await prisma.salaryStructure.findUnique({
       where: { code: sMeta.code },
-      update: {
-        name: sMeta.name,
-        description: sMeta.description,
-        isDefault: sMeta.isDefault,
-        isActive: sMeta.isActive,
-      },
-      create: sMeta,
     });
+
+    if (!struct) {
+      // Check if name is taken
+      const existingName = await prisma.salaryStructure.findUnique({ where: { name: sMeta.name } });
+      if (existingName) {
+        struct = await prisma.salaryStructure.update({
+          where: { id: existingName.id },
+          data: {
+            code: sMeta.code,
+            description: sMeta.description,
+            isDefault: sMeta.isDefault,
+            isActive: sMeta.isActive,
+          },
+        });
+      } else {
+        struct = await prisma.salaryStructure.create({
+          data: sMeta,
+        });
+      }
+    } else {
+      struct = await prisma.salaryStructure.update({
+        where: { id: struct.id },
+        data: {
+          name: sMeta.name,
+          description: sMeta.description,
+          isDefault: sMeta.isDefault,
+          isActive: sMeta.isActive,
+        },
+      });
+    }
 
     structMap[sMeta.code] = struct.id;
 
-    if (sMeta.isDefault) {
+    if (sMeta.isDefault || !structure) {
       structure = struct;
     }
 
@@ -652,15 +679,10 @@ async function main() {
     });
   }
 
-  // ─── 6. Seed Historical Payruns & Payslips across all months ───────────────
-  console.log('Seeding historical payruns and payslips across 6 months (Mar - Aug 2026)...');
+  // ─── 6. Seed Reference Payrun & Payslips ─────────────────────────────────────
+  console.log('Seeding clean reference payrun (Payroll — August 2026)...');
 
   const monthlyBatches = [
-    { name: 'Payroll — March 2026', start: new Date('2026-03-01'), end: new Date('2026-03-31'), paidAt: new Date('2026-03-31T18:30:00Z') },
-    { name: 'Payroll — April 2026', start: new Date('2026-04-01'), end: new Date('2026-04-30'), paidAt: new Date('2026-04-30T18:30:00Z') },
-    { name: 'Payroll — May 2026', start: new Date('2026-05-01'), end: new Date('2026-05-31'), paidAt: new Date('2026-05-31T18:30:00Z') },
-    { name: 'Payroll — June 2026', start: new Date('2026-06-01'), end: new Date('2026-06-30'), paidAt: new Date('2026-06-30T18:30:00Z') },
-    { name: 'Payroll — July 2026', start: new Date('2026-07-01'), end: new Date('2026-07-31'), paidAt: new Date('2026-07-31T18:30:00Z') },
     { name: 'Payroll — August 2026', start: new Date('2026-08-01'), end: new Date('2026-08-31'), paidAt: new Date('2026-08-31T18:30:00Z') },
   ];
 

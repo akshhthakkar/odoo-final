@@ -18,7 +18,8 @@ import {
   Users,
   RefreshCw,
   CheckSquare,
-  Square
+  Square,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
@@ -55,6 +56,10 @@ export default function PayrunsPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Delete modal state
+  const [deleteTargetPayrun, setDeleteTargetPayrun] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Email dispatch state
   const [isSendingEmails, setIsSendingEmails] = useState(false);
@@ -213,6 +218,32 @@ export default function PayrunsPage() {
       );
     } finally {
       setIsSendingEmails(false);
+    }
+  };
+
+  // Handle Delete Payrun API call
+  const handleDeletePayrun = async () => {
+    if (!deleteTargetPayrun) return;
+    setIsDeleting(true);
+    try {
+      const res = await api.delete(`/payruns/${deleteTargetPayrun.id}`);
+      if (res.data?.success) {
+        toast.success(`Payrun "${deleteTargetPayrun.name}" deleted successfully!`);
+        if (selectedPayrunId === deleteTargetPayrun.id) {
+          setSelectedPayrunId(null);
+          setSelectedPayrun(null);
+        }
+        setDeleteTargetPayrun(null);
+        await fetchPayruns();
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to delete payrun';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -453,6 +484,30 @@ export default function PayrunsPage() {
               >
                 <Send size={15} />
                 <span>{isSendingEmails ? 'Sending...' : 'Send Payslips via Email'}</span>
+              </button>
+            )}
+
+            {canManagePayrun && (
+              <button
+                className="pr-header__btn-secondary"
+                onClick={() => setDeleteTargetPayrun(selectedPayrun)}
+                disabled={actionLoading}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.5rem 0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid #fecaca',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                title="Delete this payrun batch"
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
               </button>
             )}
           </div>
@@ -755,10 +810,42 @@ export default function PayrunsPage() {
                       </p>
                     </div>
                   </div>
-
-                  <span className={`pr-status-pill pr-status-pill--${status.toLowerCase()}`}>
-                    {status}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className={`pr-status-pill pr-status-pill--${status.toLowerCase()}`}>
+                      {status}
+                    </span>
+                    {canManagePayrun && (
+                      <button
+                        className="pr-card__delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTargetPayrun(payrun);
+                        }}
+                        title={`Delete ${payrun.name}`}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          borderRadius: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#dc2626';
+                          e.currentTarget.style.background = '#fef2f2';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '#94a3b8';
+                          e.currentTarget.style.background = 'none';
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* 3 Stats Boxes */}
@@ -821,23 +908,24 @@ export default function PayrunsPage() {
                 {/* STEP 1: Scope & Dates */}
                 {wizardStep === 1 && (
                   <>
-                    <div className="pr-modal__form-group">
-                      <label>Payrun Batch Name *</label>
+                    <div className="pr-modal__field">
+                      <label>Payrun Batch Name</label>
                       <input
                         type="text"
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Payroll — September 2026"
+                        placeholder="e.g. Payroll — October 2026"
+                        autoFocus
                       />
                     </div>
 
-                    <div className="pr-modal__form-group">
-                      <label>Salary Structure *</label>
+                    <div className="pr-modal__field">
+                      <label>Salary Structure Model</label>
                       <select
-                        required
                         value={formData.structure_id}
                         onChange={(e) => setFormData({ ...formData, structure_id: e.target.value })}
+                        required
                       >
                         {structures.map((s) => (
                           <option key={s.id} value={s.id}>
@@ -847,28 +935,23 @@ export default function PayrunsPage() {
                       </select>
                     </div>
 
-                    <div className="pr-modal__row">
-                      <div className="pr-modal__form-group">
-                        <label>Period Start Date *</label>
+                    <div className="pr-modal__field-row">
+                      <div className="pr-modal__field">
+                        <label>Period Start Date</label>
                         <input
                           type="date"
                           required
                           value={formData.period_start}
-                          onChange={(e) =>
-                            setFormData({ ...formData, period_start: e.target.value })
-                          }
+                          onChange={(e) => setFormData({ ...formData, period_start: e.target.value })}
                         />
                       </div>
-
-                      <div className="pr-modal__form-group">
-                        <label>Period End Date *</label>
+                      <div className="pr-modal__field">
+                        <label>Period End Date</label>
                         <input
                           type="date"
                           required
                           value={formData.period_end}
-                          onChange={(e) =>
-                            setFormData({ ...formData, period_end: e.target.value })
-                          }
+                          onChange={(e) => setFormData({ ...formData, period_end: e.target.value })}
                         />
                       </div>
                     </div>
@@ -879,8 +962,8 @@ export default function PayrunsPage() {
                 {wizardStep === 2 && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
-                        Selected: {selectedEmployeeIds.length} of {availableEmployees.length} active employees
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                        Selected: {selectedEmployeeIds.length} of {availableEmployees.length} active staff
                       </span>
                       <button
                         type="button"
@@ -888,85 +971,86 @@ export default function PayrunsPage() {
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#2357fe',
-                          cursor: 'pointer',
+                          color: '#2563eb',
                           fontSize: '0.8rem',
                           fontWeight: 600,
+                          cursor: 'pointer',
                         }}
                       >
-                        {selectedEmployeeIds.length === availableEmployees.length
-                          ? 'Deselect All'
-                          : 'Select All'}
+                        {selectedEmployeeIds.length === availableEmployees.length ? 'Deselect All' : 'Select All'}
                       </button>
                     </div>
 
                     <input
                       type="text"
+                      placeholder="Search employees by name or code..."
                       value={employeeSearch}
                       onChange={(e) => setEmployeeSearch(e.target.value)}
-                      placeholder="Filter employees by name, code, or department..."
                       style={{
                         width: '100%',
-                        padding: '0.6rem 0.8rem',
-                        borderRadius: '8px',
+                        padding: '0.5rem 0.75rem',
                         border: '1px solid #cbd5e1',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
                         marginBottom: '0.75rem',
-                        fontSize: '0.875rem',
                       }}
                     />
 
-                    <div
-                      style={{
-                        maxHeight: '260px',
-                        overflowY: 'auto',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '0.5rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.25rem',
-                      }}
-                    >
-                      {filteredEmployees.length === 0 ? (
-                        <div style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.875rem' }}>
-                          No employees match the filter.
+                    <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.5rem' }}>
+                      {availableEmployees.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                          No active employees found.
                         </div>
                       ) : (
-                        filteredEmployees.map((emp) => {
-                          const isSelected = selectedEmployeeIds.includes(emp.id);
-                          const name = `${emp.first_name || ''} ${emp.last_name || ''}`;
+                        availableEmployees
+                          .filter((e) => {
+                            if (!employeeSearch.trim()) return true;
+                            const q = employeeSearch.toLowerCase();
+                            const name = `${e.first_name || e.firstName || ''} ${e.last_name || e.lastName || ''}`.toLowerCase();
+                            const code = (e.employee_code || e.employeeCode || '').toLowerCase();
+                            return name.includes(q) || code.includes(q);
+                          })
+                          .map((emp) => {
+                            const isSelected = selectedEmployeeIds.includes(emp.id);
+                            const name = `${emp.first_name || emp.firstName || ''} ${emp.last_name || emp.lastName || ''}`;
+                            const code = emp.employee_code || emp.employeeCode || '';
+                            const wage = emp.wage || emp.contracts?.[0]?.wage;
 
-                          return (
-                            <div
-                              key={emp.id}
-                              onClick={() => handleToggleEmployee(emp.id)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.75rem',
-                                padding: '0.5rem 0.75rem',
-                                borderRadius: '6px',
-                                background: isSelected ? '#eff6ff' : '#fff',
-                                cursor: 'pointer',
-                                border: isSelected ? '1px solid #bfdbfe' : '1px solid transparent',
-                              }}
-                            >
-                              {isSelected ? (
-                                <CheckSquare size={18} color="#2357fe" />
-                              ) : (
-                                <Square size={18} color="#94a3b8" />
-                              )}
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>
-                                  {name}
+                            return (
+                              <div
+                                key={emp.id}
+                                onClick={() => handleToggleEmployee(emp.id)}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '0.45rem 0.6rem',
+                                  borderRadius: '6px',
+                                  background: isSelected ? '#eff6ff' : '#ffffff',
+                                  cursor: 'pointer',
+                                  marginBottom: '2px',
+                                  transition: 'background 0.15s ease',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {isSelected ? (
+                                    <CheckSquare size={16} color="#2563eb" />
+                                  ) : (
+                                    <Square size={16} color="#94a3b8" />
+                                  )}
+                                  <div>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{name}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '6px' }}>({code})</span>
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                  {emp.employee_code} · {emp.department?.name || 'General'} · {emp.job?.name || 'Staff'}
-                                </div>
+                                {wage && (
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
+                                    ₹{Number(wage).toLocaleString('en-IN')}
+                                  </span>
+                                )}
                               </div>
-                            </div>
-                          );
-                        })
+                            );
+                          })
                       )}
                     </div>
                   </>
@@ -1021,6 +1105,46 @@ export default function PayrunsPage() {
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTargetPayrun && (
+        <div className="pr-modal-backdrop" onClick={() => !isDeleting && setDeleteTargetPayrun(null)}>
+          <div
+            className="pr-modal"
+            style={{ maxWidth: '420px', textAlign: 'center' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: '#dc2626' }}>
+              <AlertCircle size={44} strokeWidth={1.75} />
+            </div>
+            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', color: '#0f172a', fontWeight: 700 }}>
+              Delete Payrun Batch?
+            </h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.875rem', lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong>{deleteTargetPayrun.name}</strong>? All generated payslips and lines associated with this batch will be permanently removed.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="pr-modal__footer-cancel"
+                onClick={() => setDeleteTargetPayrun(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="pr-modal__footer-save"
+                style={{ background: '#dc2626' }}
+                onClick={handleDeletePayrun}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Payrun'}
+              </button>
+            </div>
           </div>
         </div>
       )}

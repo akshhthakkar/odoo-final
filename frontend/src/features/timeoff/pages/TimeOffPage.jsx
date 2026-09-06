@@ -1232,7 +1232,102 @@ export default function TimeOffPage() {
         </div>
       )}
 
-      {/* ── 5. Request Details Popup / Drawer Modal ── */}
+      {/* ── 5. Upcoming Company Holidays & Leave Policy Guidelines ── */}
+      <div className="to-bottom-widgets">
+        {/* Widget 1: Upcoming Public & Company Holidays */}
+        <div className="to-widget-card to-widget-card--holidays">
+          <div className="to-widget-card__header">
+            <div className="to-widget-card__title-wrap">
+              <div className="to-widget-card__icon to-widget-card__icon--amber">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h3 className="to-widget-card__title">Upcoming Holidays & Closures</h3>
+                <span className="to-widget-card__sub">Official paid company holidays (2026)</span>
+              </div>
+            </div>
+            <span className="to-widget-card__badge">10 Days / Year</span>
+          </div>
+
+          <div className="to-holidays-list">
+            {[
+              { name: 'Republic Day', date: 'Jan 26, 2026', day: 'Monday', type: 'National Holiday' },
+              { name: 'Holi (Festival of Colors)', date: 'Mar 25, 2026', day: 'Wednesday', type: 'Public Holiday' },
+              { name: 'Good Friday', date: 'Apr 03, 2026', day: 'Friday', type: 'Observance' },
+              { name: 'Eid-ul-Fitr', date: 'Apr 11, 2026', day: 'Saturday', type: 'Gazetted' },
+              { name: 'Independence Day', date: 'Aug 15, 2026', day: 'Saturday', type: 'National Holiday' },
+              { name: 'Gandhi Jayanti', date: 'Oct 02, 2026', day: 'Friday', type: 'National Holiday' },
+              { name: 'Dussehra (Vijayadashami)', date: 'Oct 20, 2026', day: 'Tuesday', type: 'Public Holiday' },
+              { name: 'Diwali (Deepavali)', date: 'Nov 08, 2026', day: 'Sunday', type: 'Festival' },
+              { name: 'Christmas Day', date: 'Dec 25, 2026', day: 'Friday', type: 'Public Holiday' },
+            ].map((h, idx) => (
+              <div key={idx} className="to-holiday-item">
+                <div className="to-holiday-item__date-box">
+                  <CalendarDays size={14} />
+                  <span>{h.date.split(',')[0]}</span>
+                </div>
+                <div className="to-holiday-item__info">
+                  <span className="to-holiday-item__name">{h.name}</span>
+                  <span className="to-holiday-item__meta">{h.day} &bull; {h.type}</span>
+                </div>
+                <span className="to-holiday-item__tag">Paid Off</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Widget 2: Leave Policy & Quick Guidance */}
+        <div className="to-widget-card to-widget-card--policy">
+          <div className="to-widget-card__header">
+            <div className="to-widget-card__title-wrap">
+              <div className="to-widget-card__icon to-widget-card__icon--blue">
+                <Info size={18} />
+              </div>
+              <div>
+                <h3 className="to-widget-card__title">Time Off Policy & Rules</h3>
+                <span className="to-widget-card__sub">Company guidelines for leave applications</span>
+              </div>
+            </div>
+            <span className="to-widget-card__badge to-widget-card__badge--blue">Standard Policy</span>
+          </div>
+
+          <div className="to-policy-list">
+            <div className="to-policy-item">
+              <div className="to-policy-item__bullet to-policy-item__bullet--pl" />
+              <div className="to-policy-item__content">
+                <strong>Privilege / Annual Leave (PL)</strong>
+                <p>Requires manager approval. Submit at least 2 working days in advance. Unused leaves carry over up to 15 days annually.</p>
+              </div>
+            </div>
+
+            <div className="to-policy-item">
+              <div className="to-policy-item__bullet to-policy-item__bullet--sl" />
+              <div className="to-policy-item__content">
+                <strong>Sick Leave (SL)</strong>
+                <p>Intended for medical recovery. A doctor's medical certificate is required for leaves exceeding 2 consecutive working days.</p>
+              </div>
+            </div>
+
+            <div className="to-policy-item">
+              <div className="to-policy-item__bullet to-policy-item__bullet--cl" />
+              <div className="to-policy-item__content">
+                <strong>Casual Leave (CL)</strong>
+                <p>For urgent personal affairs. Can be taken up to a maximum of 3 consecutive days at a time.</p>
+              </div>
+            </div>
+
+            <div className="to-policy-item">
+              <div className="to-policy-item__bullet to-policy-item__bullet--auto" />
+              <div className="to-policy-item__content">
+                <strong>Payroll & Attendance Auto-Sync</strong>
+                <p>Approved leaves are automatically factored into monthly payroll calculations without unpaid leave deductions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 6. Request Details Popup / Drawer Modal ── */}
       {selectedRequest && (
         <div className="to-modal-overlay" onClick={() => setSelectedRequest(null)}>
           <div className="to-modal to-modal--detail" onClick={(e) => e.stopPropagation()}>

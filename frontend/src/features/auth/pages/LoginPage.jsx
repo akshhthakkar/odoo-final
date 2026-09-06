@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { setCredentials } from '../../../store/slices/authSlice.js';
 import { api } from '../../../lib/api.js';
 import { z } from 'zod';
+import { ShieldCheck, Users, DollarSign, FileText, User } from 'lucide-react';
 import logo2 from '../../../assets/logo2.svg';
 import logo from '../../../assets/logo.svg';
 import './LoginPage.scss';
@@ -206,7 +207,7 @@ export default function LoginPage() {
                   label: 'Admin',
                   email: 'admin@pay365.dev',
                   name: 'System Administrator',
-                  icon: '🛡️',
+                  icon: <ShieldCheck size={14} />,
                   tag: 'Full Access',
                 },
                 {
@@ -214,7 +215,7 @@ export default function LoginPage() {
                   label: 'HR Manager',
                   email: 'hr.manager@pay365.dev',
                   name: 'Hema Rao',
-                  icon: '👥',
+                  icon: <Users size={14} />,
                   tag: 'HR & Directory',
                 },
                 {
@@ -222,7 +223,7 @@ export default function LoginPage() {
                   label: 'Payroll Manager',
                   email: 'payroll.manager@pay365.dev',
                   name: 'Asha Kulkarni',
-                  icon: '💰',
+                  icon: <DollarSign size={14} />,
                   tag: 'Payruns & Approvals',
                 },
                 {
@@ -230,7 +231,7 @@ export default function LoginPage() {
                   label: 'Payroll Officer',
                   email: 'payroll.user@pay365.dev',
                   name: 'Praveen Nair',
-                  icon: '📋',
+                  icon: <FileText size={14} />,
                   tag: 'Payroll & Attendance',
                 },
                 {
@@ -238,7 +239,7 @@ export default function LoginPage() {
                   label: 'Employee',
                   email: 'employee@pay365.dev',
                   name: 'Rahul Verma',
-                  icon: '👤',
+                  icon: <User size={14} />,
                   tag: 'Self-Service Portal',
                 },
               ].map((item) => {

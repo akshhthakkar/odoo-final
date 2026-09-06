@@ -1,5 +1,6 @@
 import { AppError } from '../../shared/errors.js';
 import { prisma } from '../../shared/prisma.js';
+import { writeAudit } from '../../shared/audit.js';
 import { computePayrun, getEligibility } from './orchestrator.js';
 
 // The whole payrun lifecycle lives in this table.
@@ -225,6 +226,47 @@ export async function statusChange(payrunId, action, actorId) {
       },
     });
     return toPublicPayrun(payrun);
+  });
+}
+
+export async function deletePayrun(payrunId, actorId) {
+  const payrun = await prisma.payrun.findUnique({ where: { id: payrunId } });
+  if (!payrun) {
+    throw new AppError(404, 'NOT_FOUND', 'Payrun not found');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const payslips = await tx.payslip.findMany({
+      where: { payrunId },
+      select: { id: true },
+    });
+    const slipIds = payslips.map((s) => s.id);
+    if (slipIds.length > 0) {
+      await tx.payslipLine.deleteMany({ where: { payslipId: { in: slipIds } } });
+      await tx.payrollWarning.deleteMany({ where: { payslipId: { in: slipIds } } });
+      await tx.payslip.deleteMany({ where: { payrunId } });
+    }
+    await tx.payrunEmployee.deleteMany({ where: { payrunId } });
+    await tx.payrollWarning.deleteMany({ where: { payrunId } });
+    await tx.payrun.delete({ where: { id: payrunId } });
+
+    await writeAudit(
+      {
+        action: 'PAYRUN_DELETED',
+        entity: 'payrun',
+        entity_id: payrunId,
+        payload: {
+          name: payrun.name,
+          status: payrun.status,
+          period_start: payrun.periodStart,
+          period_end: payrun.periodEnd,
+        },
+      },
+      actorId,
+      tx
+    );
+
+    return { id: payrunId, name: payrun.name };
   });
 }
 

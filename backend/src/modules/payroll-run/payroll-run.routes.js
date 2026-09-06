@@ -66,4 +66,11 @@ router.post(
   controller.dispatch
 );
 
+router.delete(
+  '/:id',
+  requireRole(...MANAGE_ROLES),
+  requireUuidParam('id'),
+  controller.deletePayrun
+);
+
 export default router;

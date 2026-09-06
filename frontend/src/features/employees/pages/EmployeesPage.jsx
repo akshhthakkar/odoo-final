@@ -181,6 +181,7 @@ export default function EmployeesPage() {
       code: nextCode,
       email: '',
       password: '',
+      role: 'EMPLOYEE',
       phone: '',
       departmentId: departments[0]?.id || '',
       jobId: jobs[0]?.id || '',
@@ -239,6 +240,7 @@ export default function EmployeesPage() {
         first_name: newEmp.firstName.trim(),
         last_name: newEmp.lastName.trim(),
         email: newEmp.email.trim().toLowerCase(),
+        role: newEmp.role || 'EMPLOYEE',
         phone: newEmp.phone.trim() || null,
         hire_date: newEmp.hireDate || new Date().toISOString().slice(0, 10),
         department_id: newEmp.departmentId || (departments[0]?.id || null),
@@ -775,7 +777,25 @@ export default function EmployeesPage() {
                     onChange={(e) => setNewEmp({ ...newEmp, password: e.target.value })}
                   />
                   <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
-                    Used by the employee to log in immediately. If left empty, default password is <code>Password@123</code>.
+                    Used by the user to log in immediately. If left empty, default password is <code>Password@123</code>.
+                  </span>
+                </div>
+
+                <div className="emp-modal__field">
+                  <label>System Access Role &amp; Permissions</label>
+                  <select
+                    value={newEmp.role}
+                    onChange={(e) => setNewEmp({ ...newEmp, role: e.target.value })}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', background: '#ffffff' }}
+                  >
+                    <option value="EMPLOYEE">Employee (Self-Service: Attendance, Leaves, Payslips)</option>
+                    <option value="HR_MANAGER">HR Manager (Staff Profiles, Leaves, Attendance Management)</option>
+                    <option value="HR_PAYROLL_MANAGER">HR Payroll Manager (Payrun Approval &amp; Salary Disbursement)</option>
+                    <option value="HR_PAYROLL_USER">HR Payroll User (Salary Drafting &amp; Attendance Input)</option>
+                    <option value="ADMIN">System Administrator (Full Control, Audits &amp; Governance)</option>
+                  </select>
+                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                    Grants role-based login permissions immediately upon account creation.
                   </span>
                 </div>
 

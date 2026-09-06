@@ -68,6 +68,7 @@ const createEmployeeSchema = z.object({
   bank_account_name: z.string().max(120).nullable().optional(),
   bank_account_number: bankAccountSchema.nullable().optional(),
   bank_ifsc: ifscSchema.nullable().optional(),
+  role: z.enum(['EMPLOYEE', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN']).optional(),
   initial_leaves: z.record(z.any()).optional(),
   allocations: z.record(z.any()).optional(),
 });

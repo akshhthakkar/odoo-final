@@ -270,13 +270,14 @@ export async function createEmployee(data, actorId) {
         ? data.password.trim()
         : 'Password@123';
     const passwordHash = await bcrypt.hash(rawPassword, 12);
+    const targetRole = data.role || 'EMPLOYEE';
 
     if (!existingUser) {
       await prisma.user.create({
         data: {
           email: employee.email,
           fullName: `${employee.firstName} ${employee.lastName}`.trim(),
-          role: 'EMPLOYEE',
+          role: targetRole,
           passwordHash,
           employeeId: employee.id,
           isActive: true,
@@ -286,6 +287,9 @@ export async function createEmployee(data, actorId) {
       const userUpdate = {};
       if (!existingUser.employeeId) {
         userUpdate.employeeId = employee.id;
+      }
+      if (data.role) {
+        userUpdate.role = data.role;
       }
       if (typeof data.password === 'string' && data.password.trim().length >= 6) {
         userUpdate.passwordHash = passwordHash;

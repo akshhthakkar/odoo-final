@@ -386,7 +386,9 @@
     transition: all $transition-fast;
 
     &-icon {
-      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       line-height: 1;
     }
 
