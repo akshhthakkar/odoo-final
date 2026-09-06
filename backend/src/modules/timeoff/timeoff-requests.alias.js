@@ -11,9 +11,11 @@ const router = Router();
 
 router.use(requireAuth);
 
+const HR_ROLES = ['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'];
+
 router.post(
   '/:id/status-changes',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireRole(...HR_ROLES),
   validateBody(statusChangeSchema),
   timeoff.statusChange
 );
