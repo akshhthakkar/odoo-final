@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, AlertCircle, X, Search, RefreshCw } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { Users, Plus, AlertCircle, X, Search, RefreshCw, Trash2 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
@@ -36,6 +37,8 @@ function getNextEmployeeCode(list = []) {
 export default function EmployeesPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const currentUser = useSelector((s) => s.auth.user);
+  const canDelete = currentUser?.role === 'ADMIN' || currentUser?.role === 'HR_MANAGER';
 
   // State
   const [employees, setEmployees] = useState([]);
@@ -52,6 +55,10 @@ export default function EmployeesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
+
+  // Delete Confirmation State
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // New Employee Form State
   const [newEmp, setNewEmp] = useState({
@@ -267,6 +274,28 @@ export default function EmployeesPage() {
     }
   }
 
+  // Handle delete employee API call
+  async function handleDeleteEmployee() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      const res = await api.delete(`/employees/${deleteTarget.id}`);
+      if (res.data?.success) {
+        toast.success(`Employee ${deleteTarget.name} deleted successfully!`);
+        setDeleteTarget(null);
+        await fetchEmployees();
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to delete employee. Please try again.';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="employees-page">
       {/* ── 1. Page Header & Action Controls ── */}
@@ -465,10 +494,24 @@ export default function EmployeesPage() {
                   <div className="emp-card__avatar">
                     {getInitials(emp.name)}
                   </div>
-                  <span className={`emp-card__status-badge emp-card__status-badge--${emp.status?.toLowerCase()}`}>
-                    <span className={`emp-kanban__status-dot emp-kanban__status-dot--${emp.status?.toLowerCase()}`} />
-                    {emp.status?.replace('_', ' ')}
-                  </span>
+                  <div className="emp-card__header-right">
+                    <span className={`emp-card__status-badge emp-card__status-badge--${emp.status?.toLowerCase()}`}>
+                      <span className={`emp-kanban__status-dot emp-kanban__status-dot--${emp.status?.toLowerCase()}`} />
+                      {emp.status?.replace('_', ' ')}
+                    </span>
+                    {canDelete && (
+                      <button
+                        className="emp-card__delete-btn"
+                        title={`Delete ${emp.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(emp);
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="emp-card__body">
@@ -551,15 +594,29 @@ export default function EmployeesPage() {
                     <td style={{ fontWeight: 700, color: '#0f172a' }}>{emp.wage}</td>
                     <td>{emp.email}</td>
                     <td>
-                      <button
-                        className="emp-list-card__action-link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/employees/${emp.id}`);
-                        }}
-                      >
-                        View Profile →
-                      </button>
+                      <div className="emp-list-card__actions">
+                        <button
+                          className="emp-list-card__action-link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/employees/${emp.id}`);
+                          }}
+                        >
+                          View Profile →
+                        </button>
+                        {canDelete && (
+                          <button
+                            className="emp-list-card__delete-btn"
+                            title={`Delete ${emp.name}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(emp);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -779,6 +836,59 @@ export default function EmployeesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Delete Employee Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="emp-modal-overlay" onClick={() => !isDeleting && setDeleteTarget(null)}>
+          <div className="emp-modal emp-modal--delete" onClick={(e) => e.stopPropagation()}>
+            <div className="emp-modal__header emp-modal__header--delete">
+              <div className="emp-modal__delete-title-wrap">
+                <AlertCircle size={20} className="emp-modal__delete-icon" />
+                <h2 className="emp-modal__title emp-modal__title--delete">Delete Employee</h2>
+              </div>
+              <button
+                className="emp-modal__close-btn"
+                onClick={() => !isDeleting && setDeleteTarget(null)}
+                aria-label="Close modal"
+                disabled={isDeleting}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="emp-modal__body">
+              <p className="emp-modal__delete-prompt">
+                Are you sure you want to permanently delete <strong>{deleteTarget.name}</strong> ({deleteTarget.code})?
+              </p>
+
+              <div className="emp-modal__delete-warning-box">
+                <p className="emp-modal__delete-warning-text">
+                  <strong>Permanent Action:</strong> This will remove the employee profile, associated contracts, attendance history, leave balances, and linked login account from the system.
+                </p>
+              </div>
+            </div>
+
+            <div className="emp-modal__footer">
+              <button
+                type="button"
+                className="emp-modal__cancel-btn"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="emp-modal__danger-btn"
+                onClick={handleDeleteEmployee}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Employee'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -192,72 +192,78 @@ export default function LoginPage() {
             </a>
           </div>
 
-          {/* Quick Demo Sign In */}
-          <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid #f1f5f9' }}>
-            <p style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Quick Demo Sign-In
-            </p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                style={{
-                  background: '#EEF3FF',
-                  border: '1px solid #c7d7fe',
-                  color: '#2357fe',
-                  padding: '5px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setFields({ email: 'admin@pay365.dev', password: 'Password@123' });
-                  setErrors({});
-                  setServerError('');
-                }}
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  color: '#334155',
-                  padding: '5px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setFields({ email: 'hr.manager@pay365.dev', password: 'Password@123' });
-                  setErrors({});
-                  setServerError('');
-                }}
-              >
-                HR Manager
-              </button>
-              <button
-                type="button"
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  color: '#334155',
-                  padding: '5px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setFields({ email: 'employee@pay365.dev', password: 'Password@123' });
-                  setErrors({});
-                  setServerError('');
-                }}
-              >
-                Employee (Rahul)
-              </button>
+          {/* Quick Demo Sign In - All 5 Roles */}
+          <div className="login-demo-roles">
+            <div className="login-demo-roles__header">
+              <span className="login-demo-roles__title">Quick Demo Sign-In</span>
+              <span className="login-demo-roles__badge">5 System Roles</span>
+            </div>
+
+            <div className="login-demo-roles__grid">
+              {[
+                {
+                  role: 'ADMIN',
+                  label: 'Admin',
+                  email: 'admin@pay365.dev',
+                  name: 'System Administrator',
+                  icon: '🛡️',
+                  tag: 'Full Access',
+                },
+                {
+                  role: 'HR_MANAGER',
+                  label: 'HR Manager',
+                  email: 'hr.manager@pay365.dev',
+                  name: 'Hema Rao',
+                  icon: '👥',
+                  tag: 'HR & Directory',
+                },
+                {
+                  role: 'HR_PAYROLL_MANAGER',
+                  label: 'Payroll Manager',
+                  email: 'payroll.manager@pay365.dev',
+                  name: 'Asha Kulkarni',
+                  icon: '💰',
+                  tag: 'Payruns & Approvals',
+                },
+                {
+                  role: 'HR_PAYROLL_USER',
+                  label: 'Payroll Officer',
+                  email: 'payroll.user@pay365.dev',
+                  name: 'Praveen Nair',
+                  icon: '📋',
+                  tag: 'Payroll & Attendance',
+                },
+                {
+                  role: 'EMPLOYEE',
+                  label: 'Employee',
+                  email: 'employee@pay365.dev',
+                  name: 'Rahul Verma',
+                  icon: '👤',
+                  tag: 'Self-Service Portal',
+                },
+              ].map((item) => {
+                const isSelected = fields.email.toLowerCase() === item.email.toLowerCase();
+                return (
+                  <button
+                    key={item.role}
+                    type="button"
+                    className={`login-demo-roles__btn ${isSelected ? 'login-demo-roles__btn--selected' : ''}`}
+                    onClick={() => {
+                      setFields({ email: item.email, password: 'Password@123' });
+                      setErrors({});
+                      setServerError('');
+                    }}
+                    title={`${item.name} (${item.email}) — ${item.tag}`}
+                  >
+                    <span className="login-demo-roles__btn-icon">{item.icon}</span>
+                    <span className="login-demo-roles__btn-label">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="login-demo-roles__hint">
+              <span>Password for all demo accounts: <code>Password@123</code></span>
             </div>
           </div>
         </div>
@@ -265,3 +271,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

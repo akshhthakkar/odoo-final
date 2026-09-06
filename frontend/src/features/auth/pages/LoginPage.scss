@@ -334,3 +334,102 @@
   }
 }
 
+// ─── Demo Role Quick Sign In ──────────────────────────────────────────────────
+.login-demo-roles {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #f1f5f9;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  &__title {
+    font-size: 11.5px;
+    color: #64748b;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  &__badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: $color-primary;
+    background: #eef3ff;
+    padding: 2px 7px;
+    border-radius: 9999px;
+  }
+
+  &__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &-icon {
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    &-label {
+      line-height: 1;
+    }
+
+    &:hover {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #0f172a;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    &--selected {
+      background: #eef3ff;
+      border-color: #c7d7fe;
+      color: $color-primary;
+      box-shadow: 0 0 0 1px rgba(35, 87, 254, 0.3);
+
+      &:hover {
+        background: #e0ebff;
+        border-color: #a5c0fe;
+        color: $color-primary;
+      }
+    }
+  }
+
+  &__hint {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+
+    code {
+      background: #f1f5f9;
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #475569;
+      font-weight: 600;
+    }
+  }
+}
+
+

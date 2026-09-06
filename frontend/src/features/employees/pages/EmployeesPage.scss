@@ -390,6 +390,32 @@
     justify-content: space-between;
   }
 
+  &__header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #fee2e2;
+      color: #ef4444;
+      transform: scale(1.05);
+    }
+  }
+
   &__avatar {
     width: 38px;
     height: 38px;
@@ -608,6 +634,12 @@
     }
   }
 
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
   &__action-link {
     color: $color-primary;
     font-weight: 600;
@@ -619,6 +651,26 @@
 
     &:hover {
       text-decoration: underline;
+    }
+  }
+
+  &__delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #fee2e2;
+      color: #ef4444;
+      transform: scale(1.05);
     }
   }
 }
@@ -649,6 +701,10 @@
   overflow: hidden;
   animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
+  &--delete {
+    max-width: 480px;
+  }
+
   form {
     display: flex;
     flex-direction: column;
@@ -664,6 +720,22 @@
     padding: 18px 24px;
     border-bottom: 1px solid $color-border;
     flex-shrink: 0;
+
+    &--delete {
+      background: #fef2f2;
+      border-bottom-color: #fee2e2;
+    }
+  }
+
+  &__delete-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #dc2626;
+  }
+
+  &__delete-icon {
+    flex-shrink: 0;
   }
 
   &__title {
@@ -671,6 +743,33 @@
     font-size: 18px;
     font-weight: 700;
     color: $color-text-primary;
+    margin: 0;
+
+    &--delete {
+      color: #991b1b;
+      font-size: 17px;
+    }
+  }
+
+  &__delete-prompt {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__delete-warning-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+  }
+
+  &__delete-warning-text {
+    font-size: 12.5px;
+    color: #991b1b;
+    line-height: 1.45;
     margin: 0;
   }
 
@@ -789,6 +888,30 @@
 
     &:hover {
       background: $color-primary-hover;
+    }
+  }
+
+  &__danger-btn {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: $radius-pill;
+    padding: 8px 20px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #b91c1c;
+      box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   }
 }

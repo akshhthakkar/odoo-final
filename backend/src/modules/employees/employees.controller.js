@@ -175,3 +175,17 @@ export async function listJobs(req, res, next) {
     next(err);
   }
 }
+
+export async function deleteEmployee(req, res, next) {
+  try {
+    const deleted = await employeeService.deleteEmployee(req.params.id, req.user.id);
+    return res.status(200).json({
+      success: true,
+      data: deleted,
+      message: 'Employee deleted successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+

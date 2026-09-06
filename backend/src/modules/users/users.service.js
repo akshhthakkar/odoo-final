@@ -148,13 +148,18 @@ export async function createUser({ email, password, full_name, role, employee_id
     },
   });
 
-  // Never log credentials - role/email context only.
+  // Never log credentials - role/email/name context only.
   await writeAudit(prisma, {
     actorId,
     action: 'USER_CREATED',
     entity: 'user',
     entityId: user.id,
-    payload: { email: user.email, role: user.role, employee_id: employee_id || null },
+    payload: {
+      email: user.email,
+      full_name: user.fullName,
+      role: user.role,
+      employee_id: employee_id || null,
+    },
   });
 
   return toPublicUser(user);
@@ -199,8 +204,10 @@ export async function updateUser(id, { full_name, role, is_active, employee_id }
     entityId: id,
     payload: {
       email: updated.email,
+      full_name: updated.fullName,
       fields: Object.keys(data),
       ...(data.role !== undefined && data.role !== user.role ? { from: user.role, to: data.role } : {}),
+      ...(data.is_active !== undefined ? { is_active: data.is_active } : {}),
     },
   });
 
@@ -225,7 +232,7 @@ export async function resetPassword(id, newPassword, actorId) {
     action: 'USER_PASSWORD_RESET',
     entity: 'user',
     entityId: id,
-    payload: { email: user.email },
+    payload: { email: user.email, full_name: user.fullName },
   });
 
   return { success: true };

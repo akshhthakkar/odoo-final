@@ -230,6 +230,29 @@
     }
   }
 
+  &__delete-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: #fef2f2;
+      border-color: #f87171;
+      color: #b91c1c;
+      transform: translateY(-1px);
+    }
+  }
+
   &__hero-stat {
     display: flex;
     flex-direction: column;
@@ -877,6 +900,78 @@
     &:hover:not(:disabled) {
       background: $color-primary-hover;
       transform: translateY(-1px);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &--delete {
+    max-width: 480px;
+  }
+
+  &__header--delete {
+    background: #fef2f2;
+    border-bottom-color: #fee2e2;
+  }
+
+  &__delete-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #dc2626;
+  }
+
+  &__delete-icon {
+    flex-shrink: 0;
+  }
+
+  &__title--delete {
+    color: #991b1b;
+    font-size: 17px;
+  }
+
+  &__delete-prompt {
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  &__delete-warning-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+  }
+
+  &__delete-warning-text {
+    font-size: 12.5px;
+    color: #991b1b;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  &__danger-btn {
+    padding: 9px 20px;
+    border: none;
+    background: #dc2626;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+    transition: all $transition-fast;
+
+    &:hover:not(:disabled) {
+      background: #b91c1c;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
     }
 
     &:disabled {

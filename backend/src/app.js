@@ -21,6 +21,7 @@ import payslipsRoutes from './modules/payroll-run/payslips.routes.js';
 import meRoutes from './modules/payroll-run/me.routes.js';
 import reportsRoutes from './modules/reports/reports.routes.js';
 import analyticsRoutes from './modules/reports/analytics.routes.js';
+import auditRoutes from './modules/audit/audit.routes.js';
 
 import swaggerUi from 'swagger-ui-express';
 import { swaggerDocument } from './docs/swagger.js';
@@ -88,6 +89,7 @@ app.use('/api/v1/payslips', payslipsRoutes);
 app.use('/api/v1/me', meRoutes);
 app.use('/api/v1/dashboard', reportsRoutes);
 app.use('/api/v1/reports', analyticsRoutes);
+app.use('/api/v1/audit-logs', auditRoutes);
 
 
 // Swagger API Documentation - open in development, ADMIN-only in production (A-12).

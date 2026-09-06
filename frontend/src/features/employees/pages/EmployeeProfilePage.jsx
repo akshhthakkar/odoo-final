@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Shield,
   CreditCard,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
@@ -69,6 +70,10 @@ export default function EmployeeProfilePage() {
   const [modalTab, setModalTab] = useState('personal'); // 'personal' | 'banking' | 'organization'
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
+
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Dropdown lists for organization editing (Admins)
   const [departments, setDepartments] = useState([]);
@@ -402,6 +407,28 @@ export default function EmployeeProfilePage() {
     }
   };
 
+  // Delete Employee Handler
+  const handleDeleteEmployee = async () => {
+    if (!employee) return;
+    setIsDeleting(true);
+    try {
+      const res = await api.delete(`/employees/${employee.id}`);
+      if (res.data?.success) {
+        toast.success(`Employee ${employee.name} deleted successfully!`);
+        setIsDeleteModalOpen(false);
+        navigate('/employees');
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to delete employee profile. Please try again.';
+      toast.error(msg);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="emp-profile-page" style={{ padding: '24px' }}>
@@ -558,6 +585,17 @@ export default function EmployeeProfilePage() {
             <button className="emp-profile__edit-btn" onClick={handleOpenEdit}>
               <Edit2 size={16} />
               <span>Edit Profile</span>
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
+              className="emp-profile__delete-btn"
+              onClick={() => setIsDeleteModalOpen(true)}
+              title="Delete Employee Profile"
+            >
+              <Trash2 size={15} />
+              <span>Delete</span>
             </button>
           )}
 
@@ -1326,6 +1364,59 @@ export default function EmployeeProfilePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {isDeleteModalOpen && (
+        <div className="emp-modal-overlay" onClick={() => !isDeleting && setIsDeleteModalOpen(false)}>
+          <div className="emp-modal emp-modal--delete" onClick={(e) => e.stopPropagation()}>
+            <div className="emp-modal__header emp-modal__header--delete">
+              <div className="emp-modal__delete-title-wrap">
+                <AlertCircle size={20} className="emp-modal__delete-icon" />
+                <h2 className="emp-modal__title emp-modal__title--delete">Delete Employee Profile</h2>
+              </div>
+              <button
+                className="emp-modal__close-btn"
+                onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+                aria-label="Close modal"
+                disabled={isDeleting}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="emp-modal__body">
+              <p className="emp-modal__delete-prompt">
+                Are you sure you want to permanently delete <strong>{name}</strong> ({code})?
+              </p>
+
+              <div className="emp-modal__delete-warning-box">
+                <p className="emp-modal__delete-warning-text">
+                  <strong>Permanent Action:</strong> This will completely remove this employee record, linked user account credentials, contracts, attendance history, and leave allocations from the system.
+                </p>
+              </div>
+            </div>
+
+            <div className="emp-modal__footer">
+              <button
+                type="button"
+                className="emp-modal__cancel-btn"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="emp-modal__danger-btn"
+                onClick={handleDeleteEmployee}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Employee'}
+              </button>
+            </div>
           </div>
         </div>
       )}

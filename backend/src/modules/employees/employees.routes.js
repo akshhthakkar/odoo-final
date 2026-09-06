@@ -138,4 +138,10 @@ router.patch(
   employees.updateEmployeeStatus
 );
 
+router.delete(
+  '/:id',
+  requireRole('ADMIN', 'HR_MANAGER'),
+  employees.deleteEmployee
+);
+
 export default router;

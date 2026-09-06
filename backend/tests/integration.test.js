@@ -563,3 +563,58 @@ describe('IDOR protections', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('Employee Deletion & Cascade (ADMIN & HR_MANAGER)', () => {
+  it('allows ADMIN to delete an employee with full cascade and audit log', async () => {
+    const adminLogin = await loginAs('t-admin@test.dev');
+    const adminCookie = cookieOf(adminLogin);
+
+    // Create a disposable employee
+    const createRes = await request(app)
+      .post('/api/v1/employees')
+      .set('Cookie', adminCookie)
+      .send({
+        employee_code: 'DEL-EMP-01',
+        first_name: 'ToDelete',
+        last_name: 'Tester',
+        email: 'todelete@test.dev',
+        hire_date: '2025-02-01',
+      });
+    expect(createRes.status).toBe(201);
+    const empId = createRes.body.data.id;
+
+    // Verify employee user was created
+    const linkedUser = await prisma.user.findUnique({ where: { email: 'todelete@test.dev' } });
+    expect(linkedUser).not.toBeNull();
+
+    // Delete as ADMIN
+    const delRes = await request(app)
+      .delete(`/api/v1/employees/${empId}`)
+      .set('Cookie', adminCookie);
+    expect(delRes.status).toBe(200);
+    expect(delRes.body.success).toBe(true);
+
+    // Verify employee & linked user are deleted
+    const empAfter = await prisma.employee.findUnique({ where: { id: empId } });
+    expect(empAfter).toBeNull();
+    const userAfter = await prisma.user.findUnique({ where: { email: 'todelete@test.dev' } });
+    expect(userAfter).toBeNull();
+
+    // Verify audit log
+    const audit = await prisma.auditLog.findFirst({
+      where: { entityId: empId, action: 'EMPLOYEE_DELETED' },
+    });
+    expect(audit).not.toBeNull();
+  });
+
+  it('rejects deletion attempt by EMPLOYEE role (403 Forbidden)', async () => {
+    const empLogin = await loginAs('t-emp@test.dev');
+    const empCookie = cookieOf(empLogin);
+
+    const res = await request(app)
+      .delete(`/api/v1/employees/${ctx.employees[1].id}`)
+      .set('Cookie', empCookie);
+    expect(res.status).toBe(403);
+  });
+});
+

@@ -351,7 +351,13 @@ export async function createEmployee(data, actorId) {
     action: 'EMPLOYEE_CREATED',
     entity: 'employee',
     entityId: employee.id,
-    payload: { employee_code: employee.employeeCode, email: employee.email },
+    payload: {
+      employee_code: employee.employeeCode,
+      name: `${employee.firstName} ${employee.lastName}`.trim(),
+      email: employee.email,
+      department: employee.department?.name || null,
+      job: employee.job?.name || null,
+    },
   });
 
   return formatEmployee(employee);
@@ -419,7 +425,12 @@ export async function updateEmployee(id, data, actorId) {
     action: 'EMPLOYEE_UPDATED',
     entity: 'employee',
     entityId: id,
-    payload: { employee_code: employee.employeeCode, fields: Object.keys(updateData) },
+    payload: {
+      employee_code: employee.employeeCode,
+      name: `${updated.firstName} ${updated.lastName}`.trim(),
+      email: updated.email,
+      fields: Object.keys(updateData),
+    },
   });
 
   return formatEmployee(updated);
@@ -453,7 +464,12 @@ export async function updateEmployeeStatus(id, { status, termination_date }, act
     action: 'EMPLOYEE_STATUS_CHANGED',
     entity: 'employee',
     entityId: id,
-    payload: { employee_code: employee.employeeCode, from: employee.status, to: status },
+    payload: {
+      employee_code: employee.employeeCode,
+      name: `${employee.firstName} ${employee.lastName}`.trim(),
+      from: employee.status,
+      to: status,
+    },
   });
 
   return formatEmployee(updated);
@@ -494,3 +510,117 @@ export async function listJobs() {
     name: j.name,
   }));
 }
+
+export async function deleteEmployee(id, actorId) {
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    include: {
+      user: true,
+      department: { select: { id: true, name: true } },
+    },
+  });
+
+  if (!employee) {
+    throw new AppError(404, 'NOT_FOUND', 'Employee not found');
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // 1. Unlink managed departments
+    await tx.department.updateMany({
+      where: { managerEmployeeId: id },
+      data: { managerEmployeeId: null },
+    });
+
+    // 2. Unlink direct reports
+    await tx.employee.updateMany({
+      where: { managerId: id },
+      data: { managerId: null },
+    });
+
+    // 3. Delete payslips (and associated warnings and lines)
+    const payslips = await tx.payslip.findMany({
+      where: { employeeId: id },
+      select: { id: true },
+    });
+    const payslipIds = payslips.map((p) => p.id);
+    if (payslipIds.length > 0) {
+      await tx.payrollWarning.deleteMany({
+        where: { payslipId: { in: payslipIds } },
+      });
+      await tx.payslipLine.deleteMany({
+        where: { payslipId: { in: payslipIds } },
+      });
+      await tx.payslip.deleteMany({
+        where: { id: { in: payslipIds } },
+      });
+    }
+
+    // 4. Delete payrun employee links
+    await tx.payrunEmployee.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 5. Delete contracts
+    await tx.contract.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 6. Delete attendance records
+    await tx.attendance.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 7. Delete time off requests
+    await tx.timeOffRequest.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 8. Delete time off allocations
+    await tx.timeOffAllocation.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // 9. If there is a linked user account, clean up tokens & user
+    if (employee.user) {
+      await tx.refreshToken.deleteMany({
+        where: { userId: employee.user.id },
+      });
+      if (employee.user.role === 'EMPLOYEE') {
+        await tx.user.delete({
+          where: { id: employee.user.id },
+        });
+      } else {
+        await tx.user.update({
+          where: { id: employee.user.id },
+          data: { employeeId: null },
+        });
+      }
+    }
+
+    // 10. Delete the employee record
+    await tx.employee.delete({
+      where: { id },
+    });
+
+    // 11. Write audit log
+    await writeAudit(tx, {
+      actorId,
+      action: 'EMPLOYEE_DELETED',
+      entity: 'employee',
+      entityId: id,
+      payload: {
+        employee_code: employee.employeeCode,
+        name: `${employee.firstName} ${employee.lastName}`.trim(),
+        email: employee.email,
+        department: employee.department?.name || null,
+      },
+    });
+
+    return {
+      id: employee.id,
+      employee_code: employee.employeeCode,
+      name: `${employee.firstName} ${employee.lastName}`.trim(),
+    };
+  });
+}
+
