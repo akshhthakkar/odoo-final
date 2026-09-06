@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Building2,
   FileText,
@@ -12,11 +13,18 @@ import {
   Briefcase,
   DollarSign,
   Clock,
+  Edit2,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  Shield,
+  CreditCard,
 } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
+import { setUser } from '../../../store/slices/authSlice.js';
 import './EmployeeProfilePage.scss';
 
 function getInitials(name) {
@@ -29,22 +37,98 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function EmployeeProfilePage() {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const toast = useToast();
+
+  const currentUser = useSelector((s) => s.auth.user);
+
+  // Determine target employee ID
+  const targetId = paramId || currentUser?.employee_id;
 
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'job' | 'salary' | 'attendance' | 'contracts'
   const [salaryPreview, setSalaryPreview] = useState(null);
 
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState('personal'); // 'personal' | 'banking' | 'organization'
+  const [submitting, setSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  // Dropdown lists for organization editing (Admins)
+  const [departments, setDepartments] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [managers, setManagers] = useState([]);
+  const [schedules, setSchedules] = useState([]);
+
+  // Edit form data
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    date_of_birth: '',
+    gender: '',
+    address: '',
+    bank_account_name: '',
+    bank_account_number: '',
+    bank_ifsc: '',
+    department_id: '',
+    job_id: '',
+    manager_id: '',
+    working_schedule_id: '',
+    hire_date: '',
+  });
+
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'HR_MANAGER';
+  const isSelf = currentUser?.employee_id === targetId || (!currentUser?.employee_id && currentUser?.id === targetId);
+  const canEdit = isAdmin || isSelf;
+
+  // Load supporting options for admin edits
   useEffect(() => {
+    if (isAdmin) {
+      api.get('/employees/departments').then((res) => {
+        if (res.data?.data) setDepartments(res.data.data);
+      }).catch(() => {});
+
+      api.get('/employees/jobs').then((res) => {
+        if (res.data?.data) setJobs(res.data.data);
+      }).catch(() => {});
+
+      api.get('/employees', { params: { limit: 100 } }).then((res) => {
+        const items = Array.isArray(res.data?.data) ? res.data.data : [];
+        setManagers(items.filter((emp) => emp.id !== targetId));
+      }).catch(() => {});
+
+      api.get('/schedules').then((res) => {
+        if (res.data?.data) setSchedules(res.data.data);
+      }).catch(() => {});
+    }
+  }, [isAdmin, targetId]);
+
+  // Load Salary AST Preview
+  useEffect(() => {
+    if (!targetId) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await api.post('/payslips/previews', {
-          employee_id: id,
+          employee_id: targetId,
           period_start: new Date().toISOString().slice(0, 8) + '01',
           period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
         });
@@ -53,171 +137,270 @@ export default function EmployeeProfilePage() {
         if (!cancelled) setSalaryPreview(null);
       }
     })();
-    return () => { cancelled = true; };
-  }, [id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [targetId]);
 
-  // Fetch real employee details from backend
+  // Fetch complete employee record
+  const loadEmployee = async () => {
+    if (!targetId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [empRes, allocRes, attRes] = await Promise.all([
+        api.get(`/employees/${targetId}`).catch(() => null),
+        api.get(`/time-off/allocations`, { params: { employee_id: targetId } }).catch(() => null),
+        api.get(`/attendance`, { params: { employee_id: targetId, limit: 10 } }).catch(() => null),
+      ]);
+
+      if (empRes?.data?.data) {
+        const data = empRes.data.data;
+        const wageRaw = data.wage || data.active_contract?.wage;
+        const wageNum = wageRaw !== undefined && wageRaw !== null ? Number(wageRaw) : null;
+        const wageFormatted = wageNum !== null ? `₹${wageNum.toLocaleString('en-IN')}` : '—';
+        const annualFormatted = wageNum !== null ? `₹${(wageNum * 12).toLocaleString('en-IN')}` : '—';
+
+        // Leave balances
+        const rawAllocItems = Array.isArray(allocRes?.data?.data?.items)
+          ? allocRes.data.data.items
+          : Array.isArray(allocRes?.data?.data)
+          ? allocRes.data.data
+          : [];
+
+        const leaveAllocations = rawAllocItems.map((al) => {
+          const name = al.type?.name || al.leave_type?.name || al.type_name || 'Leave';
+          const total = Number(al.allocated_days || al.number_of_days) || 0;
+          const used = Number(al.taken_days) || 0;
+          const remaining = al.remaining !== undefined ? Number(al.remaining) : Math.max(0, total - used);
+          return {
+            id: al.id,
+            name,
+            total,
+            used,
+            remaining,
+          };
+        });
+
+        // Recent attendance
+        const rawAttItems = Array.isArray(attRes?.data?.data?.items)
+          ? attRes.data.data.items
+          : Array.isArray(attRes?.data?.data)
+          ? attRes.data.data
+          : [];
+
+        const recentAttendance = rawAttItems.slice(0, 5).map((att) => {
+          const formatTime = (iso) => {
+            if (!iso) return '—';
+            try {
+              if (iso.includes('T')) {
+                const dt = new Date(iso);
+                return isNaN(dt.getTime())
+                  ? '—'
+                  : dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+              }
+              return iso.slice(0, 5);
+            } catch {
+              return '—';
+            }
+          };
+
+          return {
+            id: att.id,
+            date: formatDate(att.attendance_date),
+            checkIn: formatTime(att.check_in),
+            checkOut: formatTime(att.check_out),
+            hours: att.worked_hours !== undefined && att.worked_hours !== null ? `${Number(att.worked_hours).toFixed(1)}h` : '—',
+            status: att.status || 'PRESENT',
+          };
+        });
+
+        setEmployee({
+          id: data.id,
+          code: data.employee_code || '—',
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Employee',
+          jobId: data.job?.id || data.job_id || '',
+          jobTitle: data.job?.name || 'Staff Member',
+          departmentId: data.department?.id || data.department_id || '',
+          department: data.department?.name || 'General',
+          managerId: data.manager?.id || data.manager_id || '',
+          manager: data.manager ? `${data.manager.first_name || ''} ${data.manager.last_name || ''}`.trim() : '—',
+          workingScheduleId: data.working_schedule?.id || data.working_schedule_id || '',
+          workingSchedule: data.working_schedule?.name || '—',
+          status: data.status || 'ACTIVE',
+          wage: wageFormatted,
+          annualCtc: annualFormatted,
+          email: data.email || '—',
+          phone: data.phone || '',
+          address: data.address || '',
+          hireDate: data.hire_date ? data.hire_date.slice(0, 10) : '',
+          hireDateFormatted: formatDate(data.hire_date),
+          contractType: data.active_contract?.contract_type
+            ? data.active_contract.contract_type.replace('_', ' ')
+            : '—',
+          gender: data.gender || '',
+          dateOfBirth: data.date_of_birth ? data.date_of_birth.slice(0, 10) : '',
+          dateOfBirthFormatted: formatDate(data.date_of_birth),
+          bankAccountName: data.bank_account_name || '',
+          bankAccountNumber: data.bank_account_number || '',
+          bankIfsc: data.bank_ifsc || '',
+          leaveAllocations,
+          recentAttendance,
+          contracts: data.active_contract
+            ? [
+                {
+                  id: data.active_contract.id,
+                  title: `${data.job?.name || 'Employment'} Agreement (${data.active_contract.reference || 'REF-CNT'})`,
+                  status: data.active_contract.status || 'ACTIVE',
+                  startDate: formatDate(data.active_contract.start_date),
+                  endDate: data.active_contract.end_date ? formatDate(data.active_contract.end_date) : 'Permanent',
+                  wage: wageFormatted,
+                },
+              ]
+            : Array.isArray(data.contracts)
+            ? data.contracts.map((c) => ({
+                id: c.id,
+                title: `Employment Contract (${c.reference || 'REF-CNT'})`,
+                status: c.status || 'ACTIVE',
+                startDate: formatDate(c.start_date),
+                endDate: c.end_date ? formatDate(c.end_date) : 'Permanent',
+                wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
+              }))
+            : [],
+        });
+      } else {
+        setEmployee(null);
+      }
+    } catch {
+      toast.error('Could not load employee details.');
+      setEmployee(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    async function loadEmployee() {
-      if (!id) {
-        setLoading(false);
+    loadEmployee();
+  }, [targetId]);
+
+  // Open Edit Modal
+  const handleOpenEdit = () => {
+    if (!employee) return;
+    setFormData({
+      first_name: employee.firstName || '',
+      last_name: employee.lastName || '',
+      email: employee.email === '—' ? '' : employee.email,
+      phone: employee.phone || '',
+      date_of_birth: employee.dateOfBirth || '',
+      gender: employee.gender || '',
+      address: employee.address || '',
+      bank_account_name: employee.bankAccountName || '',
+      bank_account_number: employee.bankAccountNumber || '',
+      bank_ifsc: employee.bankIfsc || '',
+      department_id: employee.departmentId || '',
+      job_id: employee.jobId || '',
+      manager_id: employee.managerId || '',
+      working_schedule_id: employee.workingScheduleId || '',
+      hire_date: employee.hireDate || '',
+    });
+    setModalError('');
+    setModalTab('personal');
+    setIsEditModalOpen(true);
+  };
+
+  // Submit Profile Updates
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setModalError('');
+
+    // Validation
+    if (!formData.first_name.trim() || !formData.last_name.trim()) {
+      setModalError('First name and Last name are required.');
+      return;
+    }
+    if (!formData.email.trim()) {
+      setModalError('Email address is required.');
+      return;
+    }
+    if (formData.date_of_birth) {
+      const dob = new Date(formData.date_of_birth);
+      if (dob >= new Date()) {
+        setModalError('Date of birth cannot be in the future.');
         return;
       }
-      setLoading(true);
-      try {
-        const [empRes, allocRes, attRes] = await Promise.all([
-          api.get(`/employees/${id}`).catch(() => null),
-          api.get(`/time-off/allocations`, { params: { employee_id: id } }).catch(() => null),
-          api.get(`/attendance`, { params: { employee_id: id, limit: 10 } }).catch(() => null),
-        ]);
-
-        if (empRes?.data?.data) {
-          const data = empRes.data.data;
-          const wageRaw = data.wage || data.active_contract?.wage;
-          const wageNum = wageRaw !== undefined && wageRaw !== null ? Number(wageRaw) : null;
-          const wageFormatted = wageNum !== null ? `₹${wageNum.toLocaleString('en-IN')}` : '—';
-          const annualFormatted = wageNum !== null ? `₹${(wageNum * 12).toLocaleString('en-IN')}` : '—';
-
-          // Format leave balances if allocations are returned
-          const rawAllocItems = Array.isArray(allocRes?.data?.data?.items)
-            ? allocRes.data.data.items
-            : Array.isArray(allocRes?.data?.data)
-            ? allocRes.data.data
-            : [];
-
-          const leaveAllocations = rawAllocItems.map((al) => {
-            const name = al.type?.name || al.leave_type?.name || al.type_name || 'Leave';
-            const total = Number(al.allocated_days || al.number_of_days) || 0;
-            const used = Number(al.taken_days) || 0;
-            const remaining = al.remaining !== undefined ? Number(al.remaining) : Math.max(0, total - used);
-            return {
-              id: al.id,
-              name,
-              total,
-              used,
-              remaining,
-            };
-          });
-
-          // Format recent attendance records
-          const rawAttItems = Array.isArray(attRes?.data?.data?.items)
-            ? attRes.data.data.items
-            : Array.isArray(attRes?.data?.data)
-            ? attRes.data.data
-            : [];
-
-          const recentAttendance = rawAttItems.slice(0, 5).map((att) => {
-            const d = att.attendance_date ? new Date(att.attendance_date) : null;
-            const dateStr = d && !isNaN(d.getTime())
-              ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-              : att.attendance_date || '—';
-
-            const formatTime = (iso) => {
-              if (!iso) return '—';
-              try {
-                if (iso.includes('T')) {
-                  const dt = new Date(iso);
-                  return isNaN(dt.getTime())
-                    ? '—'
-                    : dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
-                }
-                return iso.slice(0, 5);
-              } catch {
-                return '—';
-              }
-            };
-
-            const checkIn = formatTime(att.check_in);
-            const checkOut = formatTime(att.check_out);
-            const hours = att.worked_hours !== undefined && att.worked_hours !== null
-              ? `${Number(att.worked_hours).toFixed(1)}h`
-              : '—';
-
-            return {
-              id: att.id,
-              date: dateStr,
-              checkIn,
-              checkOut,
-              hours,
-              status: att.status || 'PRESENT',
-            };
-          });
-
-          setEmployee({
-            id: data.id,
-            code: data.employee_code || '—',
-            name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Employee',
-            jobTitle: data.job?.name || 'Staff Member',
-            department: data.department?.name || 'General',
-            status: data.status || 'ACTIVE',
-            wage: wageFormatted,
-            annualCtc: annualFormatted,
-            email: data.email || '—',
-            phone: data.phone || '—',
-            location: data.address || '—',
-            hireDate: data.hire_date
-              ? new Date(data.hire_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-              : '—',
-            contractType: data.active_contract?.contract_type
-              ? data.active_contract.contract_type.replace('_', ' ')
-              : '—',
-            manager: data.manager ? `${data.manager.first_name || ''} ${data.manager.last_name || ''}`.trim() : '—',
-            workingSchedule: data.working_schedule?.name || '—',
-            gender: data.gender || '—',
-            dob: data.date_of_birth
-              ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-              : '—',
-            maritalStatus: data.marital_status || '—',
-            emergencyContact: data.emergency_contact || '—',
-            pan: data.pan || '—',
-            aadhaar: data.aadhaar || '—',
-            uan: data.uan || '—',
-            bankDetails: {
-              bankName: data.bank_account_name || '—',
-              accountNumber: data.bank_account_number || '—',
-              ifsc: data.bank_ifsc || '—',
-              accountType: 'Salary Account',
-            },
-            leaveAllocations,
-            recentAttendance,
-            contracts: data.active_contract
-              ? [
-                  {
-                    id: data.active_contract.id,
-                    title: `${data.job?.name || 'Employment'} Agreement (${data.active_contract.reference || 'REF-CNT'})`,
-                    status: data.active_contract.status || 'ACTIVE',
-                    startDate: data.active_contract.start_date
-                      ? new Date(data.active_contract.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : '—',
-                    endDate: data.active_contract.end_date
-                      ? new Date(data.active_contract.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : 'Permanent',
-                    wage: wageFormatted,
-                  },
-                ]
-              : Array.isArray(data.contracts)
-              ? data.contracts.map((c) => ({
-                  id: c.id,
-                  title: `Employment Contract (${c.reference || 'REF-CNT'})`,
-                  status: c.status || 'ACTIVE',
-                  startDate: c.start_date ? new Date(c.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-                  endDate: c.end_date ? new Date(c.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Permanent',
-                  wage: c.wage ? `₹${Number(c.wage).toLocaleString('en-IN')}` : '—',
-                }))
-              : [],
-          });
-        } else {
-          setEmployee(null);
-        }
-      } catch (err) {
-        toast.error('Could not load employee details.');
-        setEmployee(null);
-      } finally {
-        setLoading(false);
+    }
+    if (formData.bank_ifsc && formData.bank_ifsc.trim()) {
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/i;
+      if (!ifscRegex.test(formData.bank_ifsc.trim())) {
+        setModalError('Invalid Bank IFSC code format (e.g., HDFC0001245).');
+        return;
       }
     }
-    loadEmployee();
-  }, [id]);
+    if (formData.bank_account_number && formData.bank_account_number.trim()) {
+      const accRegex = /^[A-Za-z0-9]{8,34}$/;
+      if (!accRegex.test(formData.bank_account_number.trim())) {
+        setModalError('Bank account number must be between 8 and 34 alphanumeric characters.');
+        return;
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || null,
+        date_of_birth: formData.date_of_birth || null,
+        gender: formData.gender || null,
+        address: formData.address.trim() || null,
+        bank_account_name: formData.bank_account_name.trim() || null,
+        bank_account_number: formData.bank_account_number.trim() || null,
+        bank_ifsc: formData.bank_ifsc.trim().toUpperCase() || null,
+      };
+
+      // Admin-only fields
+      if (isAdmin) {
+        if (formData.department_id) payload.department_id = formData.department_id;
+        if (formData.job_id) payload.job_id = formData.job_id;
+        if (formData.manager_id) payload.manager_id = formData.manager_id;
+        if (formData.working_schedule_id) payload.working_schedule_id = formData.working_schedule_id;
+        if (formData.hire_date) payload.hire_date = formData.hire_date;
+      }
+
+      const res = await api.patch(`/employees/${targetId}`, payload);
+      if (res.data?.data) {
+        toast.success('Profile updated successfully!');
+        setIsEditModalOpen(false);
+
+        // If self updated, keep Redux auth session user in sync
+        if (isSelf && currentUser) {
+          dispatch(
+            setUser({
+              ...currentUser,
+              full_name: `${payload.first_name} ${payload.last_name}`,
+              email: payload.email,
+            })
+          );
+        }
+
+        await loadEmployee();
+      }
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        'Failed to save profile changes. Please verify the input values.';
+      setModalError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -235,10 +418,10 @@ export default function EmployeeProfilePage() {
       <div className="emp-profile-page" style={{ padding: '40px 24px' }}>
         <EmptyState
           icon={User}
-          title="Employee Not Found"
-          hint={`We could not locate an employee record for identifier "${id}".`}
-          actionLabel="Back to Employees"
-          onAction={() => navigate('/employees')}
+          title="Employee Profile Not Found"
+          hint={`We could not locate an employee record for identifier "${targetId || 'current user'}".`}
+          actionLabel="Back to Dashboard"
+          onAction={() => navigate('/dashboard')}
         />
       </div>
     );
@@ -254,31 +437,28 @@ export default function EmployeeProfilePage() {
     annualCtc,
     email,
     phone,
-    location,
-    hireDate,
+    address,
+    hireDateFormatted,
     contractType,
     manager,
     workingSchedule,
     gender,
-    dob,
-    maritalStatus,
-    emergencyContact,
-    pan,
-    aadhaar,
-    uan,
-    bankDetails,
+    dateOfBirthFormatted,
+    bankAccountName,
+    bankAccountNumber,
+    bankIfsc,
     leaveAllocations,
     recentAttendance,
     contracts,
   } = employee;
 
   const fmtMoney = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
-  const findPreviewLine = (code) =>
+  const findPreviewLine = (c) =>
     Array.isArray(salaryPreview?.lines)
-      ? salaryPreview.lines.find((l) => (l.code || '').toUpperCase() === code)
+      ? salaryPreview.lines.find((l) => (l.code || '').toUpperCase() === c)
       : null;
-  const previewLineAmount = (code) => {
-    const line = findPreviewLine(code);
+  const previewLineAmount = (c) => {
+    const line = findPreviewLine(c);
     return line && line.amount !== undefined && line.amount !== null ? fmtMoney(line.amount) : '—';
   };
   const previewField = (val) => (val !== undefined && val !== null ? fmtMoney(val) : '—');
@@ -302,16 +482,15 @@ export default function EmployeeProfilePage() {
     <div className="emp-profile-page">
       {/* ── 1. Top Navigation Bar ── */}
       <div className="emp-profile__nav-bar">
-        <button
-          className="emp-profile__back-btn"
-          onClick={() => navigate('/employees')}
-        >
-          <ArrowLeft size={16} strokeWidth={2.5} />
-          <span>Back to Employees</span>
-        </button>
+        {isAdmin && (
+          <button className="emp-profile__back-btn" onClick={() => navigate('/employees')}>
+            <ArrowLeft size={16} strokeWidth={2.5} />
+            <span>Back to Employees</span>
+          </button>
+        )}
 
         <div className="emp-profile__breadcrumbs">
-          <span>Employees</span>
+          <span>{isAdmin ? 'Employees' : 'Self Service'}</span>
           <span>/</span>
           <span className="emp-profile__breadcrumb-active">
             {name} ({code})
@@ -351,19 +530,23 @@ export default function EmployeeProfilePage() {
                 <a href={`mailto:${email}`}>{email}</a>
               </div>
 
-              <div className="emp-profile__quick-badge">
-                <Phone size={14} />
-                <span>{phone}</span>
-              </div>
+              {phone && (
+                <div className="emp-profile__quick-badge">
+                  <Phone size={14} />
+                  <span>{phone}</span>
+                </div>
+              )}
 
-              <div className="emp-profile__quick-badge">
-                <MapPin size={14} />
-                <span>{location}</span>
-              </div>
+              {address && (
+                <div className="emp-profile__quick-badge">
+                  <MapPin size={14} />
+                  <span>{address}</span>
+                </div>
+              )}
 
               <div className="emp-profile__quick-badge">
                 <Calendar size={14} />
-                <span>Joined {hireDate}</span>
+                <span>Joined {hireDateFormatted}</span>
               </div>
             </div>
           </div>
@@ -371,6 +554,13 @@ export default function EmployeeProfilePage() {
 
         {/* Hero Right Actions */}
         <div className="emp-profile__hero-actions">
+          {canEdit && (
+            <button className="emp-profile__edit-btn" onClick={handleOpenEdit}>
+              <Edit2 size={16} />
+              <span>Edit Profile</span>
+            </button>
+          )}
+
           <div className="emp-profile__hero-stat">
             <span className="emp-profile__hero-stat-label">Monthly Gross</span>
             <span className="emp-profile__hero-stat-val">{wage}</span>
@@ -391,7 +581,7 @@ export default function EmployeeProfilePage() {
           onClick={() => setActiveTab('overview')}
         >
           <User size={15} />
-          <span>Personal &amp; Overview</span>
+          <span>Personal &amp; Banking</span>
         </button>
 
         <button
@@ -429,7 +619,7 @@ export default function EmployeeProfilePage() {
 
       {/* ── 4. Tab Contents ── */}
       <div className="emp-profile__tab-panel">
-        {/* Tab 1: Overview & Personal Details */}
+        {/* Tab 1: Personal & Banking Details */}
         {activeTab === 'overview' && (
           <div className="emp-profile__grid-2col">
             {/* Personal Details Card */}
@@ -444,73 +634,65 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Date of Birth</label>
-                  <p>{dob}</p>
+                  <p>{dateOfBirthFormatted}</p>
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Gender</label>
-                  <p>{gender}</p>
-                </div>
-                <div className="emp-profile__data-item">
-                  <label>Marital Status</label>
-                  <p>{maritalStatus}</p>
-                </div>
-                <div className="emp-profile__data-item">
-                  <label>Nationality</label>
-                  <p>Indian</p>
-                </div>
-                <div className="emp-profile__data-item">
-                  <label>Blood Group</label>
-                  <p>—</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Emergency & Address Card */}
-            <div className="emp-profile__card">
-              <div className="emp-profile__card-header">
-                <h3 className="emp-profile__card-title">Contact &amp; Emergency</h3>
-              </div>
-              <div className="emp-profile__data-grid">
-                <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
-                  <label>Residential Address</label>
-                  <p>{location}</p>
-                </div>
-                <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
-                  <label>Emergency Contact</label>
-                  <p>{emergencyContact}</p>
+                  <p>{gender || '—'}</p>
                 </div>
                 <div className="emp-profile__data-item">
                   <label>Work Email</label>
                   <p>{email}</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Personal Mobile</label>
-                  <p>{phone}</p>
+                  <label>Phone Number</label>
+                  <p>{phone || '—'}</p>
+                </div>
+                <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
+                  <label>Residential Address</label>
+                  <p>{address || '—'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Identity & Statutory IDs Card */}
-            <div className="emp-profile__card" style={{ gridColumn: 'span 2' }}>
+            {/* Banking Details Card */}
+            <div className="emp-profile__card">
               <div className="emp-profile__card-header">
-                <h3 className="emp-profile__card-title">Statutory &amp; Identity Numbers</h3>
+                <h3 className="emp-profile__card-title">Disbursement &amp; Banking Details</h3>
               </div>
-              <div
-                className="emp-profile__data-grid"
-                style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
-              >
-                <div className="emp-profile__data-item">
-                  <label>Permanent Account Number (PAN)</label>
-                  <p className="emp-profile__mono-val">{pan}</p>
+              <div className="emp-profile__data-grid">
+                <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
+                  <label>Account Holder Name</label>
+                  <p>{bankAccountName || name}</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Aadhaar Number</label>
-                  <p className="emp-profile__mono-val">{aadhaar}</p>
+                  <label>Account Number</label>
+                  <p className="emp-profile__mono-val">{bankAccountNumber || '—'}</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Provident Fund UAN</label>
-                  <p className="emp-profile__mono-val">{uan}</p>
+                  <label>Bank IFSC Code</label>
+                  <p className="emp-profile__mono-val">{bankIfsc || '—'}</p>
                 </div>
+                <div className="emp-profile__data-item">
+                  <label>Disbursement Type</label>
+                  <p>Salary Account Direct Deposit</p>
+                </div>
+              </div>
+
+              {/* Bank Details Strip */}
+              <div className="emp-profile__bank-strip" style={{ marginTop: '20px' }}>
+                <div className="emp-profile__bank-icon">
+                  <Building2 size={20} color="#2357fe" />
+                </div>
+                <div className="emp-profile__bank-info">
+                  <span className="emp-profile__bank-name">
+                    {bankAccountName || 'Direct Salary Account'}
+                  </span>
+                  <span className="emp-profile__bank-acc">
+                    A/C: {bankAccountNumber || 'Not Configured'} &bull; IFSC: {bankIfsc || '—'}
+                  </span>
+                </div>
+                <span className="emp-profile__bank-type">Active</span>
               </div>
             </div>
           </div>
@@ -545,12 +727,12 @@ export default function EmployeeProfilePage() {
                   </p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Work Location</label>
-                  <p>{location}</p>
+                  <label>Date of Joining</label>
+                  <p>{hireDateFormatted}</p>
                 </div>
                 <div className="emp-profile__data-item">
-                  <label>Date of Joining</label>
-                  <p>{hireDate}</p>
+                  <label>Employee Code</label>
+                  <p className="emp-profile__mono-val">{code}</p>
                 </div>
               </div>
             </div>
@@ -564,9 +746,15 @@ export default function EmployeeProfilePage() {
                   <label>Working Shift / Hours</label>
                   <p>{workingSchedule}</p>
                 </div>
-                <div className="emp-profile__data-item">
+                <div className="emp-profile__data-item" style={{ gridColumn: 'span 2' }}>
                   <label>Employment Status</label>
-                  <p>{status ? status.replace('_', ' ') : '—'}</p>
+                  <p>
+                    <span
+                      className={`emp-profile__status-pill emp-profile__status-pill--${status?.toLowerCase()}`}
+                    >
+                      ● {status?.replace('_', ' ')}
+                    </span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -711,13 +899,13 @@ export default function EmployeeProfilePage() {
                       </div>
                       <div className="emp-profile__bank-info">
                         <span className="emp-profile__bank-name">
-                          {bankDetails.bankName}
+                          {bankAccountName || name}
                         </span>
                         <span className="emp-profile__bank-acc">
-                          A/C: {bankDetails.accountNumber} &bull; IFSC: {bankDetails.ifsc}
+                          A/C: {bankAccountNumber || '—'} &bull; IFSC: {bankIfsc || '—'}
                         </span>
                       </div>
-                      <span className="emp-profile__bank-type">{bankDetails.accountType}</span>
+                      <span className="emp-profile__bank-type">Salary Account</span>
                     </div>
                   </div>
                 </div>
@@ -835,12 +1023,14 @@ export default function EmployeeProfilePage() {
                         </p>
                       </div>
                     </div>
-                    <button
-                      className="emp-profile__doc-action-btn"
-                      onClick={() => navigate('/contracts')}
-                    >
-                      View in Contracts →
-                    </button>
+                    {isAdmin && (
+                      <button
+                        className="emp-profile__doc-action-btn"
+                        onClick={() => navigate('/contracts')}
+                      >
+                        View in Contracts →
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (
@@ -850,6 +1040,295 @@ export default function EmployeeProfilePage() {
           </div>
         )}
       </div>
+
+      {/* ── 5. Edit Profile Modal ── */}
+      {isEditModalOpen && (
+        <div className="emp-modal-backdrop" onClick={() => setIsEditModalOpen(false)}>
+          <div className="emp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="emp-modal__header">
+              <div className="emp-modal__header-title">
+                <Edit2 size={18} color="#2357fe" />
+                <h2>Edit Employee Profile</h2>
+              </div>
+              <button
+                className="emp-modal__close-btn"
+                onClick={() => setIsEditModalOpen(false)}
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Tabs */}
+            <div className="emp-modal__tabs">
+              <button
+                type="button"
+                className={`emp-modal__tab-btn ${modalTab === 'personal' ? 'emp-modal__tab-btn--active' : ''}`}
+                onClick={() => setModalTab('personal')}
+              >
+                <User size={14} />
+                <span>Personal Details</span>
+              </button>
+
+              <button
+                type="button"
+                className={`emp-modal__tab-btn ${modalTab === 'banking' ? 'emp-modal__tab-btn--active' : ''}`}
+                onClick={() => setModalTab('banking')}
+              >
+                <CreditCard size={14} />
+                <span>Banking Details</span>
+              </button>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={`emp-modal__tab-btn ${modalTab === 'organization' ? 'emp-modal__tab-btn--active' : ''}`}
+                  onClick={() => setModalTab('organization')}
+                >
+                  <Briefcase size={14} />
+                  <span>Job &amp; Org</span>
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleSaveProfile}>
+              <div className="emp-modal__body">
+                {modalError && (
+                  <div className="emp-modal__error-box">
+                    <AlertCircle size={16} />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+
+                {/* Tab: Personal */}
+                {modalTab === 'personal' && (
+                  <div className="emp-modal__section">
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>First Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.first_name}
+                          onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                          placeholder="e.g. John"
+                        />
+                      </div>
+                      <div className="emp-modal__field">
+                        <label>Last Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.last_name}
+                          onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                          placeholder="e.g. Doe"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>Work Email *</label>
+                        <input
+                          type="email"
+                          required
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="john.doe@company.com"
+                        />
+                      </div>
+                      <div className="emp-modal__field">
+                        <label>Phone Number</label>
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="+91 98765 43210"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>Date of Birth</label>
+                        <input
+                          type="date"
+                          value={formData.date_of_birth}
+                          onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                        />
+                      </div>
+                      <div className="emp-modal__field">
+                        <label>Gender</label>
+                        <select
+                          value={formData.gender}
+                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                          <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__field">
+                      <label>Residential Address</label>
+                      <textarea
+                        rows={2}
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Street, City, State, PIN"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Banking */}
+                {modalTab === 'banking' && (
+                  <div className="emp-modal__section">
+                    <div className="emp-modal__field">
+                      <label>Account Holder Name</label>
+                      <input
+                        type="text"
+                        value={formData.bank_account_name}
+                        onChange={(e) => setFormData({ ...formData, bank_account_name: e.target.value })}
+                        placeholder="Name as printed on Bank Statement"
+                      />
+                    </div>
+
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>Bank Account Number</label>
+                        <input
+                          type="text"
+                          value={formData.bank_account_number}
+                          onChange={(e) => setFormData({ ...formData, bank_account_number: e.target.value })}
+                          placeholder="e.g. 50100458921478"
+                        />
+                      </div>
+                      <div className="emp-modal__field">
+                        <label>Bank IFSC Code</label>
+                        <input
+                          type="text"
+                          value={formData.bank_ifsc}
+                          onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
+                          placeholder="e.g. HDFC0001245"
+                          style={{ textTransform: 'uppercase' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__tip-box">
+                      <Shield size={16} color="#3b82f6" />
+                      <span>
+                        Banking details are securely utilized for monthly payroll direct deposits and payslip generation.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tab: Organization (Admin only) */}
+                {modalTab === 'organization' && isAdmin && (
+                  <div className="emp-modal__section">
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>Department</label>
+                        <select
+                          value={formData.department_id}
+                          onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
+                        >
+                          <option value="">Select Department</option>
+                          {departments.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name} ({d.code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="emp-modal__field">
+                        <label>Job Position</label>
+                        <select
+                          value={formData.job_id}
+                          onChange={(e) => setFormData({ ...formData, job_id: e.target.value })}
+                        >
+                          <option value="">Select Job Position</option>
+                          {jobs.map((j) => (
+                            <option key={j.id} value={j.id}>
+                              {j.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__row">
+                      <div className="emp-modal__field">
+                        <label>Reporting Manager</label>
+                        <select
+                          value={formData.manager_id}
+                          onChange={(e) => setFormData({ ...formData, manager_id: e.target.value })}
+                        >
+                          <option value="">None (Top Level)</option>
+                          {managers.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.first_name} {m.last_name} ({m.employee_code})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="emp-modal__field">
+                        <label>Working Schedule</label>
+                        <select
+                          value={formData.working_schedule_id}
+                          onChange={(e) => setFormData({ ...formData, working_schedule_id: e.target.value })}
+                        >
+                          <option value="">Select Working Schedule</option>
+                          {schedules.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name} ({s.weekly_hours}h/wk)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="emp-modal__field">
+                      <label>Date of Joining</label>
+                      <input
+                        type="date"
+                        value={formData.hire_date}
+                        onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="emp-modal__footer">
+                <button
+                  type="button"
+                  className="emp-modal__cancel-btn"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="emp-modal__submit-btn"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Saving Changes...' : 'Save Profile Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

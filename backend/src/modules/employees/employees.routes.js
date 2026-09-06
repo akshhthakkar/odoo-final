@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../middleware/auth.js';
-import { requireRole } from '../../middleware/rbac.js';
+import { requireRole, requireSelfOrRole } from '../../middleware/rbac.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import * as employees from './employees.controller.js';
 
@@ -107,7 +107,7 @@ router.get(
 );
 router.get(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
+  requireSelfOrRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
   employees.getEmployee
 );
 
@@ -120,7 +120,7 @@ router.post(
 
 router.patch(
   '/:id',
-  requireRole('ADMIN', 'HR_MANAGER'),
+  requireSelfOrRole('ADMIN', 'HR_MANAGER'),
   validateBody(updateEmployeeSchema),
   employees.updateEmployee
 );

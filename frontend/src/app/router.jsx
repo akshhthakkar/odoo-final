@@ -38,10 +38,13 @@ export default function Router() {
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/timeoff" element={<TimeOffPage />} />
 
-          {/* Employees & Profiles — HR & Payroll Managers/Users, Admin */}
+          {/* User Profile — accessible to self and admins */}
+          <Route path="/profile" element={<EmployeeProfilePage />} />
+          <Route path="/employees/:id" element={<EmployeeProfilePage />} />
+
+          {/* Employees & Directory — HR & Payroll Managers/Users, Admin */}
           <Route element={<RequireRole roles={HR_AND_PAYROLL_ROLES} />}>
             <Route path="/employees" element={<EmployeesPage />} />
-            <Route path="/employees/:id" element={<EmployeeProfilePage />} />
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/schedules" element={<SchedulesPage />} />
           </Route>

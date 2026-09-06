@@ -465,9 +465,35 @@ $topbar-h: 56px;
   color: #64748b;
 }
 
-.dash-navbar__dropdown-role-value {
-  color: $color-primary;
-  font-weight: 600;
+.dash-navbar__dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  transition: all $transition-fast;
+
+  svg {
+    stroke: #64748b;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: #f8fafc;
+    color: $color-primary;
+
+    svg {
+      stroke: $color-primary;
+    }
+  }
 }
 
 .dash-navbar__dropdown-logout {
