@@ -20,16 +20,24 @@ const scheduleLineSchema = z.object({
   break_minutes: z.number().int().min(0).max(1440).default(0),
 });
 
+// A schedule line must span a positive duration (guide TEST 6: end before
+// start is rejected, not clamped).
+const withValidLines = (schema) =>
+  schema.refine(
+    (lines) => lines.every((l) => l.end_minutes > l.start_minutes),
+    { message: 'end_minutes must be greater than start_minutes' }
+  );
+
 const createScheduleSchema = z.object({
   name: z.string().min(1).max(120),
   schedule_type: SCHEDULE_TYPE_ENUM.default('FULL_TIME'),
-  lines: z.array(scheduleLineSchema).optional(),
+  lines: withValidLines(z.array(scheduleLineSchema)).optional(),
 });
 
 const updateScheduleSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   schedule_type: SCHEDULE_TYPE_ENUM.optional(),
-  lines: z.array(scheduleLineSchema).optional(),
+  lines: withValidLines(z.array(scheduleLineSchema)).optional(),
 });
 
 const assignEmployeesSchema = z.object({

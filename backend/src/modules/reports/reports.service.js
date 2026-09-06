@@ -3,12 +3,8 @@ import { prisma } from '../../shared/prisma.js';
 
 function parseDateFilters(filters) {
   const now = new Date();
-  const defaultStart = new Date(now);
-  defaultStart.setDate(defaultStart.getDate() - 30);
-  defaultStart.setHours(0, 0, 0, 0);
-
-  const defaultEnd = new Date(now);
-  defaultEnd.setHours(23, 59, 59, 999);
+  const defaultStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0); // Jan 1st
+  const defaultEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999); // Dec 31st
 
   const start = filters.period_start
     ? new Date(`${filters.period_start}T00:00:00.000Z`)

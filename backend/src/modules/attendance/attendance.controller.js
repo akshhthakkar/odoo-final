@@ -3,7 +3,7 @@ import * as attendanceService from './attendance.service.js';
 
 export async function listAttendance(req, res, next) {
   try {
-    const { employee_id, start_date, end_date, status, source, page, limit } = req.query;
+    const { employee_id, start_date, end_date, status, source, search, page, limit } = req.query;
 
     // Regular EMPLOYEE can only list their own attendance records
     let targetEmployeeId = employee_id;
@@ -17,6 +17,7 @@ export async function listAttendance(req, res, next) {
       end_date,
       status,
       source,
+      search,
       page,
       limit,
     });
@@ -25,6 +26,7 @@ export async function listAttendance(req, res, next) {
       success: true,
       data: result.items,
       pagination: result.pagination,
+      meta: result.meta,
     });
   } catch (err) {
     next(err);

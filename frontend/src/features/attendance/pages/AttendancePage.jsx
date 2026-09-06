@@ -18,7 +18,10 @@ import {
 import { api } from '../../../lib/api.js';
 import Skeleton from '../../../components/ui/Skeleton.jsx';
 import EmptyState from '../../../components/ui/EmptyState.jsx';
+import Pagination from '../../../components/ui/Pagination.jsx';
+import { usePagination } from '../../../hooks/usePagination.js';
 import { useToast } from '../../../components/ui/ToastContext.jsx';
+import { useSelector } from 'react-redux';
 import './AttendancePage.scss';
 
 // Date formatter: '2026-09-04' -> '04 Sept 2026'
@@ -82,16 +85,34 @@ function formatOvertimeDisplay(hours) {
 
 export default function AttendancePage() {
   const toast = useToast();
+  const userRole = useSelector((s) => s.auth.user?.role);
+  const canCorrect = userRole === 'ADMIN' || userRole === 'HR_MANAGER';
 
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [employeeFilter, setEmployeeFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Server-side pagination
+  const pagination = usePagination(totalCount, {
+    initialPageSize: 10,
+    resetDeps: [debouncedSearch, statusFilter, employeeFilter, dateFilter],
+  });
 
   // Add / Edit Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -105,7 +126,7 @@ export default function AttendancePage() {
     employeeId: '',
     attendanceDate: new Date().toISOString().slice(0, 10),
     checkInTime: '09:00',
-    checkOutTime: '18:00',
+    checkOutTime: '17:00',
     status: 'PRESENT',
     note: '',
   });
@@ -116,14 +137,17 @@ export default function AttendancePage() {
       setLoading(true);
       try {
         const activeDate = overrideDate !== undefined ? overrideDate : dateFilter;
-        const params = { limit: 100 };
+        const params = {
+          page: pagination.currentPage,
+          limit: pagination.pageSize,
+        };
         if (activeDate) {
           params.start_date = activeDate;
           params.end_date = activeDate;
         }
         if (statusFilter !== 'ALL') params.status = statusFilter;
         if (employeeFilter !== 'ALL') params.employee_id = employeeFilter;
-        if (searchQuery.trim()) params.search = searchQuery.trim();
+        if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
 
         const res = await api.get('/attendance', { params });
         const items = Array.isArray(res.data?.data)
@@ -132,13 +156,15 @@ export default function AttendancePage() {
           ? res.data.data.items
           : [];
         setAttendance(items);
+        const serverTotal = res.data?.pagination?.total ?? items.length;
+        setTotalCount(serverTotal);
       } catch (err) {
         toast.error('Failed to load attendance records');
       } finally {
         setLoading(false);
       }
     },
-    [dateFilter, statusFilter, employeeFilter, searchQuery]
+    [dateFilter, statusFilter, employeeFilter, debouncedSearch, pagination.currentPage, pagination.pageSize]
   );
 
   // Fetch employees list for dropdown
@@ -158,8 +184,11 @@ export default function AttendancePage() {
 
   useEffect(() => {
     fetchAttendance();
+  }, [fetchAttendance]);
+
+  useEffect(() => {
     fetchEmployees();
-  }, [fetchAttendance, fetchEmployees]);
+  }, [fetchEmployees]);
 
   // Combined Employee Options (from employees API + unique attendance items)
   const employeeOptions = useMemo(() => {
@@ -192,44 +221,8 @@ export default function AttendancePage() {
     return Array.from(map.values());
   }, [employees, attendance]);
 
-  // Filtered and Sorted attendance records (Newest Date + Newest Created at top)
-  const filteredAttendance = useMemo(() => {
-    const list = attendance.filter((item) => {
-      // Date match
-      if (dateFilter && item.attendance_date !== dateFilter) {
-        return false;
-      }
-      // Status match
-      if (statusFilter !== 'ALL' && item.status !== statusFilter) {
-        return false;
-      }
-      // Employee filter match
-      if (employeeFilter !== 'ALL' && item.employee_id !== employeeFilter) {
-        return false;
-      }
-      // Search match
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const empName = (item.employee_name || `${item.employee?.first_name || ''} ${item.employee?.last_name || ''}`).toLowerCase();
-        const empCode = (item.employee_code || item.employee?.employee_code || '').toLowerCase();
-        return empName.includes(q) || empCode.includes(q);
-      }
-      return true;
-    });
-
-    // Sort: Date DESC, Created At DESC, Check In ASC
-    return list.sort((a, b) => {
-      const dateA = new Date(a.attendance_date).getTime();
-      const dateB = new Date(b.attendance_date).getTime();
-      if (dateB !== dateA) return dateB - dateA;
-
-      const createdA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const createdB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (createdB !== createdA) return createdB - createdA;
-
-      return (a.check_in || '').localeCompare(b.check_in || '');
-    });
-  }, [attendance, dateFilter, statusFilter, employeeFilter, searchQuery]);
+  // Attendance records to display (already filtered & paginated by backend)
+  const displayAttendance = attendance;
 
   // Dynamic worked hours and overtime in modal
   const computedModalHours = useMemo(() => {
@@ -267,7 +260,7 @@ export default function AttendancePage() {
       employeeId: defaultEmpId,
       attendanceDate: dateFilter || new Date().toISOString().slice(0, 10),
       checkInTime: '09:00',
-      checkOutTime: '18:00',
+      checkOutTime: '17:00',
       status: 'PRESENT',
       note: '',
     });
@@ -402,10 +395,12 @@ export default function AttendancePage() {
         </div>
 
         <div className="att-header__right">
-          <button className="att-header__add-btn" onClick={handleOpenCreate}>
-            <Plus size={16} strokeWidth={2.5} />
-            <span>Add / Correct</span>
-          </button>
+          {canCorrect && (
+            <button className="att-header__add-btn" onClick={handleOpenCreate}>
+              <Plus size={16} strokeWidth={2.5} />
+              <span>Add / Correct</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -480,7 +475,7 @@ export default function AttendancePage() {
 
         <div className="att-controls__right">
           <span className="att-controls__count-badge">
-            {filteredAttendance.length} record(s)
+            {pagination.totalItems} record(s)
           </span>
         </div>
       </div>
@@ -492,7 +487,7 @@ export default function AttendancePage() {
             <div style={{ padding: '24px' }}>
               <Skeleton variant="row" count={7} />
             </div>
-          ) : filteredAttendance.length === 0 ? (
+          ) : displayAttendance.length === 0 ? (
             <div style={{ padding: '40px 16px' }}>
               <EmptyState
                 icon={Clock}
@@ -526,7 +521,7 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAttendance.map((rec) => {
+                {displayAttendance.map((rec) => {
                   const empName = rec.employee_name || `${rec.employee?.first_name || ''} ${rec.employee?.last_name || ''}`.trim() || 'Employee';
                   const empCode = rec.employee_code || rec.employee?.employee_code || '';
 
@@ -578,14 +573,16 @@ export default function AttendancePage() {
 
                       {/* Actions */}
                       <td style={{ textAlign: 'right', paddingRight: '1.5rem' }}>
-                        <button
-                          className="att-cell__edit-btn"
-                          onClick={() => handleOpenEdit(rec)}
-                          title="Edit / Correct attendance"
-                          aria-label={`Edit attendance for ${empName}`}
-                        >
-                          <Edit2 size={15} />
-                        </button>
+                        {canCorrect && (
+                          <button
+                            className="att-cell__edit-btn"
+                            onClick={() => handleOpenEdit(rec)}
+                            title="Edit / Correct attendance"
+                            aria-label={`Edit attendance for ${empName}`}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -594,6 +591,20 @@ export default function AttendancePage() {
             </table>
           )}
         </div>
+
+        {/* Server-Side Pagination Controls */}
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          startIndex={pagination.startIndex}
+          endIndex={pagination.endIndex}
+          onPageChange={pagination.setPage}
+          onPageSizeChange={pagination.setPageSize}
+          itemLabel="records"
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
       </div>
 
       {/* ── 4. Add / Correct Attendance Modal ── */}

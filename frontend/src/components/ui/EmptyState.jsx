@@ -4,6 +4,7 @@ import './EmptyState.scss';
 export default function EmptyState({
   title = 'No records found',
   hint = 'Get started by creating a new entry.',
+  description,
   icon: IconProp,
   action,
   actionLabel,
@@ -28,35 +29,50 @@ export default function EmptyState({
     return null;
   };
 
+  // Normalize the action prop: it may be a ReactNode (rendered as-is) or an
+  // object { label, onClick } (rendered as a styled button).
+  const isNode = React.isValidElement(action) || action == null;
+  const objectAction = !isNode && action && typeof action === 'object' ? action : null;
+  const nodeAction = isNode ? action : null;
+
+  const renderActionButton = (label, onClick) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 18px',
+        borderRadius: '8px',
+        background: '#2357fe',
+        color: '#ffffff',
+        border: 'none',
+        fontSize: '13.5px',
+        fontWeight: 600,
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(35, 87, 254, 0.25)',
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="ui-empty-state">
       <div className="ui-empty-state__icon">{renderIcon()}</div>
       <h3 className="ui-empty-state__title">{title}</h3>
       {hint && <p className="ui-empty-state__hint">{hint}</p>}
-      {action ? (
-        <div className="ui-empty-state__action">{action}</div>
+      {description && <p className="ui-empty-state__hint">{description}</p>}
+      {nodeAction ? (
+        <div className="ui-empty-state__action">{nodeAction}</div>
+      ) : objectAction ? (
+        <div className="ui-empty-state__action">
+          {renderActionButton(objectAction.label, objectAction.onClick)}
+        </div>
       ) : actionLabel && onAction ? (
         <div className="ui-empty-state__action">
-          <button
-            type="button"
-            onClick={onAction}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 18px',
-              borderRadius: '8px',
-              background: '#2357fe',
-              color: '#ffffff',
-              border: 'none',
-              fontSize: '13.5px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(35, 87, 254, 0.25)',
-            }}
-          >
-            {actionLabel}
-          </button>
+          {renderActionButton(actionLabel, onAction)}
         </div>
       ) : null}
     </div>

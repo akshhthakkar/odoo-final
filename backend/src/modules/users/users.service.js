@@ -19,7 +19,7 @@ const toPublicUser = (user) => ({
 export async function listUsers({ role, is_active, search, page = 1, limit = 20 } = {}) {
   const where = {};
 
-  if (role) {
+  if (role && role !== 'ALL' && role !== 'all') {
     where.role = role;
   }
 
@@ -27,10 +27,12 @@ export async function listUsers({ role, is_active, search, page = 1, limit = 20 
     where.isActive = is_active;
   }
 
-  if (search) {
+  if (search && search.trim()) {
+    const q = search.trim();
     where.OR = [
-      { email: { contains: search, mode: 'insensitive' } },
-      { fullName: { contains: search, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+      { fullName: { contains: q, mode: 'insensitive' } },
+      { employee: { employeeCode: { contains: q, mode: 'insensitive' } } },
     ];
   }
 
@@ -38,7 +40,7 @@ export async function listUsers({ role, is_active, search, page = 1, limit = 20 
   const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const [total, users] = await Promise.all([
+  const [total, users, roleGroups, activeCount, totalAll] = await Promise.all([
     prisma.user.count({ where }),
     prisma.user.findMany({
       where,
@@ -54,7 +56,20 @@ export async function listUsers({ role, is_active, search, page = 1, limit = 20 
         },
       },
     }),
+    prisma.user.groupBy({
+      by: ['role'],
+      _count: { role: true },
+    }),
+    prisma.user.count({ where: { isActive: true } }),
+    prisma.user.count(),
   ]);
+
+  const roleCounts = {};
+  roleGroups.forEach((g) => {
+    if (g.role) {
+      roleCounts[g.role] = g._count.role;
+    }
+  });
 
   const items = users.map((u) => ({
     ...toPublicUser(u),
@@ -68,6 +83,11 @@ export async function listUsers({ role, is_active, search, page = 1, limit = 20 
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum) || 1,
+    },
+    meta: {
+      roleCounts,
+      activeCount,
+      totalAll,
     },
   };
 }

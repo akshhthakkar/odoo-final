@@ -37,6 +37,24 @@ export default function EmployeeProfilePage() {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'job' | 'salary' | 'attendance' | 'contracts'
+  const [salaryPreview, setSalaryPreview] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.post('/payslips/previews', {
+          employee_id: id,
+          period_start: new Date().toISOString().slice(0, 8) + '01',
+          period_end: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+        });
+        if (!cancelled) setSalaryPreview(res.data.data);
+      } catch {
+        if (!cancelled) setSalaryPreview(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
 
   // Fetch real employee details from backend
   useEffect(() => {
@@ -144,7 +162,7 @@ export default function EmployeeProfilePage() {
               ? data.active_contract.contract_type.replace('_', ' ')
               : '—',
             manager: data.manager ? `${data.manager.first_name || ''} ${data.manager.last_name || ''}`.trim() : '—',
-            workingSchedule: data.working_schedule?.name || 'Standard 40h (Mon-Fri 09:00 - 18:00)',
+            workingSchedule: data.working_schedule?.name || '—',
             gender: data.gender || '—',
             dob: data.date_of_birth
               ? new Date(data.date_of_birth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -160,18 +178,6 @@ export default function EmployeeProfilePage() {
               ifsc: data.bank_ifsc || '—',
               accountType: 'Salary Account',
             },
-            salaryBreakdown: wageNum !== null ? {
-              basic: `₹${Math.round(wageNum * 0.5).toLocaleString('en-IN')}`,
-              hra: `₹${Math.round(wageNum * 0.25).toLocaleString('en-IN')}`,
-              special: `₹${Math.round(wageNum * 0.15).toLocaleString('en-IN')}`,
-              conveyance: `₹${Math.round(wageNum * 0.1).toLocaleString('en-IN')}`,
-              gross: wageFormatted,
-              pfEmployee: `₹${Math.round(wageNum * 0.5 * 0.12).toLocaleString('en-IN')}`,
-              professionalTax: '₹200',
-              tds: `₹${Math.round(wageNum * 0.05).toLocaleString('en-IN')}`,
-              totalDeductions: `₹${Math.round(wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05).toLocaleString('en-IN')}`,
-              netPay: `₹${Math.round(wageNum - (wageNum * 0.5 * 0.12 + 200 + wageNum * 0.05)).toLocaleString('en-IN')}`,
-            } : null,
             leaveAllocations,
             recentAttendance,
             contracts: data.active_contract
@@ -261,11 +267,36 @@ export default function EmployeeProfilePage() {
     aadhaar,
     uan,
     bankDetails,
-    salaryBreakdown,
     leaveAllocations,
     recentAttendance,
     contracts,
   } = employee;
+
+  const fmtMoney = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
+  const findPreviewLine = (code) =>
+    Array.isArray(salaryPreview?.lines)
+      ? salaryPreview.lines.find((l) => (l.code || '').toUpperCase() === code)
+      : null;
+  const previewLineAmount = (code) => {
+    const line = findPreviewLine(code);
+    return line && line.amount !== undefined && line.amount !== null ? fmtMoney(line.amount) : '—';
+  };
+  const previewField = (val) => (val !== undefined && val !== null ? fmtMoney(val) : '—');
+
+  const salaryBreakdown = salaryPreview
+    ? {
+        basic: previewLineAmount('BASIC'),
+        hra: previewLineAmount('HRA'),
+        special: previewLineAmount('SPECIAL'),
+        conveyance: previewLineAmount('CONVEYANCE'),
+        gross: previewField(salaryPreview.gross),
+        pfEmployee: previewLineAmount('PF_EE'),
+        professionalTax: previewLineAmount('PT'),
+        tds: previewLineAmount('TDS'),
+        totalDeductions: previewField(salaryPreview.deductions),
+        netPay: previewField(salaryPreview.net),
+      }
+    : null;
 
   return (
     <div className="emp-profile-page">
@@ -694,7 +725,7 @@ export default function EmployeeProfilePage() {
             ) : (
               <div className="emp-profile__card">
                 <p style={{ color: '#64748b', padding: '24px' }}>
-                  No active salary or wage structure assigned to this employee.
+                  No active contract — salary structure not available
                 </p>
               </div>
             )}

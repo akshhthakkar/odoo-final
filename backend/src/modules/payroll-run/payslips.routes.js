@@ -38,6 +38,11 @@ router.post(
   }
 );
 
+// Employee self-service: own payslips only (service scopes by session employee).
+router.get('/mine', controller.listMine);
+router.get('/mine/:id', requireUuidParam('id'), controller.getMine);
+router.get('/mine/:id/pdf', requireUuidParam('id'), controller.myPdf);
+
 router.get('/', requireRole(...READ_ROLES), validateQuery(payslipFilterSchema), controller.list);
 router.get('/:id', requireRole(...READ_ROLES), requireUuidParam('id'), controller.get);
 router.get('/:id/pdf', requireRole(...READ_ROLES), requireUuidParam('id'), controller.pdf);

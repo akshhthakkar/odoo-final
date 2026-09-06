@@ -69,10 +69,13 @@ function EmployeeSelfServiceDashboard({ user }) {
     setLoading(true);
     try {
       const todayISO = new Date().toISOString().slice(0, 10);
+      const allocParams = user?.employee_id ? { employee_id: user.employee_id } : {};
+      const reqParams = user?.employee_id ? { employee_id: user.employee_id } : {};
+
       const [attRes, allocRes, reqRes, payslipsRes] = await Promise.all([
-        api.get('/attendance', { params: { start_date: todayISO, end_date: todayISO } }).catch(() => null),
-        api.get('/time-off/allocations').catch(() => null),
-        api.get('/time-off/requests').catch(() => null),
+        api.get('/attendance', { params: { start_date: todayISO, end_date: todayISO, ...(user?.employee_id ? { employee_id: user.employee_id } : {}) } }).catch(() => null),
+        api.get('/time-off/allocations', { params: allocParams }).catch(() => null),
+        api.get('/time-off/requests', { params: reqParams }).catch(() => null),
         api.get('/me/payslips').catch(() => null),
       ]);
 
@@ -82,8 +85,27 @@ function EmployeeSelfServiceDashboard({ user }) {
       }
 
       if (allocRes?.data?.data) {
-        const items = Array.isArray(allocRes.data.data) ? allocRes.data.data : allocRes.data.data.items || [];
-        setAllocations(items);
+        const rawItems = Array.isArray(allocRes.data.data) ? allocRes.data.data : allocRes.data.data.items || [];
+        // Group by leave type so each category is displayed exactly once
+        const typeMap = new Map();
+        rawItems.forEach((al) => {
+          const typeKey = al.type?.name || al.type?.code || al.type_id || 'Leave';
+          const alloc = Number(al.allocated_days) || 0;
+          const taken = Number(al.taken_days) || 0;
+          const rem = Number(al.remaining_days) !== undefined ? Number(al.remaining_days) : Math.max(0, alloc - taken);
+
+          if (!typeMap.has(typeKey)) {
+            typeMap.set(typeKey, {
+              id: al.id,
+              typeName: typeKey,
+              allocatedDays: alloc,
+              takenDays: taken,
+              remainingDays: rem,
+              color: al.type?.color || '#2357fe',
+            });
+          }
+        });
+        setAllocations(Array.from(typeMap.values()));
       }
 
       if (reqRes?.data?.data) {
@@ -100,7 +122,7 @@ function EmployeeSelfServiceDashboard({ user }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.employee_id]);
 
   useEffect(() => {
     loadSelfServiceData();
@@ -290,14 +312,14 @@ function EmployeeSelfServiceDashboard({ user }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {allocations.map((al) => {
-                const typeName = al.type?.name || 'Leave';
-                const total = Number(al.allocated_days) || 0;
-                const taken = Number(al.taken_days) || 0;
-                const remaining = Number(al.remaining) || Math.max(0, total - taken);
+                const typeName = al.typeName || al.type?.name || 'Leave';
+                const total = al.allocatedDays !== undefined ? al.allocatedDays : (Number(al.allocated_days) || 0);
+                const taken = al.takenDays !== undefined ? al.takenDays : (Number(al.taken_days) || 0);
+                const remaining = al.remainingDays !== undefined ? al.remainingDays : (Number(al.remaining) || Math.max(0, total - taken));
                 const pct = total > 0 ? Math.min(100, Math.round((taken / total) * 100)) : 0;
 
                 return (
-                  <div key={al.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <div key={al.id || typeName} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                       <span style={{ fontWeight: 600, color: '#334155' }}>{typeName}</span>
                       <span style={{ color: '#059669', fontWeight: 700 }}>
@@ -305,7 +327,7 @@ function EmployeeSelfServiceDashboard({ user }) {
                       </span>
                     </div>
                     <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: '#2357fe', borderRadius: '999px' }} />
+                      <div style={{ width: `${pct}%`, height: '100%', background: al.color || '#2357fe', borderRadius: '999px' }} />
                     </div>
                   </div>
                 );
@@ -1043,7 +1065,7 @@ export default function DashboardPage() {
             <div className="quick-actions-box__btns">
               <button
                 className="quick-actions-box__btn quick-actions-box__btn--primary"
-                onClick={() => navigate('/payroll')}
+                onClick={() => navigate('/payruns')}
               >
                 Run Payroll
               </button>
@@ -1074,7 +1096,7 @@ export default function DashboardPage() {
                   title="No payroll batches found"
                   hint="Compute and execute payroll runs to see batch history."
                   actionLabel="Go to Payroll"
-                  onAction={() => navigate('/payroll')}
+                  onAction={() => navigate('/payruns')}
                 />
               </div>
             ) : (
@@ -1126,7 +1148,7 @@ export default function DashboardPage() {
                         <td>
                           <button
                             className="recent-payruns-card__action-btn"
-                            onClick={() => navigate('/payroll')}
+                            onClick={() => navigate('/payruns')}
                           >
                             View Details →
                           </button>

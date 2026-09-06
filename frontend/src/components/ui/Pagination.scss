@@ -1,0 +1,196 @@
+// Pagination Component Styles
+.ui-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  margin-top: 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
+
+  // When nested directly at the bottom of a table card
+  .emp-list-card &,
+  .cnt-table-card &,
+  .adm-table-card & {
+    margin-top: 0;
+    border: none;
+    border-top: 1px solid #f1f5f9;
+    border-radius: 0 0 12px 12px;
+    background: #fafbfc;
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  // Left Section (Summary & Per Page)
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  &__count-text {
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  &__bold {
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  &__per-page {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+  }
+
+  &__per-page-label {
+    font-weight: 500;
+  }
+
+  &__select {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #1e293b;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s ease;
+
+    &:hover {
+      border-color: #94a3b8;
+    }
+
+    &:focus {
+      border-color: #2357fe;
+      box-shadow: 0 0 0 2px rgba(35, 87, 254, 0.15);
+    }
+  }
+
+  // Right Section (Navigation Buttons)
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+
+    @media (max-width: 640px) {
+      justify-content: center;
+    }
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 0.65rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+
+    &:hover:not(:disabled) {
+      color: #0f172a;
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    &--icon {
+      padding: 0;
+      width: 34px;
+    }
+
+    &--prev,
+    &--next {
+      padding: 0 0.75rem;
+    }
+  }
+
+  &__btn-text {
+    @media (max-width: 480px) {
+      display: none;
+    }
+  }
+
+  &__pages {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  &__page-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 34px;
+    min-width: 34px;
+    padding: 0 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover:not(&--active) {
+      color: #0f172a;
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      transform: translateY(-1px);
+    }
+
+    &--active {
+      color: #ffffff !important;
+      background: #2357fe !important;
+      border-color: #2357fe !important;
+      box-shadow: 0 2px 8px rgba(35, 87, 254, 0.35);
+      cursor: default;
+    }
+  }
+
+  &__ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    color: #94a3b8;
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+}

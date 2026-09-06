@@ -98,17 +98,38 @@ export async function listContracts({
 } = {}) {
   const where = {};
 
-  if (employee_id) where.employeeId = employee_id;
-  if (status) where.status = status;
-  if (department_id) where.departmentId = department_id;
-  if (contract_type) where.contractType = contract_type;
+  if (employee_id && employee_id !== 'ALL' && employee_id !== 'all') {
+    where.employeeId = employee_id;
+  }
+  if (status && status !== 'ALL' && status !== 'all') {
+    where.status = status;
+  }
+  if (department_id && department_id !== 'ALL' && department_id !== 'all') {
+    where.departmentId = department_id;
+  }
+  if (contract_type && contract_type !== 'ALL' && contract_type !== 'all') {
+    where.contractType = contract_type;
+  }
 
-  if (search) {
+  if (search && search.trim()) {
+    const q = search.trim();
+    const parts = q.split(/\s+/);
     where.OR = [
-      { reference: { contains: search, mode: 'insensitive' } },
-      { employee: { firstName: { contains: search, mode: 'insensitive' } } },
-      { employee: { lastName: { contains: search, mode: 'insensitive' } } },
-      { employee: { employeeCode: { contains: search, mode: 'insensitive' } } },
+      { reference: { contains: q, mode: 'insensitive' } },
+      { employee: { firstName: { contains: q, mode: 'insensitive' } } },
+      { employee: { lastName: { contains: q, mode: 'insensitive' } } },
+      { employee: { employeeCode: { contains: q, mode: 'insensitive' } } },
+      { department: { name: { contains: q, mode: 'insensitive' } } },
+      ...(parts.length > 1
+        ? [
+            {
+              AND: [
+                { employee: { firstName: { contains: parts[0], mode: 'insensitive' } } },
+                { employee: { lastName: { contains: parts.slice(1).join(' '), mode: 'insensitive' } } },
+              ],
+            },
+          ]
+        : []),
     ];
   }
 
@@ -116,7 +137,7 @@ export async function listContracts({
   const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const [total, items] = await Promise.all([
+  const [total, items, statusGroups, totalAll, activeContracts] = await Promise.all([
     prisma.contract.count({ where }),
     prisma.contract.findMany({
       where,
@@ -131,7 +152,31 @@ export async function listContracts({
         salaryStructure: { select: { id: true, name: true } },
       },
     }),
+    prisma.contract.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    }),
+    prisma.contract.count(),
+    prisma.contract.findMany({
+      where: { status: 'ACTIVE' },
+      select: { wage: true },
+    }),
   ]);
+
+  const statusCounts = {
+    ALL: totalAll,
+    ACTIVE: 0,
+    DRAFT: 0,
+    EXPIRED: 0,
+    CANCELLED: 0,
+  };
+  statusGroups.forEach((g) => {
+    if (g.status && statusCounts[g.status] !== undefined) {
+      statusCounts[g.status] = g._count.status;
+    }
+  });
+
+  const totalMonthlyWage = activeContracts.reduce((sum, c) => sum + (Number(c.wage) || 0), 0);
 
   return {
     items: items.map(formatContract),
@@ -140,6 +185,11 @@ export async function listContracts({
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum) || 1,
+    },
+    meta: {
+      statusCounts,
+      totalAll,
+      totalMonthlyWage,
     },
   };
 }
