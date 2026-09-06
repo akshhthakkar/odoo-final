@@ -59,6 +59,7 @@ export default function EmployeesPage() {
     lastName: '',
     code: '',
     email: '',
+    password: '',
     phone: '',
     departmentId: '',
     jobId: '',
@@ -172,6 +173,7 @@ export default function EmployeesPage() {
       lastName: '',
       code: nextCode,
       email: '',
+      password: '',
       phone: '',
       departmentId: departments[0]?.id || '',
       jobId: jobs[0]?.id || '',
@@ -234,6 +236,7 @@ export default function EmployeesPage() {
         hire_date: newEmp.hireDate || new Date().toISOString().slice(0, 10),
         department_id: newEmp.departmentId || (departments[0]?.id || null),
         job_id: newEmp.jobId || (jobs[0]?.id || null),
+        ...(newEmp.password && newEmp.password.trim() ? { password: newEmp.password.trim() } : {}),
         initial_leaves: {
           casual_leave: Number(newEmp.casualLeave) >= 0 ? Number(newEmp.casualLeave) : 12,
           sick_leave: Number(newEmp.sickLeave) >= 0 ? Number(newEmp.sickLeave) : 12,
@@ -704,6 +707,19 @@ export default function EmployeesPage() {
                       onChange={(e) => setNewEmp({ ...newEmp, hireDate: e.target.value })}
                     />
                   </div>
+                </div>
+
+                <div className="emp-modal__field">
+                  <label>Initial Account Password (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Password@123 (Defaults to Password@123 if empty)"
+                    value={newEmp.password}
+                    onChange={(e) => setNewEmp({ ...newEmp, password: e.target.value })}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
+                    Used by the employee to log in immediately. If left empty, default password is <code>Password@123</code>.
+                  </span>
                 </div>
 
                 {/* Annual Leave Balances Allocation */}

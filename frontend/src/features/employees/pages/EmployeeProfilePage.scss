@@ -658,12 +658,21 @@
   overflow: hidden;
   animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
+  form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 18px 24px;
     border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
   }
 
   &__header-title {
@@ -704,6 +713,7 @@
     background: #f8fafc;
     padding: 0 24px;
     gap: 8px;
+    flex-shrink: 0;
   }
 
   &__tab-btn {
@@ -734,6 +744,9 @@
   &__body {
     padding: 24px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 18px;

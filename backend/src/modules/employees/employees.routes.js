@@ -55,6 +55,7 @@ const createEmployeeSchema = z.object({
   first_name: z.string().min(1).max(80),
   last_name: z.string().min(1).max(80),
   email: z.string().email().max(255),
+  password: z.string().min(6).max(100).optional(),
   phone: z.string().max(20).nullable().optional(),
   date_of_birth: dateOfBirthSchema.nullable().optional(),
   gender: z.string().max(20).nullable().optional(),
@@ -107,9 +108,10 @@ router.get(
   validateQuery(listEmployeesQuerySchema),
   employees.listEmployees
 );
+
+// getEmployee handles both HR roles and self-service scoping for EMPLOYEE role
 router.get(
   '/:id',
-  requireSelfOrRole('ADMIN', 'HR_MANAGER', 'HR_PAYROLL_MANAGER', 'HR_PAYROLL_USER'),
   employees.getEmployee
 );
 
@@ -122,9 +124,9 @@ router.post(
   employees.createEmployee
 );
 
+// updateEmployee handles both HR roles and self-service personal details updates for EMPLOYEE role
 router.patch(
   '/:id',
-  requireSelfOrRole(...HR_ROLES),
   validateBody(updateEmployeeSchema),
   employees.updateEmployee
 );

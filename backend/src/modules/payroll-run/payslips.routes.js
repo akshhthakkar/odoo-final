@@ -26,10 +26,22 @@ router.use(requireAuth);
 
 router.post(
   '/previews',
-  requireRole(...READ_ROLES),
   validateBody(previewSchema),
   async (req, res, next) => {
     try {
+      if (req.user.role === 'EMPLOYEE') {
+        if (!req.user.employee_id || req.user.employee_id !== req.body.employee_id) {
+          return res.status(403).json({
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Access denied: Employees can only preview their own payslip' },
+          });
+        }
+      } else if (!READ_ROLES.includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Access denied' },
+        });
+      }
       const preview = await previewService.previewPayslip(req.body);
       res.json({ success: true, data: preview });
     } catch (err) {

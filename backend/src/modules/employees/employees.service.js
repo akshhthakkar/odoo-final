@@ -265,8 +265,13 @@ export async function createEmployee(data, actorId) {
   // Auto-provision or link User account for seamless employee login workflow
   if (employee.email) {
     const existingUser = await prisma.user.findUnique({ where: { email: employee.email } });
+    const rawPassword =
+      typeof data.password === 'string' && data.password.trim().length >= 6
+        ? data.password.trim()
+        : 'Password@123';
+    const passwordHash = await bcrypt.hash(rawPassword, 12);
+
     if (!existingUser) {
-      const passwordHash = await bcrypt.hash('Password@123', 12);
       await prisma.user.create({
         data: {
           email: employee.email,
@@ -277,11 +282,20 @@ export async function createEmployee(data, actorId) {
           isActive: true,
         },
       });
-    } else if (!existingUser.employeeId) {
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: { employeeId: employee.id },
-      });
+    } else {
+      const userUpdate = {};
+      if (!existingUser.employeeId) {
+        userUpdate.employeeId = employee.id;
+      }
+      if (typeof data.password === 'string' && data.password.trim().length >= 6) {
+        userUpdate.passwordHash = passwordHash;
+      }
+      if (Object.keys(userUpdate).length > 0) {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: userUpdate,
+        });
+      }
     }
   }
 
